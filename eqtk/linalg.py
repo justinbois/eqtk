@@ -1,15 +1,6 @@
 import sys
 import numpy as np
-
-try:
-    import numba
-
-    if numba.__version__ >= "0.42.0":
-        have_numba = True
-    else:
-        have_numba = False
-except:
-    have_numba = False
+from . import numba_check
 
 # A small number that's basically zero
 FLOAT_EPS = 1.1 * sys.float_info.epsilon
@@ -44,13 +35,33 @@ def solve_pos_def(A, b):
     -------
     output : ndarray, shape (n,)
         Solution x to A x = b.
+    success : bool
+        False if Cholesky decomposition failed.
     """
     L, p, success = modified_cholesky(A)
 
     if not success:
-        raise RuntimeError("Cholesky decomposition failed; A not pos def.")
+        return np.zeros(len(b)), success
 
-    return modified_cholesky_solve(L, p, b)
+    return modified_cholesky_solve(L, p, b), success
+
+
+def _check_symmetry(A, atol=1e-8, rtol=1e-5):
+    """Check to make sure a matrix is symmetric, 2D."""
+    # Make sure it's a 2D array
+    if len(A.shape) != 2:
+        raise RuntimeError("A not a 2D array.")
+
+    # Make sure it's square
+    n = A.shape[0]
+    if n != A.shape[1]:
+        raise RuntimeError("A not square.")
+
+    # Test for symmetry
+    for i in range(n):
+        for j in range(i):
+            if not np.abs(A[i, j] - A[j, i]) < atol + rtol * abs(A[i, j]):
+                raise RuntimeError("A not symmetric.")
 
 
 def modified_cholesky(A):
@@ -77,23 +88,8 @@ def modified_cholesky(A):
         True if Cholesky decomposition was successful and False otherwise,
         usually due to matrix not being positive semidefinite.
     """
-
-    # Make sure it's a 2D array
-    if len(A.shape) != 2:
-        raise RuntimeError("A not a 2D array.")
-
-    # Make sure it's square
+    _check_symmetry(A)
     n = A.shape[0]
-    if n != A.shape[1]:
-        raise RuntimeError("A not square.")
-
-    # Test for symmetry
-    atol = 1e-8
-    rtol = 1e-5
-    for i in range(n):
-        for j in range(i):
-            if not np.abs(A[i, j] - A[j, i]) < atol + rtol * abs(A[i, j]):
-                raise RuntimeError("A not symmetric.")
 
     L = np.copy(A)
     p = np.arange(n)
@@ -533,7 +529,10 @@ def nullspace_qr(A, tol=1e-12):
     rank = np.sum(np.abs(np.diag(r)) > tol)
     return q[:, n - rank - 1 :]
 
-if False:
+if numba_check.numba_check():
+    import numba
+
+    _check_symmetry = numba.jit(_check_symmetry, nopython=True)
     modified_cholesky = numba.jit(modified_cholesky, nopython=True)
     modified_cholesky_solve = numba.jit(modified_cholesky_solve, nopython=True)
     lower_tri_solve = numba.jit(lower_tri_solve, nopython=True)

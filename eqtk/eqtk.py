@@ -1024,7 +1024,6 @@ def eqtk_conc_optimize_pure_python(
         delta_bar=trust_region_params.delta_bar,
         eta=trust_region_params.eta,
         min_delta=trust_region_params.min_delta,
-        report_steps=False,
     )
 
     # Try other initial guesses if it did not converge
@@ -1047,7 +1046,6 @@ def eqtk_conc_optimize_pure_python(
             delta_bar=trust_region_params.delta_bar,
             eta=trust_region_params.eta,
             min_delta=trust_region_params.min_delta,
-            report_steps=False,
         )
         n_trial += 1
 

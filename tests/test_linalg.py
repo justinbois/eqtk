@@ -90,9 +90,10 @@ def test_modified_cholesky_solve(n):
 @hypothesis.settings(deadline=None)
 @hypothesis.given(hs.integers(min_value=1, max_value=10))
 def test_solve_pos_def(n):
-    A = random_matrix(n)
+    A = random_pos_def(n)
     b = random_array(n)
-    x = eqtk.linalg.solve_pos_def(A, b)
+    x, success = eqtk.linalg.solve_pos_def(A, b)
+    assert success
     assert np.allclose(A @ x, b)
 
 

@@ -7,36 +7,14 @@ import warnings
 import numpy as np
 
 from . import linalg
-
-try:
-    import numba
-
-    if numba.__version__ >= "0.42.0":
-        have_numba = True
-    else:
-        have_numba = False
-except:
-    have_numba = False
-
-# Throw RuntimeWarnings as errors
-warnings.simplefilter("error", RuntimeWarning)
+from . import numba_check
 
 EQTK_MAXLOGX = 250.0
 EQTK_NUM_PRECISION = 1e-12
 
+
 def compute_logx(mu, G, A):
     return -G + np.dot(mu, A)
-
-
-def compute_x(mu, G, A, log_scale_param):
-    """
-    Computes the mole fractions of all species in the dilute solution
-    in terms of the chemical potentials of the particles (mu), the
-    free energies of all the species (G), and the stoichiometry
-    matrix.  The chemical potentials and free energies are both in
-    units of kT.
-    """
-    return np.exp(-G + np.dot(mu, A) - log_scale_param)
 
 
 def rescale_x(x, log_scale_param):
@@ -56,7 +34,7 @@ def obj_fun(mu, x, G, A, constraint_vector):
     Compute the negative dual function for equilibrium calcs.
 
     The constraint vector must be previously rescaled appropriately to
-    match the `log_scale_param` of `compute_x()`.
+    match the `log_scale_param`.
     """
     return np.sum(x) - np.dot(mu, constraint_vector)
 
@@ -66,7 +44,7 @@ def grad(x, A, constraint_vector):
     Computes the gradient of the negative dual function.
 
     The constraint vector must be previously rescaled appropriately to
-    match the `log_scale_param` of `compute_x()`.
+    match the `log_scale_param`.
     """
     return -constraint_vector + np.dot(A, x)
 
@@ -94,7 +72,6 @@ def trust_region_convex_unconstrained(
     delta_bar=1000.0,
     eta=0.125,
     min_delta=1e-12,
-    report_steps=False,
 ):
     """
     Performs a unconstrained trust region optimization on a convex
@@ -127,7 +104,7 @@ def trust_region_convex_unconstrained(
     iters = 0
     n_no_step = 0
     mu = np.copy(mu0)
-    step_tally = np.zeros(6).astype(int)
+    step_tally = np.zeros(6, dtype=np.int64)
 
     # Calculate the concentrations
     logx = compute_logx(mu, G, A)
@@ -163,8 +140,6 @@ def trust_region_convex_unconstrained(
         elif rho > 0.75 and abs(np.linalg.norm(p) - delta) < EQTK_NUM_PRECISION:
             delta = min(2.0 * delta, delta_bar)
 
-        print(rho, f_new-f, p, g, search_result)
-
         # Make step based on rho
         if rho > eta:
             log_scale_param_new = logx.max()
@@ -185,10 +160,11 @@ def trust_region_convex_unconstrained(
         while (
             newton_success and check_tol(g, tol, log_scale_param) and iters < max_iters
         ):
-            try:
-                pB = -linalg.solve_pos_def(B, g)
+            neg_pB, newton_success = linalg.solve_pos_def(B, g)
+            if newton_success:
+                pB = -neg_pB
                 mu_new = mu + pB
-                logx = compute_x(mu_new, G, A)
+                logx = compute_logx(mu_new, G, A)
                 log_scale_param_new = logx.max()
                 x_new = np.exp(logx - log_scale_param_new)
                 constr_vec_new = rescale_constraint_vector(
@@ -209,9 +185,8 @@ def trust_region_convex_unconstrained(
                     step_tally[0] += 1
                 else:
                     newton_success = False
-                iters += 1
-            except:
-                newton_success = False
+            iters += 1
+
         if newton_success and not check_tol(g, tol, log_scale_param):
             converged = True
         else:
@@ -259,16 +234,14 @@ def search_direction_dogleg(g, B, delta):
     delta2 = delta ** 2
 
     # Compute Newton step, pB
-    try:
-        pB = -linalg.solve_pos_def(B, g)
-        cholesky_success = True
+    neg_pB, cholesky_success = linalg.solve_pos_def(B, g)
+    pB = -neg_pB
 
-        # If Newton step is in trust region, take it
+    # If Newton step is in trust region, take it
+    if cholesky_success:
         pB2 = np.dot(pB, pB)
         if pB2 <= delta2:
             return pB, 1
-    except:
-        cholesky_success = False
 
     # Compute Cauchy step, pU
     pU = -np.dot(g, g) / np.dot(g, np.dot(B, g)) * g
@@ -323,9 +296,16 @@ def check_tol(g, tol, log_scale_param):
     return False
 
 
-if True:
-    check_tol = numba.jit(check_tol, nopython=True)
-    compute_x = numba.jit(compute_x, nopython=True)
+if numba_check.numba_check():
+    import numba
+
+    compute_logx = numba.jit(compute_logx, nopython=True)
+    rescale_constraint_vector = numba.jit(rescale_constraint_vector, nopython=True)
     obj_fun = numba.jit(obj_fun, nopython=True)
     grad = numba.jit(grad, nopython=True)
     hes = numba.jit(hes, nopython=True)
+    search_direction_dogleg = numba.jit(search_direction_dogleg, nopython=True)
+    trust_region_convex_unconstrained = numba.jit(
+        trust_region_convex_unconstrained, nopython=True
+    )
+    check_tol = numba.jit(check_tol, nopython=True)
