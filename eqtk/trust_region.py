@@ -1,0 +1,331 @@
+"""
+Trust region method of optimization of convex objective function.
+"""
+
+import warnings
+
+import numpy as np
+
+from . import linalg
+
+try:
+    import numba
+
+    if numba.__version__ >= "0.42.0":
+        have_numba = True
+    else:
+        have_numba = False
+except:
+    have_numba = False
+
+# Throw RuntimeWarnings as errors
+warnings.simplefilter("error", RuntimeWarning)
+
+EQTK_MAXLOGX = 250.0
+EQTK_NUM_PRECISION = 1e-12
+
+def compute_logx(mu, G, A):
+    return -G + np.dot(mu, A)
+
+
+def compute_x(mu, G, A, log_scale_param):
+    """
+    Computes the mole fractions of all species in the dilute solution
+    in terms of the chemical potentials of the particles (mu), the
+    free energies of all the species (G), and the stoichiometry
+    matrix.  The chemical potentials and free energies are both in
+    units of kT.
+    """
+    return np.exp(-G + np.dot(mu, A) - log_scale_param)
+
+
+def rescale_x(x, log_scale_param):
+    """Rescale the concentrations.
+    """
+    return x * np.exp(-log_scale_param)
+
+
+def rescale_constraint_vector(constraint_vector, log_scale_param):
+    """Rescale the constraint vector by the maximal concentration.
+    """
+    return constraint_vector * np.exp(-log_scale_param)
+
+
+def obj_fun(mu, x, G, A, constraint_vector):
+    """
+    Compute the negative dual function for equilibrium calcs.
+
+    The constraint vector must be previously rescaled appropriately to
+    match the `log_scale_param` of `compute_x()`.
+    """
+    return np.sum(x) - np.dot(mu, constraint_vector)
+
+
+def grad(x, A, constraint_vector):
+    """
+    Computes the gradient of the negative dual function.
+
+    The constraint vector must be previously rescaled appropriately to
+    match the `log_scale_param` of `compute_x()`.
+    """
+    return -constraint_vector + np.dot(A, x)
+
+
+def hes(x, A):
+    """
+    Computes the gradient of the negative dual function.
+    """
+    m = A.shape[0]
+    B = np.empty((m, m))
+    for i in range(m):
+        for j in range(i + 1):
+            B[j][i] = np.dot(x, A[j, :] * A[i, :])
+            B[i][j] = B[j][i]
+    return B
+
+
+def trust_region_convex_unconstrained(
+    mu0,
+    G,
+    A,
+    constraint_vector,
+    tol,
+    max_iters=10000,
+    delta_bar=1000.0,
+    eta=0.125,
+    min_delta=1e-12,
+    report_steps=False,
+):
+    """
+    Performs a unconstrained trust region optimization on a convex
+    function where the gradient and hessian have analytical forms and
+    the functions to calculate them are given.  This algorithm is
+    given in Nocedal and Wright, Numerical Optimization, 1999, page
+    68, with the dogleg method on page 71.
+
+    mu0: initial guess of optimal mu
+    f: the objective function of the form f(mu, *params)
+    grad: Function to compute the gradient of f.  grad(mu, *params)
+    hes: Function to compute the gradient of f.  hes(mu, *params)
+
+    In the objective function is strictly convex, the trust region
+    algorithm is globally convergent.  However, on occasion, when
+    close to the optimum, the gradient may be close to zero, but not
+    within tolerance, but the value of the objective function is the
+    optimal value to within machine precision.  This results in the
+    criterion for shrinking the trust region to be triggered (rho ≈ 0),
+    and the trust region shrinks to a infinitum.  As a remedy for this, we
+    specify min_delta to be the minimal trust region radius allowed.  When
+    the trust region radius just below
+    this value, we are very very close to the minimum.  The algorithm
+    then proceeds with Newton steps until convergence is achieved or
+    the Newton step fails to decrease the norm of the gradient.
+    """
+
+    # Initializations
+    delta = 0.99 * delta_bar
+    iters = 0
+    n_no_step = 0
+    mu = np.copy(mu0)
+    step_tally = np.zeros(6).astype(int)
+
+    # Calculate the concentrations
+    logx = compute_logx(mu, G, A)
+    log_scale_param = logx.max()
+    x = np.exp(logx - log_scale_param)
+    constr_vec = rescale_constraint_vector(constraint_vector, log_scale_param)
+
+    # Calculate the function, gradient, and hessian
+    f = obj_fun(mu, x, G, A, constr_vec)
+    g = grad(x, A, constr_vec)
+    B = hes(x, A)
+
+    # Run the trust region
+    while (
+        iters < max_iters and check_tol(g, tol, log_scale_param) and delta >= min_delta
+    ):
+        # Solve for search direction
+        p, search_result = search_direction_dogleg(g, B, delta)
+        step_tally[search_result - 1] += 1
+
+        # New candidate mu, x
+        mu_new = mu + p
+        logx = compute_logx(mu_new, G, A)
+        x_new = np.exp(logx - log_scale_param)
+
+        # Calculate rho, ratio of actual to predicted reduction
+        f_new = obj_fun(mu_new, x_new, G, A, constr_vec)
+        rho = (f_new - f) / (np.dot(g, p) + np.dot(p, np.dot(B, p)) / 2.0)
+
+        # Adjust delta
+        if rho < 0.25:
+            delta /= 4.0
+        elif rho > 0.75 and abs(np.linalg.norm(p) - delta) < EQTK_NUM_PRECISION:
+            delta = min(2.0 * delta, delta_bar)
+
+        print(rho, f_new-f, p, g, search_result)
+
+        # Make step based on rho
+        if rho > eta:
+            log_scale_param_new = logx.max()
+            rescale_factor = np.exp(log_scale_param - log_scale_param_new)
+            log_scale_param = log_scale_param_new
+            mu = mu_new
+            x = x_new * rescale_factor
+            f = f_new * rescale_factor
+            constr_vec = rescale_constraint_vector(constraint_vector, log_scale_param)
+            g = grad(x, A, constr_vec)
+            B = hes(x, A)
+
+        iters += 1
+
+    # Try Newton stepping to the solution if trust region failed (should not get here)
+    if delta <= min_delta:
+        newton_success = True
+        while (
+            newton_success and check_tol(g, tol, log_scale_param) and iters < max_iters
+        ):
+            try:
+                pB = -linalg.solve_pos_def(B, g)
+                mu_new = mu + pB
+                logx = compute_x(mu_new, G, A)
+                log_scale_param_new = logx.max()
+                x_new = np.exp(logx - log_scale_param_new)
+                constr_vec_new = rescale_constraint_vector(
+                    constraint_vector, log_scale_param_new
+                )
+                g_new = grad(x_new, A, constr_vec)
+
+                # If decreased the gradient, take the step.
+                scale_param_ratio = np.exp(log_scale_param - log_scale_param_new)
+                if np.linalg.norm(g_new) < np.linalg.norm(g) / scale_param_ratio:
+                    mu = mu_new
+                    x = x_new
+                    log_scale_param = log_scale_param_new
+                    constr_vec = constr_vec_new
+                    g = g_new
+                    B = hes(x_new, A)
+
+                    step_tally[0] += 1
+                else:
+                    newton_success = False
+                iters += 1
+            except:
+                newton_success = False
+        if newton_success and not check_tol(g, tol, log_scale_param):
+            converged = True
+        else:
+            converged = False
+    else:
+        converged = True
+
+    if not converged and iters == max_iters:
+        converged = False
+    else:
+        converged = True
+
+    return mu, converged, step_tally
+
+
+def search_direction_dogleg(g, B, delta):
+    """
+    Computes the search direction using the dogleg method (Nocedal and Wright,
+    page 71).  Notation is consistent with that in this reference.
+
+    p = direction to step
+    g = gradient
+    B = Hessian
+    delta = radius of trust region
+
+    Due to the construction of the problem, the minimization routine
+    to find tau can be solved exactly by solving a quadratic.  There
+    can be precision issues with this, so this is checked.  If the
+    argument of the square root in the quadratic formula is negative,
+    there must be a precision error, as such a situation is not
+    possible in the construction of the problem.
+
+    Returns:
+      p, the search direction and also an integer,
+
+      1 if step was a pure Newton step (didn't hit trust region boundary)
+      2 if the step was purely Cauchy in nature (hit trust region boundary)
+      3 if the step was a dogleg step (part Newton and part Cauchy)
+      4 if Cholesky decomposition failed and we had to take a Cauchy step
+      5 if Cholesky decompostion failed but we would've taken Cauchy step anyway
+      6 if the dogleg calculation failed (should never happen)
+    """
+
+    # Useful to have around
+    delta2 = delta ** 2
+
+    # Compute Newton step, pB
+    try:
+        pB = -linalg.solve_pos_def(B, g)
+        cholesky_success = True
+
+        # If Newton step is in trust region, take it
+        pB2 = np.dot(pB, pB)
+        if pB2 <= delta2:
+            return pB, 1
+    except:
+        cholesky_success = False
+
+    # Compute Cauchy step, pU
+    pU = -np.dot(g, g) / np.dot(g, np.dot(B, g)) * g
+    pU2 = np.dot(pU, pU)
+    if pU2 >= delta2:  # In this case, just take Cauchy step, 0 < tau <= 1
+        tau = np.sqrt(delta2 / pU2)
+        p = tau * pU
+        if not cholesky_success:
+            return p, 5  # Cholesky failure, but doesn't matter, just use Cauchy
+        else:
+            return p, 2  # Took Cauchy step
+
+    if not cholesky_success:  # Failed computing Newton, have to take Cauchy
+        return pU, 4
+
+    # Compute the dogleg step
+    pBpU = np.dot(pB, pU)  # Needed for dogleg computation
+
+    # Compute constants for quadratic forumla for solving
+    # ||pU + beta (pB-pU)||^2 = delta2, with beta = tau - 1
+    a = pB2 + pU2 - 2.0 * pBpU  # a > 0
+    b = 2.0 * (pBpU - pU2)  # b can be positive or negative
+    c = pU2 - delta2  # c < 0 since pU2 < delta 2 to get here
+    q = -0.5 * (b + np.sign(b) * np.sqrt(b ** 2 - 4.0 * a * c))
+
+    # Choose correct (positive) root (don't have to worry about a = 0 because
+    # if pU \approx pB, we would have already taken Newton step
+    if abs(b) < EQTK_NUM_PRECISION:
+        beta = np.sqrt(-c / a)
+    elif b < 0.0:
+        beta = q / a
+    else:  # b > 0
+        beta = c / q
+
+    # Take the dogleg step
+    if 0.0 <= beta <= 1.0:  # Should always be the case
+        p = pU + beta * (pB - pU)
+        return p, 3
+    else:  # Something is messed up, take Cauchy step (should never get here)
+        return pU, 6
+
+
+def check_tol(g, tol, log_scale_param):
+    """
+    Check to see if the tolerance has been met.  Returns False if
+    tolerance is met.
+    """
+    s = np.exp(log_scale_param)
+    for tolerance, gradient in zip(tol, g):
+        if abs(gradient) > tolerance / s:
+            return True
+    return False
+
+
+if True:
+    check_tol = numba.jit(check_tol, nopython=True)
+    compute_x = numba.jit(compute_x, nopython=True)
+    obj_fun = numba.jit(obj_fun, nopython=True)
+    grad = numba.jit(grad, nopython=True)
+    hes = numba.jit(hes, nopython=True)
