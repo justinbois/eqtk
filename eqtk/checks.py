@@ -2,6 +2,7 @@ import numpy as np
 import eqtk
 from . import linalg
 
+
 def check_equilibrium_NK(c0, c, N=None, K=None):
     """
     Check concentrations to verify equilibrium conditions are met.
@@ -220,10 +221,8 @@ def check_eq_input(c0, N=None, K=None, A=None, G=None):
     if A is not None:
         if type(A) == list or type(A) == tuple:
             A = np.array(A, order="C").astype(float)
-
-        if not A.flags["C_CONTIGUOUS"]:
-            A = np.array(A, order="C").astype(float)
-        A = A.astype(float)
+        else:
+            A = np.ascontiguousarray(A, dtype=float)
 
     # Check G
     if G is not None:

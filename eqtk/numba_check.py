@@ -1,6 +1,14 @@
 import numpy as np
 
 def numba_check():
+    """Check to see if numba is available and working properly.
+
+    Returns
+    -------
+    output : bool
+        True is numba is installed and working properly; False
+        otherwise.
+    """
     try:
         import numba
 

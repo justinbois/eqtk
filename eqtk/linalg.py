@@ -496,7 +496,7 @@ def nullspace_svd(A, tol=1e-12):
     u, sigma, v_trans = np.linalg.svd(A)
     nonzero_inds = (sigma >= tol).sum()
     N = v_trans[nonzero_inds:, :].transpose()
-    return N
+    return np.ascontiguousarray(N)
 
 
 def nullspace_qr(A, tol=1e-12):

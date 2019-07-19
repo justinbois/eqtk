@@ -9,19 +9,9 @@ import numpy as np
 from . import checks
 from . import trust_region
 from . import linalg
-
-try:
-    import numba
-
-    if numba.__version__ >= "0.42.0":
-        have_numba = True
-    else:
-        have_numba = False
-except:
-    have_numba = False
+from . import numba_check
 
 
-# #########
 def conc(
     c0,
     N=None,
@@ -177,7 +167,7 @@ def conc(
                       [ 0, -1, -1,  0,  0,  1]])
     >>> K = np.array([50.0, 10.0, 40.0, 100.0])
     >>> c0 = np.array([1.0, 3.0, 0.0, 0.0, 0.0, 0.0])
-    >>> c = eqtk.conc(N, K, c0, units='mM')
+    >>> c = eqtk.conc(c0, N, K, units='mM')
     >>> c
     array([ 0.00121271,  0.15441164,  0.06063529,  0.00187256,  0.95371818,
             0.93627945])
@@ -202,8 +192,8 @@ def conc(
                       [ 0,  0,  1,  0,  1]])
     >>> G = np.array([0.0, 1.0, -2.0, -3.0, -7.0])
     >>> c0 = np.array([0.005, 0.001, 0.002, 0.0, 0.0])
-    >>> x, run_stats = eqtk.conc(None, None, c0, A=A, G=G, units=None,
-                                return_run_stats=True)
+    >>> x, run_stats = eqtk.conc(c0, A=A, G=G, units=None, 
+                                 return_run_stats=True)
     >>> x
     array([ 0.00406569,  0.00081834,  0.00124735,  0.00018166,  0.00075265])
     >>> run_stats.__dict__
@@ -249,7 +239,6 @@ def conc(
     )
 
 
-# #########
 def sweep_titration(
     c0,
     N=None,
@@ -271,16 +260,16 @@ def sweep_titration(
 
     Parameters
     ----------
+    c0 : array_like, shape (n_titration_points, n_compounds)
+        Array containing the total "initial" concentration of all compounds
+        in solution for each titration point. c0[i,j] is the initial
+        concentration of compound j at titration point i.
     N : array_like, shape (n_reactions, n_compounds)
         N[r,j] = the stoichiometric coefficient of compound j
         in chemical reaction r.  Ignored if G is not None.
     K : array_like, shape (n_reactions,)
         K[r] is the equilibrium constant for chemical reaction r.
         Ignored if G is not None.
-    c0 : array_like, shape (n_titration_points, n_compounds)
-        Array containing the total "initial" concentration of all compounds
-        in solution for each titration point. c0[i,j] is the initial
-        concentration of compound j at titration point i.
     units : string or None, default None
         The units of the given concentrations. Allowable values are
         'molar', 'M', 'millimolar', 'mM', 'micromolar', 'uM',
@@ -735,7 +724,6 @@ def volumetric_titration(
     return c
 
 
-# #########
 def final_value_titration(
     c0,
     set_species,
@@ -1192,7 +1180,7 @@ def prune_AG(A, G, x0, elemental):
         G_new = np.array([])
         x0_new = x0
 
-    return A_new, G_new, x0_new, active_compounds
+    return np.ascontiguousarray(A_new, dtype='float'), G_new, x0_new, active_compounds
 
 
 def eqtk_conc_pure_python(N, minus_log_K, x0, trust_region_params=None, quiet=True):
@@ -1276,6 +1264,7 @@ def eqtk_conc_pure_python(N, minus_log_K, x0, trust_region_params=None, quiet=Tr
 
             # Compute and check stoichiometric matrix
             A = linalg.nullspace_svd(N_new).transpose()
+            A = np.ascontiguousarray(A, dtype='float')
 
             if A.shape[0] > n_constraints_new:
                 raise ValueError(
@@ -1673,7 +1662,9 @@ def calc_smooth_curve(
 
 
 # Use Numba'd functions
-if have_numba:
+if numba_check.numba_check():
+    import numba
+
     _thermal_energy = numba.jit(_thermal_energy, nopython=True)
     # _dimensionless_free_energy = numba.jit(_dimensionless_free_energy,
     #                                       nopython=True)

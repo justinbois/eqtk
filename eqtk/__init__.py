@@ -11,7 +11,6 @@ import warnings
 # )
 
 from .eqtk import *
-from . import readout
 
 __author__ = """Justin Bois"""
 __email__ = "bois@caltech.edu"

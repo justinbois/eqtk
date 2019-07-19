@@ -244,6 +244,14 @@ def test_past_failures():
     x0 = np.array([[2.63761955e-04, 4.93360042e-07, 4.88340687e-07]])
     elemental = False
 
+    A = np.array([[ 0.14017013, -0.14017013,  0.67460053,  0.5344304 ,  0.39426026, 0.25409013], 
+        [-0.35101208,  0.35101208, -0.34109046,  0.00992162,  0.36093369, 0.71194577]])
+
+    G = np.array([17.10263824, 23.1630422 ,  5.9475773 , -2.55817204, -6.66598384, 3.27657859])
+    mu0 = np.array([1.85738132, 0.74171062])
+    constraint_vector = np.array([1.27017123e-06, 3.10710779e-06])
+    # eqtk.eqtk_conc_optimize_pure_python(A, G, constraint_vector)
+
 
 # # Tests
 # class NKTests(ut.TestCase):

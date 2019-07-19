@@ -62,6 +62,21 @@ def hes(x, A):
     return B
 
 
+def inv_scaling(B):
+    """Computes diagonal of scaling matrix."""
+    return 1.0 / np.sqrt(np.diag(B))
+
+
+def scaled_grad(g, inv_d):
+    """Computes the scaled gradient."""
+    return inv_d * g
+
+
+def scaled_hes(B, inv_d):
+    """Computes the scaled Hessian."""
+    return linalg.diag_multiply(B, inv_d)
+
+
 def trust_region_convex_unconstrained(
     mu0,
     G,
@@ -112,7 +127,7 @@ def trust_region_convex_unconstrained(
     x = np.exp(logx - log_scale_param)
     constr_vec = rescale_constraint_vector(constraint_vector, log_scale_param)
 
-    # Calculate the function, gradient, and hessian
+    # Calculate the function, gradient, hessian, and scaling matrix
     f = obj_fun(mu, x, G, A, constr_vec)
     g = grad(x, A, constr_vec)
     B = hes(x, A)
@@ -156,11 +171,17 @@ def trust_region_convex_unconstrained(
 
     # Try Newton stepping to the solution if trust region failed (should not get here)
     if delta <= min_delta:
+        # If we get here, it is because of numerical precision issues in computing
+        # f_new - f. When this is effectively zero, we cannot compute rho,
+        # so the trust region keeps shrinking. This also means we are very
+        # close to the minimum, so we will attempt to continue with Newton
+        # stepping.
         newton_success = True
         while (
             newton_success and check_tol(g, tol, log_scale_param) and iters < max_iters
         ):
             neg_pB, newton_success = linalg.solve_pos_def(B, g)
+
             if newton_success:
                 pB = -neg_pB
                 mu_new = mu + pB
@@ -229,9 +250,13 @@ def search_direction_dogleg(g, B, delta):
       5 if Cholesky decompostion failed but we would've taken Cauchy step anyway
       6 if the dogleg calculation failed (should never happen)
     """
-
     # Useful to have around
     delta2 = delta ** 2
+
+    # Rescale
+    inv_d = inv_scaling(B)
+    g = scaled_grad(g, inv_d)
+    B = scaled_hes(B, inv_d)
 
     # Compute Newton step, pB
     neg_pB, cholesky_success = linalg.solve_pos_def(B, g)
@@ -241,7 +266,7 @@ def search_direction_dogleg(g, B, delta):
     if cholesky_success:
         pB2 = np.dot(pB, pB)
         if pB2 <= delta2:
-            return pB, 1
+            return inv_d * pB, 1
 
     # Compute Cauchy step, pU
     pU = -np.dot(g, g) / np.dot(g, np.dot(B, g)) * g
@@ -250,17 +275,17 @@ def search_direction_dogleg(g, B, delta):
         tau = np.sqrt(delta2 / pU2)
         p = tau * pU
         if not cholesky_success:
-            return p, 5  # Cholesky failure, but doesn't matter, just use Cauchy
+            return inv_d * p, 5  # Cholesky failure, but doesn't matter, just use Cauchy
         else:
-            return p, 2  # Took Cauchy step
+            return inv_d * p, 2  # Took Cauchy step
 
     if not cholesky_success:  # Failed computing Newton, have to take Cauchy
-        return pU, 4
+        return inv_d * pU, 4
 
     # Compute the dogleg step
     pBpU = np.dot(pB, pU)  # Needed for dogleg computation
 
-    # Compute constants for quadratic forumla for solving
+    # Compute constants for quadratic formula for solving
     # ||pU + beta (pB-pU)||^2 = delta2, with beta = tau - 1
     a = pB2 + pU2 - 2.0 * pBpU  # a > 0
     b = 2.0 * (pBpU - pU2)  # b can be positive or negative
@@ -268,7 +293,7 @@ def search_direction_dogleg(g, B, delta):
     q = -0.5 * (b + np.sign(b) * np.sqrt(b ** 2 - 4.0 * a * c))
 
     # Choose correct (positive) root (don't have to worry about a = 0 because
-    # if pU \approx pB, we would have already taken Newton step
+    # if pU \approx pB, we would have already taken Newton step)
     if abs(b) < EQTK_NUM_PRECISION:
         beta = np.sqrt(-c / a)
     elif b < 0.0:
@@ -279,9 +304,9 @@ def search_direction_dogleg(g, B, delta):
     # Take the dogleg step
     if 0.0 <= beta <= 1.0:  # Should always be the case
         p = pU + beta * (pB - pU)
-        return p, 3
+        return inv_d * p, 3
     else:  # Something is messed up, take Cauchy step (should never get here)
-        return pU, 6
+        return inv_d * pU, 6
 
 
 def check_tol(g, tol, log_scale_param):
@@ -296,7 +321,7 @@ def check_tol(g, tol, log_scale_param):
     return False
 
 
-if numba_check.numba_check():
+if numba_check.numba_check() and False:
     import numba
 
     compute_logx = numba.jit(compute_logx, nopython=True)
@@ -304,6 +329,7 @@ if numba_check.numba_check():
     obj_fun = numba.jit(obj_fun, nopython=True)
     grad = numba.jit(grad, nopython=True)
     hes = numba.jit(hes, nopython=True)
+    scaling = numba.jit(scaling, nopython=True)
     search_direction_dogleg = numba.jit(search_direction_dogleg, nopython=True)
     trust_region_convex_unconstrained = numba.jit(
         trust_region_convex_unconstrained, nopython=True
