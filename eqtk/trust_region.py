@@ -194,8 +194,8 @@ def trust_region_convex_unconstrained(
                 g_new = grad(x_new, A, constr_vec)
 
                 # If decreased the gradient, take the step.
-                scale_param_ratio = np.exp(log_scale_param - log_scale_param_new)
-                if np.linalg.norm(g_new) < np.linalg.norm(g) / scale_param_ratio:
+                rescale_factor = np.exp(log_scale_param - log_scale_param_new)
+                if np.linalg.norm(g_new) < np.linalg.norm(g) / rescale_factor:
                     mu = mu_new
                     x = x_new
                     log_scale_param = log_scale_param_new
@@ -321,7 +321,7 @@ def check_tol(g, tol, log_scale_param):
     return False
 
 
-if numba_check.numba_check() and False:
+if numba_check.numba_check():
     import numba
 
     compute_logx = numba.jit(compute_logx, nopython=True)
@@ -329,7 +329,9 @@ if numba_check.numba_check() and False:
     obj_fun = numba.jit(obj_fun, nopython=True)
     grad = numba.jit(grad, nopython=True)
     hes = numba.jit(hes, nopython=True)
-    scaling = numba.jit(scaling, nopython=True)
+    inv_scaling = numba.jit(inv_scaling, nopython=True)
+    scaled_grad = numba.jit(scaled_grad, nopython=True)
+    scaled_hes = numba.jit(scaled_hes, nopython=True)
     search_direction_dogleg = numba.jit(search_direction_dogleg, nopython=True)
     trust_region_convex_unconstrained = numba.jit(
         trust_region_convex_unconstrained, nopython=True

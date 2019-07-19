@@ -533,6 +533,7 @@ if numba_check.numba_check():
     import numba
 
     _check_symmetry = numba.jit(_check_symmetry, nopython=True)
+    diag_multiply = numba.jit(diag_multiply, nopython=True)
     modified_cholesky = numba.jit(modified_cholesky, nopython=True)
     modified_cholesky_solve = numba.jit(modified_cholesky_solve, nopython=True)
     lower_tri_solve = numba.jit(lower_tri_solve, nopython=True)
