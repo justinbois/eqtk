@@ -149,8 +149,8 @@ def test_trivial():
     A = np.array([[]]).reshape((0, 1)).astype(float)
     G = -np.log(K)
     x0 = np.array([0]).astype(float)
-    res_NK, st_NK = eqtk.eqtk_conc_pure_python(N, -np.log(K), x0)
-    res_AG, st_AG = eqtk.eqtk_conc_from_free_energies_pure_python(A, G, x0)
+    res_NK = eqtk.solve(c0=x0, N=N, K=K)
+    res_AG = eqtk.solve(c0=x0, A=A, G=G)
     assert np.allclose(res_NK, K)
     assert np.allclose(res_AG, K)
 
@@ -172,8 +172,10 @@ def test_random_cases(n_random_test_cases=100, max_particles=4, max_compound_siz
         )
 
     for tc in random_test_cases:
-        res_NK, st_NK = eqtk.eqtk_conc_pure_python(tc.N, -np.log(tc.K), tc.x0)
-        res_AG, st_AG = eqtk.eqtk_conc_from_free_energies_pure_python(tc.A, tc.G, tc.x0)
+        if (tc.x0 < 0).any():
+            print(tc.x0)
+        res_NK = eqtk.solve(c0=tc.x0, N=tc.N, K=tc.K)
+        res_AG = eqtk.solve(c0=tc.x0, A=tc.A, G=tc.G)
         # assert rs_NK.n_chol_fail_cauchy_steps == 0
         # assert rs_NK.n_irrel_chol_fail == 0
         # assert rs_NK.n_dogleg_fail == 0
@@ -198,14 +200,16 @@ def test_scale_factor_failure():
             ]
         ]
     )
-    x = eqtk.eqtk_conc_from_free_energies_pure_python(A, G, x0)
+    x = eqtk.solve(c0=x0, A=A, G=G)
+    for x_val, x0_val in zip(x, x0):
+        assert np.all(eqtk.checks.check_equilibrium_AG(x0_val, x_val, A=A, G=G))
 
 
 def test_past_failures():
     A = np.array([[1.0, 0.0], [0.0, 1.0]])
     G = np.array([0.0, 0.0])
     x0 = np.array([[3.48219906e-06, 1.32719868e-10]])
-    elemental = False
+    assert np.allclose(eqtk.solve(c0=x0, A=A, G=G), x0)
 
     A = np.array([[1.0, 0.0, 2.0, 1.0, 0.0], [0.0, 1.0, 0.0, 1.0, 2.0]])
     G = np.array([0.0, 0.0, -16.76857677, -2.38430181, 1.22028775])
@@ -222,32 +226,30 @@ def test_past_failures():
     )
     elemental = False
 
-
-    N = np.array([[-2.,  1.,  0.,  0.],
-                  [-3.,  0.,  1.,  0.],
-                  [-4.,  0.,  0.,  1.]])
+    N = np.array([[-2.0, 1.0, 0.0, 0.0], [-3.0, 0.0, 1.0, 0.0], [-4.0, 0.0, 0.0, 1.0]])
     minus_log_K = np.array([-43.66660344, -68.14676841, -92.28023823])
     x0 = np.array([[1.87852623e-06, 3.75705246e-06, 1.25235082e-06, 4.69631557e-07]])
 
-
-    A = np.array([[1., 0.],
-                  [0., 1.]])
-    G = np.array([0., 0.])
+    A = np.array([[1.0, 0.0], [0.0, 1.0]])
+    G = np.array([0.0, 0.0])
     x0 = np.array([[2.24222410e-08, 1.63359284e-04]])
     elemental = False
 
-
-    A = np.array([[1., 0., 0.],
-                  [0., 1., 0.],
-                  [0., 0., 1.]])
-    G = np.array([0., 0., 0.])
+    A = np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
+    G = np.array([0.0, 0.0, 0.0])
     x0 = np.array([[2.63761955e-04, 4.93360042e-07, 4.88340687e-07]])
     elemental = False
 
-    A = np.array([[ 0.14017013, -0.14017013,  0.67460053,  0.5344304 ,  0.39426026, 0.25409013], 
-        [-0.35101208,  0.35101208, -0.34109046,  0.00992162,  0.36093369, 0.71194577]])
+    A = np.array(
+        [
+            [0.14017013, -0.14017013, 0.67460053, 0.5344304, 0.39426026, 0.25409013],
+            [-0.35101208, 0.35101208, -0.34109046, 0.00992162, 0.36093369, 0.71194577],
+        ]
+    )
 
-    G = np.array([17.10263824, 23.1630422 ,  5.9475773 , -2.55817204, -6.66598384, 3.27657859])
+    G = np.array(
+        [17.10263824, 23.1630422, 5.9475773, -2.55817204, -6.66598384, 3.27657859]
+    )
     mu0 = np.array([1.85738132, 0.74171062])
     constraint_vector = np.array([1.27017123e-06, 3.10710779e-06])
     # eqtk.eqtk_conc_optimize_pure_python(A, G, constraint_vector)

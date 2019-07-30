@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def numba_check():
     """Check to see if numba is available and working properly.
 
@@ -17,8 +18,7 @@ def numba_check():
 
             # Sometimes linalg things fail with inconsistent BLAS installations
             # Check that.
-            A = np.array([[0.06, 0.2],
-                          [0.2, 0.7 ]])
+            A = np.array([[0.06, 0.2], [0.2, 0.7]])
             b = np.array([1.2, 0.3])
 
             @numba.njit

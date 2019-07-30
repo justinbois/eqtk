@@ -1,9 +1,9 @@
 import sys
 import numpy as np
+
+from . import constants
 from . import numba_check
 
-# A small number that's basically zero
-FLOAT_EPS = 1.1 * sys.float_info.epsilon
 
 def diag_multiply(A, d):
     """Compute the D . A . D, where d is the diagonal of diagonal
@@ -12,10 +12,10 @@ def diag_multiply(A, d):
     B = np.empty_like(A)
 
     for j in range(len(d)):
-        B[:,j] = d[j] * A[:,j]
+        B[:, j] = d[j] * A[:, j]
 
     for i in range(len(d)):
-        B[i,:] = d[i] * B[i,:]
+        B[i, :] = d[i] * B[i, :]
 
     return B
 
@@ -112,7 +112,7 @@ def modified_cholesky(A):
         beta = np.sqrt(max(eta, xi / np.sqrt(n * n - 1)))
     else:
         beta = np.sqrt(eta)
-    beta = max(beta, FLOAT_EPS)
+    beta = max(beta, constants.float_eps)
 
     for k in range(n):
         # Pick a pivot.
@@ -160,7 +160,7 @@ def modified_cholesky(A):
             success = 0
 
         temp = abs(L[k, k])
-        temp = max(temp, FLOAT_EPS * eta)
+        temp = max(temp, constants.float_eps * eta)
         temp = max(temp, c_sum)
         L[k, k] = np.sqrt(temp)
 
@@ -276,7 +276,7 @@ def lower_tri_solve(L, b):
     # Solve Lx = b.
     x = np.copy(b)
     for j in range(n - 1):
-        if abs(L[j, j]) > FLOAT_EPS:
+        if abs(L[j, j]) > constants.float_eps:
             x[j] /= L[j, j]
             for i in range(j + 1, n):
                 x[i] -= x[j] * L[i, j]
@@ -284,7 +284,7 @@ def lower_tri_solve(L, b):
             x[j] = 0.0
 
     if n > 0:
-        if abs(L[n - 1, n - 1]) > FLOAT_EPS:
+        if abs(L[n - 1, n - 1]) > constants.float_eps:
             x[n - 1] /= L[n - 1, n - 1]
         else:
             x[n - 1] = 0.0
@@ -331,7 +331,7 @@ def upper_tri_solve(U, b):
     # Solve Ux = b by back substitution.
     x = np.copy(b)
     for j in range(n - 1, 0, -1):
-        if abs(U[j, j]) > FLOAT_EPS:
+        if abs(U[j, j]) > constants.float_eps:
             x[j] /= U[j, j]
             for i in range(0, j):
                 x[i] -= x[j] * U[i, j]
@@ -339,7 +339,7 @@ def upper_tri_solve(U, b):
             x[j] = 0.0
 
     if n > 0:
-        if abs(U[0, 0]) > FLOAT_EPS:
+        if abs(U[0, 0]) > constants.float_eps:
             x[0] /= U[0, 0]
         else:
             x[0] = 0.0
@@ -401,7 +401,7 @@ def lup_decomposition(A_in):
         p[k] = p[mu]
         p[mu] = i
 
-        if m_val > FLOAT_EPS:
+        if m_val > constants.float_eps:
             # If we have a non-zero pivot:
             for i in range(k + 1, n):
                 A[i, k] = A[i, k] / A[k, k]
@@ -528,6 +528,7 @@ def nullspace_qr(A, tol=1e-12):
     q, r = np.linalg.qr(A.transpose(), "complete")
     rank = np.sum(np.abs(np.diag(r)) > tol)
     return q[:, n - rank - 1 :]
+
 
 if numba_check.numba_check():
     import numba

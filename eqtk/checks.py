@@ -61,7 +61,7 @@ def check_equilibrium_NK(c0, c, N=None, K=None):
     >>> cons_mass_err
     array([ -4.11757295e-11,  -1.28775509e-11])
     """
-    c0_corr, N_corr, K_corr, _, _ = check_eq_input(c0, N, K)
+    c0_corr, N_corr, K_corr, _, _ = check_input(c0, N, K, A=None, G=None)
 
     N_new, minus_log_K_new, c0_new, active_compounds, active_reactions = eqtk.prune_NK(
         N_corr, -np.log(K_corr), c0_corr
@@ -95,18 +95,28 @@ def check_equilibrium_NK(c0, c, N=None, K=None):
     return eq_ok, cons_mass_ok
 
 
-def check_equilibrium_AG(
-    c0, c, A=None, G=None, T=None, solvent_density=None, units=None, G_units=None
-):
+def check_equilibrium_AG(c0, c, A, G):
     """Check equilibrium for the AG formulation.
 
     Equilibrium conditions are satisfied by construction; we need only
     to check conservation of mass.
     """
-    return 1 - np.dot(A, c) / np.dot(A, c0)
+    target = np.dot(A, c0)
+    res = np.dot(A, c)
+    cons_mass_ok = np.empty(len(res))
+    for i, (res_val, target_val) in enumerate(zip(res, target)):
+        if target_val == 0:
+            if res_val != 0:
+                cons_mass_ok[i] = False
+            else:
+                cons_mass_ok[i] = True
+        else:
+            cons_mass_ok[i] = np.isclose(res_val, target_val)
+
+    return cons_mass_ok
 
 
-def check_eq_input(c0, N=None, K=None, A=None, G=None):
+def check_input(c0, N, K, A, G):
     """
     Utility to check input to the function eqtk_conc.
     Does appropriate transposing and typing and returns result.
@@ -160,7 +170,7 @@ def check_eq_input(c0, N=None, K=None, A=None, G=None):
                       [ 0, -1, -1,  0,  0,  1]])
     >>> K = (50, 10, 40, 100)
     >>> c0 = np.array([1.0, 3.0, 0.0, 0.0, 0.0, 0.0])
-    >>> corr_c0, corr_N, corr_K, _, _ = eqtk.check_eq_input(c0, N, K,
+    >>> corr_c0, corr_N, corr_K, _, _ = eqtk.check_input(c0, N, K,
                                                         A=None, G=None)
     >>> corr_N
     array([[-1.,  0.,  1.,  0.,  0.,  0.],
@@ -170,12 +180,15 @@ def check_eq_input(c0, N=None, K=None, A=None, G=None):
     >>> corr_K
     array([  50.,   10.,   40.,  100.])
     """
-
     # Make sure inputs are ok
-    if (N is None or K is None) and (A is None or G is None):
-        raise ValueError("Must specify either N/K pair of A/G pair.")
+    err_str = "Must specify either N/K pair of A/G pair."
+    if N is None:
+        if A is None or G is None or K is not None:
+            raise RuntimeError(err_str)
+    elif K is None or A is not None or G is not None:
+        raise RuntimeError(err_str)
 
-    # Check c0 first (it's required)
+    # Check c0 first
     if type(c0) == list or type(c0) == tuple or not c0.flags["C_CONTIGUOUS"]:
         c0 = np.array(c0, order="C")
 
@@ -234,16 +247,6 @@ def check_eq_input(c0, N=None, K=None, A=None, G=None):
         elif len(np.shape(G)) != 1:
             raise ValueError("G is the wrong shape.")
 
-    # If both N and A are given, check to make sure rows of A span null(N)
-    if A is not None and N is not None:
-        if abs(np.dot(N, A.transpose())).max() > 1e-14:
-            raise ValueError("Rows of A do not span null space of N.")
-
-    # If N, K, and G are all given, check consistency
-    if N is not None and K is not None and G is not None:
-        if abs(np.dot(N, G) + np.log(K)).max() > 1e-14:
-            raise ValueError("K and G are inconsistent.")
-
     # Check for consistency
     if N is not None and N.shape[1] != n_compounds:
         raise ValueError("c0 and N must have same number of columns.")
@@ -253,22 +256,26 @@ def check_eq_input(c0, N=None, K=None, A=None, G=None):
 
     if K is not None:
         if len(K) != n_reactions:
-            raise ValueError("Wrong number of equilibrium constants!")
+            raise ValueError("K must have N.shape[0] entries")
         if not (K > 0.0).all():
-            raise ValueError("All K's must be positive!")
+            raise ValueError("All K's must be positive.")
         if np.isinf(K).any():
-            raise ValueError("All K's must be finite!")
+            raise ValueError("All K's must be finite.")
+        if np.isnan(K).any():
+            raise ValueError("No NaN values are allowed for K.")
 
     if G is not None:
         if len(G) != n_compounds:
-            raise ValueError("Wrong number of free energies!")
+            raise ValueError("G must have A.shape[1] entries.")
         if np.isinf(G).any():
-            raise ValueError("All G's must be finite!")
+            raise ValueError("All G's must be finite.")
+        if np.isnan(G).any():
+            raise ValueError("No NaN values are allowed for G.")
 
     if np.isnan(c0).any():
-        raise ValueError("c0 has NaN!")
+        raise ValueError("No NaN values are allowed for c0.")
     if (c0 < 0.0).any():
-        raise ValueError("All c0's must be nonnegative!")
+        raise ValueError("All c0's must be nonnegative.")
     if np.isinf(c0).any():
         raise ValueError("All c0's must be finite!")
 

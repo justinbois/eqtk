@@ -9,7 +9,7 @@ def test_binary_binding_3():
     A = np.array([[1, 0, 1], [0, 1, 1]])
     G = np.array([0, 0, -np.log(K)])
     x0 = np.array([3e-3, 5e-3, 0.0])
-    x = eqtk.conc(c0=x0, N=N, K=K, units="M")
+    x = eqtk.solve(c0=x0, N=N, K=K, units="M")
 
     equilibrium_ok, cons_mass_ok = eqtk.checks.check_equilibrium_NK(x0, x, N=N, K=K)
 
@@ -26,7 +26,7 @@ def test_binary_binding_5():
     A = np.array([[1, 0, 2, 1, 0], [0, 1, 0, 1, 2]])
 
     for x0 in (x0_1, x0_2, x0_3):
-        x = eqtk.conc(c0=x0, N=N, K=K, units="M")
+        x = eqtk.solve(c0=x0, N=N, K=K, units="M")
 
         equilibrium_ok, cons_mass_ok = eqtk.checks.check_equilibrium_NK(x0, x, N=N, K=K)
 
@@ -39,7 +39,7 @@ def test_competition():
     K = np.array([0.05, 0.01])
     x0 = np.array([2.0, 0.05, 1.0, 0.0, 0.0])
 
-    x = eqtk.conc(c0=x0, N=N, K=K, units="µM")
+    x = eqtk.solve(c0=x0, N=N, K=K, units="µM")
 
     equilibrium_ok, cons_mass_ok = eqtk.checks.check_equilibrium_NK(x0, x, N=N, K=K)
 
@@ -57,7 +57,7 @@ def test_sequential_binding():
     c0 = np.array([c0 for _ in range(len(c0_titrated))])
     c0[:, titrated_species] = c0_titrated
 
-    c = eqtk.sweep_titration(c0, N=N, K=K, units="M")
+    c = eqtk.solve(c0, N=N, K=K, units="M")
 
     for c_val, c0_val in zip(c, c0):
         equilibrium_ok, cons_mass_ok = eqtk.checks.check_equilibrium_NK(
@@ -82,7 +82,7 @@ def test_aspartic_acid_titration():
     vol_titrated = np.linspace(0.0, 4.0, 500)
     initial_volume = 1.0
     c = eqtk.volumetric_titration(
-        c0, initial_volume, c0_titrant, vol_titrated, N=N, K=K, units='M'
+        c0, initial_volume, c0_titrant, vol_titrated, N=N, K=K, units="M"
     )
 
     new_c0 = eqtk.volumetric_to_c0(c0, c0_titrant, initial_volume, vol_titrated)
@@ -121,9 +121,9 @@ def test_exponential_chain():
     N[1:, 0] = -1
     K = 100.0 * np.ones(n_rxns)
     c0 = np.zeros((50, n_rxns + 1))
-    c0[:,0] = np.linspace(0.0, 10.0, 50)
+    c0[:, 0] = np.linspace(0.0, 10.0, 50)
 
-    c = eqtk.sweep_titration(c0, N=N, K=K, units="M")
+    c = eqtk.solve(c0, N=N, K=K, units="M")
 
     for c_val, c0_val in zip(c, c0):
         equilibrium_ok, cons_mass_ok = eqtk.checks.check_equilibrium_NK(
@@ -131,7 +131,6 @@ def test_exponential_chain():
         )
         assert equilibrium_ok.all(), "Equilibrium error"
         assert cons_mass_ok.all(), "Conservation of mass error"
-
 
 
 def test_example_1():
@@ -148,7 +147,7 @@ def test_example_1():
     x0_2 = np.array([0.001, 0.0, 0.0, 0.0, 0.0, 0.0])
 
     for x0 in (x0_1, x0_2):
-        x = eqtk.conc(c0=x0, N=N, K=K, units="M")
+        x = eqtk.solve(c0=x0, N=N, K=K, units="M")
 
         equilibrium_ok, cons_mass_ok = eqtk.checks.check_equilibrium_NK(x0, x, N=N, K=K)
 
@@ -167,7 +166,7 @@ def test_example_2():
     )
     K = np.array([1.0, 2.0, 3.0, 5.0])
     x0 = np.array([1.0, 2.0, 3.0, 5.0, 7.0, 11.0, 13.0])
-    x = eqtk.conc(c0=x0, N=N, K=K, units="M")
+    x = eqtk.solve(c0=x0, N=N, K=K, units="M")
 
     equilibrium_ok, cons_mass_ok = eqtk.checks.check_equilibrium_NK(x0, x, N=N, K=K)
 
@@ -186,7 +185,7 @@ def test_example_3():
     )
     K = np.array([1.0, 2.0, 3.0, 5.0])
     x0 = np.array([1.0, 2.0, 3.0, 5.0, 7.0, 11.0, 13.0])
-    x = eqtk.conc(c0=x0, N=N, K=K, units="M")
+    x = eqtk.solve(c0=x0, N=N, K=K, units="M")
 
     equilibrium_ok, cons_mass_ok = eqtk.checks.check_equilibrium_NK(x0, x, N=N, K=K)
 

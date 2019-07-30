@@ -6,11 +6,9 @@ import warnings
 
 import numpy as np
 
+from . import constants
 from . import linalg
 from . import numba_check
-
-EQTK_MAXLOGX = 250.0
-EQTK_NUM_PRECISION = 1e-12
 
 
 def compute_logx(mu, G, A):
@@ -152,7 +150,7 @@ def trust_region_convex_unconstrained(
         # Adjust delta
         if rho < 0.25:
             delta /= 4.0
-        elif rho > 0.75 and abs(np.linalg.norm(p) - delta) < EQTK_NUM_PRECISION:
+        elif rho > 0.75 and abs(np.linalg.norm(p) - delta) < constants.float_eps:
             delta = min(2.0 * delta, delta_bar)
 
         # Make step based on rho
@@ -294,7 +292,7 @@ def search_direction_dogleg(g, B, delta):
 
     # Choose correct (positive) root (don't have to worry about a = 0 because
     # if pU \approx pB, we would have already taken Newton step)
-    if abs(b) < EQTK_NUM_PRECISION:
+    if abs(b) < constants.float_eps:
         beta = np.sqrt(-c / a)
     elif b < 0.0:
         beta = q / a

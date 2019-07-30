@@ -10,14 +10,14 @@ import numpy as np
 
 # Below is a substitute, replace comb() below.
 import math
+
+
 def comb(n, k):
     return math.factorial(n) // math.factorial(k) // math.factorial(n - k)
 
 
-
 # ###################################################################
-def random_test_case(n_particles, max_compound_size, max_log_conc=-8,
-                     min_log_conc=-30):
+def random_test_case(n_particles, max_compound_size, max_log_conc=-8, min_log_conc=-30):
     """
     Generates A, N, K, and G for a set of compounds made of
     n_particles different types of particles.  All units are
@@ -31,9 +31,9 @@ def random_test_case(n_particles, max_compound_size, max_log_conc=-8,
     n_compounds = 0
     mset_size = np.empty(max_compound_size, dtype=int)
     for k in range(1, max_compound_size + 1):
-#        mset_size[k-1] = scipy.special.comb(n_particles + k - 1, k, exact=True)
-        mset_size[k-1] = comb(n_particles + k - 1, k)
-        n_compounds += mset_size[k-1]
+        #        mset_size[k-1] = scipy.special.comb(n_particles + k - 1, k, exact=True)
+        mset_size[k - 1] = comb(n_particles + k - 1, k)
+        n_compounds += mset_size[k - 1]
 
     # Stoichiometry matrix from multisets
     cmp_list = range(n_particles)
@@ -41,10 +41,10 @@ def random_test_case(n_particles, max_compound_size, max_log_conc=-8,
     j = 0
     for k in range(1, max_compound_size + 1):
         mset = itertools.combinations_with_replacement(cmp_list, k)
-        for n in range(mset_size[k-1]):
+        for n in range(mset_size[k - 1]):
             cmp_formula = next(mset)
             for i in range(n_particles):
-                A[i,j] = cmp_formula.count(i)
+                A[i, j] = cmp_formula.count(i)
             j += 1
 
     # Generate random concentrations
@@ -64,23 +64,23 @@ def random_test_case(n_particles, max_compound_size, max_log_conc=-8,
     # Generate N from A
     N = np.zeros((n_compounds - n_particles, n_compounds), dtype=int)
     for r in range(n_compounds - n_particles):
-        N[r,r+n_particles] = 1
-        N[r,:n_particles] = -A[:,r+n_particles]
+        N[r, r + n_particles] = 1
+        N[r, :n_particles] = -A[:, r + n_particles]
 
     # Make a new set of concentrations that have compounds
     # by successively runnings rxns to half completion
     x0 = np.concatenate((x0_particles, np.zeros(n_compounds - n_particles)))
     for r in range(n_compounds - n_particles):
         # Identify limiting reagent
-        lim = 1.0
+        lim = np.inf
         for i in range(n_particles):
-            if N[r,i] != 0:
-                if x0_particles[i] / abs(N[r,i]) < lim:
+            if N[r, i] != 0:
+                if x0[i] / abs(N[r, i]) < lim:
                     lim_reagent = i
                     lim = x0[i]
 
         # Carry out reaction half way
-        x0 += x0[lim_reagent] / abs(N[r,lim_reagent]) * N[r] * 0.5
+        x0 += x0[lim_reagent] / abs(N[r, lim_reagent]) * N[r] * 0.5
 
     return N.astype(float), K, A, G, x0_particles, x0, x
 
@@ -102,19 +102,16 @@ def make_test_cases():
     # Create dictionary of erroneous test cases
     error_test_cases = {}
     # ###########
-    description = 'cyclic_conversion'
+    description = "cyclic_conversion"
     # reactions not linearly independent should give error
-    N = np.array([[-1,  1,  0],
-                  [ 0, -1,  1],
-                  [ 1,  0, -1]])
+    N = np.array([[-1, 1, 0], [0, -1, 1], [1, 0, -1]])
     K = np.array([100.0, 100.0, 100.0])
     x0 = np.array([2.0, 0.05, 1.0])
     raises = ValueError
-    excinfo = 'Rows in stoichiometric matrix N must be linearly independent.'
+    excinfo = "Rows in stoichiometric matrix N must be linearly independent."
     error_test_cases[description] = TestCase(
-        x0, N=N, K=K, units='M', description=description, raises=raises,
-        excinfo=excinfo)
-
+        x0, N=N, K=K, units="M", description=description, raises=raises, excinfo=excinfo
+    )
 
 
 class TestCase(object):
@@ -122,11 +119,24 @@ class TestCase(object):
     Generates a set of test cases.
     """
 
-    def __init__(self, x0, N=None, K=None, A=None, G=None, x=None,
-                 titrated_species=0,
-                 x0_titrated=None, vol_titrated=None, initial_volume=None,
-                 x_titrant=None, units='M', raises=None, excinfo=None,
-                 description=None):
+    def __init__(
+        self,
+        x0,
+        N=None,
+        K=None,
+        A=None,
+        G=None,
+        x=None,
+        titrated_species=0,
+        x0_titrated=None,
+        vol_titrated=None,
+        initial_volume=None,
+        x_titrant=None,
+        units="M",
+        raises=None,
+        excinfo=None,
+        description=None,
+    ):
         """
         Generate the test cases.  x0 can be a tuple of concentrations
         we wish to test.
@@ -152,6 +162,16 @@ class TestCase(object):
         Returns a tuple (N, K, x_0, G, A, x0_titrated, titrated_species, units, raises, excinfo,)
         from a TestCase instance.
         """
-        return (self.N, self.K, self.x0, self.G, self.A, self.x0_titrated,
-                self.titrated_species, self.vol_titrated, self.initial_volume,
-                self.x_titrant, self.units)
+        return (
+            self.N,
+            self.K,
+            self.x0,
+            self.G,
+            self.A,
+            self.x0_titrated,
+            self.titrated_species,
+            self.vol_titrated,
+            self.initial_volume,
+            self.x_titrant,
+            self.units,
+        )

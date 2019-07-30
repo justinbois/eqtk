@@ -99,7 +99,5 @@ def test_solve_pos_def(n):
 
 def test_nullspace():
     # This one had a rank failure
-    A = np.array([[ 1,  1,  0, -1,  0],
-                  [ 1,  0,  1,  0, -1]]).astype(float)
+    A = np.array([[1, 1, 0, -1, 0], [1, 0, 1, 0, -1]]).astype(float)
     assert np.allclose(np.dot(A, eqtk.linalg.nullspace_svd(A)), 0)
-
