@@ -511,7 +511,7 @@ def _solve_trust_region(
     Parameters
     ----------
     A : array_like, shape (n_constraints, n_compounds)
-        Each row represents a system constaint.
+        Each row represents a system constraint.
         Namely, np.dot(A, x) = constraint_vector.
     G : array_like, shape (n_compounds,)
         G[j] is the free energy of compound j in units of kT.
@@ -531,7 +531,7 @@ def _solve_trust_region(
         n_cauchy_steps : # of Cauchy steps taken (hit trust region boundary)
         n_dogleg_steps : # of dogleg steps taken
         n_chol_fail_cauchy_steps : # of Cholesky failures forcing Cauchy step
-        n_irrel_chol_fail : # of steps with irrelovant Cholesky failures
+        n_irrel_chol_fail : # of steps with irrelevant Cholesky failures
         n_dogleg_fail : # of failed dogleg calculations
 
     Raises
@@ -545,9 +545,7 @@ def _solve_trust_region(
     # Build new problem with inactive ones cut out
     params = (G, A, constraint_vector)
     abs_tol = tol * np.abs(constraint_vector)
-    mu0 = initial_guess(
-        constraint_vector, G, A, np.zeros(len(constraint_vector)), perturb=False
-    )
+    mu0 = initial_guess(constraint_vector, G, A)
 
     mu, converged, step_tally = trust_region.trust_region_convex_unconstrained(
         mu0,
@@ -564,7 +562,7 @@ def _solve_trust_region(
     # Try other initial guesses if it did not converge
     n_trial = 1
     while not converged and n_trial < max_trials:
-        mu0 = initial_guess(constraint_vector, G, A, mu0, perturb=True)
+        mu0 = perturb_initial_guess(constraint_vector, G, A, mu0, perturb_scale)
         mu, converged, step_tally = trust_region.trust_region_convex_unconstrained(
             mu0,
             G,
@@ -580,31 +578,10 @@ def _solve_trust_region(
 
     x = np.exp(trust_region.compute_logx(mu, G, A))
 
-    if return_run_stats or not converged:
-        run_stats = dict()
-        run_stats["converged"] = converged
-        run_stats["max trials"] = max_trials
-        run_stats["number of trials"] = n_trial
-        run_stats["number of constraints"] = n_constraints
-        run_stats["number of iterations"] = int(np.sum(step_tally))
-        run_stats["number of newton steps"] = int(step_tally[0])
-        run_stats["number of Cauchy steps"] = int(step_tally[1])
-        run_stats["number of dogleg steps"] = int(step_tally[2])
-        run_stats["number of Cholesky failures forcing a Cauchy step"] = int(
-            step_tally[3]
-        )
-        run_stats["number of irrelevant Cholesky failures"] = int(step_tally[4])
-        run_stats["number of dogleg failures"] = int(step_tally[5])
-        run_stats["constraint matrix A"] = A
-        run_stats["compound free energies G"] = G
-        run_stats["constraint vector np.dot(A, x0)"] = constraint_vector
-    else:
-        run_stats = None
-
-    return x, converged, run_stats
+    return x, converged, n_trial, step_tally
 
 
-def initial_guess(constraint_vector, G, A, mu0, perturb_scale=100.0, perturb=False):
+def initial_guess(constraint_vector, G, A):
     """
     Calculates an initial guess for lambda such that the maximum
     mole fraction calculated will not give an overflow error and
@@ -621,19 +598,39 @@ def initial_guess(constraint_vector, G, A, mu0, perturb_scale=100.0, perturb=Fal
     # mu_guess = ((1.0 + G) / abs(A).sum(0)).min() \
     #    * ones_like(constraint_vector)
 
-    # Perturb if desired
-    if perturb:
-        new_mu = mu0 + perturb_scale * 2.0 * (
-            np.random.rand(len(constraint_vector)) - 0.5
-        )
-        # Prevent overflow err
-        while (-G + np.dot(new_mu, A)).max() > constants.max_logx:
-            perturb_scale /= 2.0
-
-        return new_mu
-
     # Guess mu such that ln x = 1 for all x (x ~ 3).
-    return np.linalg.solve(np.dot(A, A.transpose()), np.dot(A, G + 1.0))
+    A_AT = np.dot(A, A.transpose())
+    b = np.dot(A, G + 1.0)
+    mu0, success = linalg.solve_pos_def(A_AT, b)
+    if success:
+        return mu0
+    else:
+        return np.linalg.solve(A_AT, b)
+
+
+def perturb_initial_guess(constraint_vector, G, A, mu0, perturb_scale=100.0):
+    """
+    Calculates an initial guess for lambda such that the maximum
+    mole fraction calculated will not give an overflow error and
+    the objective function $-h(µ)$ will be positive.  It is
+    best to have a positive objective function because when the
+    objective function is negative, it tends to be very close to
+    zero and there are precision issues.
+
+    We assume all the mu's have the same value in the initial
+    condition.  We compute the maximal lambda such that all mole
+    fractions of all complexes are below some maximum.
+    """
+    # OLD WAY
+    # mu_guess = ((1.0 + G) / abs(A).sum(0)).min() \
+    #    * ones_like(constraint_vector)
+
+    new_mu = mu0 + perturb_scale * 2.0 * (np.random.rand(len(constraint_vector)) - 0.5)
+    # Prevent overflow err
+    while (-G + np.dot(new_mu, A)).max() > constants.max_logx:
+        perturb_scale /= 2.0
+
+    return new_mu
 
 
 def prune_NK(N, minus_log_K, x0):
@@ -743,31 +740,44 @@ def prune_AG(A, G, x0, elemental):
     return np.ascontiguousarray(A_new, dtype="float"), G_new, x0_new, active_compounds
 
 
-def _print_run_stats(run_stats):
-    print("Run stats:")
-    print("  converged:", run_stats["converged"])
-    print("  max trials:", run_stats["max trials"])
-    print("  number of trials:", run_stats["number of trials"])
-    print("  number of constraints:", run_stats["number of constraints"])
-    print("  number of iterations:", run_stats["number of iterations"])
-    print("  number of newton steps:", run_stats["number of newton steps"])
-    print("  number of Cauchy steps:", run_stats["number of Cauchy steps"])
-    print("  number of dogleg steps:", run_stats["number of dogleg steps"])
-    print(
-        "  number of Cholesky failures forcing a Cauchy step:",
-        run_stats["number of Cholesky failures forcing a Cauchy step"],
-    )
-    print(
-        "  number of irrelevant Cholesky failures:",
-        run_stats["number of irrelevant Cholesky failures"],
-    )
-    print("  number of dogleg failures:", run_stats["number of dogleg failures"])
-    print("  constraint matrix A:", run_stats["constraint matrix A"])
-    print("  compound free energies G:", run_stats["compound free energies G"])
-    print(
-        "  constraint vector np.dot(A, x0):",
-        run_stats["constraint vector np.dot(A, x0)"],
-    )
+def _print_runstats(
+    A,
+    G,
+    x0,
+    constraint_vector,
+    n_trial,
+    max_trials,
+    tol,
+    delta_bar,
+    eta,
+    min_delta,
+    perturb_scale,
+    converged,
+    step_tally,
+    max_iters,
+):
+    print("RUN STATS:")
+    print("  constraint matrix A:", A)
+    print("  compound free energies G:", G)
+    print("  x0:", x0)
+    print("  number of constraints:", len(constraint_vector))
+    print("  constraint vector np.dot(A, x0):", constraint_vector)
+    print("  number of attempts:", n_trial)
+    print("  maximum allowed number of attempts:", max_trials)
+    print("  tolerance:", tol)
+    print("  delta_bar:", delta_bar)
+    print("  eta:", eta)
+    print("  minimum allowed delta:", min_delta)
+    print("  scale for perturbing initial guesses:", perturb_scale)
+    print("  RESULTS FROM LAST ATTEMPT:")
+    print("    converged:", converged)
+    print("    number of iterations:", np.sum(step_tally))
+    print("    number of Newton steps:", step_tally[0])
+    print("    number of Cauchy steps:", step_tally[1])
+    print("    number of dogleg steps:", step_tally[2])
+    print("    number of Cholesky failures forcing a Cauchy step:", step_tally[3])
+    print("    number of irrelevant Cholesky failures:", step_tally[4])
+    print("    number of dogleg failures:", step_tally[5])
 
 
 def _solve_NK(
@@ -872,7 +882,7 @@ def _solve_NK(
                 G = np.linalg.solve(N_prime, b)
                 constraint_vector = np.dot(A, x0_new)
 
-                x_new, converged, run_stats = _solve_trust_region(
+                x_new, converged, n_trial, step_tally = _solve_trust_region(
                     A,
                     G,
                     constraint_vector,
@@ -888,7 +898,22 @@ def _solve_NK(
                 # If not converged, throw exception
                 if not converged:
                     print("**** Convergence failure! ****")
-                    _print_runstats(run_stats)
+                    _print_runstats(
+                        A,
+                        G,
+                        x0,
+                        constraint_vector,
+                        n_trial,
+                        max_trials,
+                        tol,
+                        delta_bar,
+                        eta,
+                        min_delta,
+                        perturb_scale,
+                        converged,
+                        step_tally,
+                        max_iters,
+                    )
                     raise RuntimeError("Calculation did not converge")
 
         # Put in concentrations that were cut out
@@ -988,7 +1013,7 @@ def _solve_AG(
                 converged = True
                 run_stats = None
             else:
-                x_new, converged, run_stats = _solve_trust_region(
+                x_new, converged, n_trial, step_tally = _solve_trust_region(
                     A_new,
                     G_new,
                     constraint_vector,
@@ -1004,7 +1029,22 @@ def _solve_AG(
             # If not converged, throw exception
             if not converged:
                 print("**** Convergence failure! ****")
-                _print_runstats(run_stats)
+                _print_runstats(
+                    A,
+                    G,
+                    x0,
+                    constraint_vector,
+                    n_trial,
+                    max_trials,
+                    tol,
+                    delta_bar,
+                    eta,
+                    min_delta,
+                    perturb_scale,
+                    converged,
+                    step_tally,
+                    max_iters,
+                )
                 raise RuntimeError("Calculation did not converge")
 
         # Put in concentrations that were cut out
@@ -1282,7 +1322,9 @@ if numba_check.numba_check():
 
     _boolean_index = numba.jit(_boolean_index, nopython=True)
     _boolean_index_2d = numba.jit(_boolean_index_2d, nopython=True)
-#    _print_run_stats = numba.jit(_print_run_stats, nopython=True)
+    _print_runstats = numba.jit(_print_runstats, nopython=True)
     initial_guess = numba.jit(initial_guess, nopython=True)
+    perturb_initial_guess = numba.jit(perturb_initial_guess, nopython=True)
     prune_NK = numba.jit(prune_NK, nopython=True)
+    _solve_trust_region = numba.jit(_solve_trust_region, nopython=True)
 #    prune_AG = numba.jit(prune_AG, nopython=True)
