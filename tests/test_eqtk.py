@@ -11,43 +11,43 @@ def test_prune_NK():
             [-1, 0, -1, 1, 0, 0],
             [0, -2, 0, 0, 1, 0],
             [0, -1, -1, 0, 0, 1],
-        ]
+        ], dtype=float
     )
-    minus_log_K = np.array([1, 2, 3, 4])
+    minus_log_K = np.array([1, 2, 3, 4], dtype=float)
 
     # All present
-    x0 = np.array([1, 2, 3, 4, 5, 6])
+    x0 = np.array([1, 2, 3, 4, 5, 6], dtype=float)
     N_new, minus_log_K_new, x0_new, _, _ = eqtk.prune_NK(N, minus_log_K, x0)
     assert np.array_equal(N_new, N)
     assert np.array_equal(minus_log_K_new, minus_log_K)
     assert np.array_equal(x0_new, x0)
 
     # Also all present
-    x0 = np.array([1, 0, 3, 0, 0, 0])
+    x0 = np.array([1, 0, 3, 0, 0, 0], dtype=float)
     N_new, minus_log_K_new, x0_new, _, _ = eqtk.prune_NK(N, minus_log_K, x0)
     assert np.array_equal(N_new, N)
     assert np.array_equal(minus_log_K_new, minus_log_K)
     assert np.array_equal(x0_new, x0)
 
     # Also all present
-    x0 = np.array([0, 0, 0, 0, 0, 6])
+    x0 = np.array([0, 0, 0, 0, 0, 6], dtype=float)
     N_new, minus_log_K_new, x0_new, _, _ = eqtk.prune_NK(N, minus_log_K, x0)
     assert np.array_equal(N_new, N)
     assert np.array_equal(minus_log_K_new, minus_log_K)
     assert np.array_equal(x0_new, x0)
 
     # Only entries 0, 1 and 4 present
-    x0 = np.array([0, 2, 0, 0, 0, 0])
-    x0_target = np.array([0, 2, 0])
-    N_target = np.array([[-1, 1, 0], [0, -2, 1]])
-    minus_log_K_target = np.array([1, 3])
+    x0 = np.array([0, 2, 0, 0, 0, 0], dtype=float)
+    x0_target = np.array([0, 2, 0], dtype=float)
+    N_target = np.array([[-1, 1, 0], [0, -2, 1]], dtype=float)
+    minus_log_K_target = np.array([1, 3], dtype=float)
     N_new, minus_log_K_new, x0_new, _, _ = eqtk.prune_NK(N, minus_log_K, x0)
     assert np.array_equal(N_new, N_target)
     assert np.array_equal(minus_log_K_new, minus_log_K_target)
     assert np.array_equal(x0_new, x0_target)
 
     # Only entry 2 present
-    x0 = np.array([0, 0, 3, 0, 0, 0])
+    x0 = np.array([0, 0, 3, 0, 0, 0], dtype=float)
     N_target = np.array([[]])
     minus_log_K_target = np.array([])
     N_new, minus_log_K_new, x0_new, _, _ = eqtk.prune_NK(N, minus_log_K, x0)
@@ -61,46 +61,46 @@ def test_prune_NK():
             [-1, -1, 0, 1, 0, 0],
             [0, -2, 0, 0, 1, 0],
             [0, -1, -1, 0, 0, 1],
-        ]
+        ], dtype=float
     )
-    minus_log_K = np.array([1, 2, 3, 4])
+    minus_log_K = np.array([1, 2, 3, 4], dtype=float)
 
     # All present
-    x0 = np.array([1, 2, 3, 4, 5, 6])
+    x0 = np.array([1, 2, 3, 4, 5, 6], dtype=float)
     N_new, minus_log_K_new, x0_new, _, _ = eqtk.prune_NK(N, minus_log_K, x0)
     assert np.array_equal(N_new, N)
     assert np.array_equal(minus_log_K_new, minus_log_K)
     assert np.array_equal(x0_new, x0)
 
     # Also all present
-    x0 = np.array([1, 2, 0, 0, 0, 0])
+    x0 = np.array([1, 2, 0, 0, 0, 0], dtype=float)
     N_new, minus_log_K_new, x0_new, _, _ = eqtk.prune_NK(N, minus_log_K, x0)
     assert np.array_equal(N_new, N)
     assert np.array_equal(minus_log_K_new, minus_log_K)
     assert np.array_equal(x0_new, x0)
 
     # Also all present
-    x0 = np.array([0, 0, 0, 0, 0, 6])
+    x0 = np.array([0, 0, 0, 0, 0, 6], dtype=float)
     N_new, minus_log_K_new, x0_new, _, _ = eqtk.prune_NK(N, minus_log_K, x0)
     assert np.array_equal(N_new, N)
     assert np.array_equal(minus_log_K_new, minus_log_K)
     assert np.array_equal(x0_new, x0)
 
     # Only entries 0 and 2 present
-    x0 = np.array([1, 0, 3, 0, 0, 0])
-    x0_target = np.array([1, 3])
-    N_target = np.array([[-1, 1]])
-    minus_log_K_target = np.array([1])
+    x0 = np.array([1, 0, 3, 0, 0, 0], dtype=float)
+    x0_target = np.array([1, 3], dtype=float)
+    N_target = np.array([[-1, 1]], dtype=float)
+    minus_log_K_target = np.array([1], dtype=float)
     N_new, minus_log_K_new, x0_new, _, _ = eqtk.prune_NK(N, minus_log_K, x0)
     assert np.array_equal(N_new, N_target)
     assert np.array_equal(minus_log_K_new, minus_log_K_target)
     assert np.array_equal(x0_new, x0_target)
 
     # Only entries 1 and 4 present
-    x0 = np.array([0, 2, 0, 0, 0, 0])
-    x0_target = np.array([2, 0])
-    N_target = np.array([[-2, 1]])
-    minus_log_K_target = np.array([3])
+    x0 = np.array([0, 2, 0, 0, 0, 0], dtype=float)
+    x0_target = np.array([2, 0], dtype=float)
+    N_target = np.array([[-2, 1]], dtype=float)
+    minus_log_K_target = np.array([3], dtype=float)
     N_new, minus_log_K_new, x0_new, _, _ = eqtk.prune_NK(N, minus_log_K, x0)
     assert np.array_equal(N_new, N_target)
     assert np.array_equal(minus_log_K_new, minus_log_K_target)
@@ -108,35 +108,35 @@ def test_prune_NK():
 
 
 def test_prune_AG():
-    A = np.array([[1, 0, 1, 1, 0, 1], [0, 1, 0, 1, 2, 1]]).astype(float)
-    G = np.array([1, 2, 3, 4, 5, 6])
+    A = np.array([[1, 0, 1, 1, 0, 1], [0, 1, 0, 1, 2, 1]], dtype=float)
+    G = np.array([1, 2, 3, 4, 5, 6], dtype=float)
 
     # No pruning
-    x0 = np.array([1, 2, 3, 4, 5, 6])
+    x0 = np.array([1, 2, 3, 4, 5, 6], dtype=float)
     A_new, G_new, x0_new, _ = eqtk.prune_AG(A, G, x0, True)
     assert np.array_equal(A_new, A)
     assert np.array_equal(G_new, G)
     assert np.array_equal(x0_new, np.dot(A, x0))
 
     # No pruning
-    x0 = np.array([1, 2, 0, 0, 0, 0])
+    x0 = np.array([1, 2, 0, 0, 0, 0], dtype=float)
     A_new, G_new, x0_new, _ = eqtk.prune_AG(A, G, x0, True)
     assert np.array_equal(A_new, A)
     assert np.array_equal(G_new, G)
     assert np.array_equal(x0_new, np.dot(A, x0))
 
     # No pruning
-    x0 = np.array([0, 0, 0, 0, 0, 6])
+    x0 = np.array([0, 0, 0, 0, 0, 6], dtype=float)
     A_new, G_new, x0_new, _ = eqtk.prune_AG(A, G, x0, True)
     assert np.array_equal(A_new, A)
     assert np.array_equal(G_new, G)
     assert np.array_equal(x0_new, np.dot(A, x0))
 
     # Only species 1 and 4
-    x0 = np.array([0, 0, 0, 0, 5, 0])
-    x0_prune = np.array([0, 5])
-    A_target = np.array([[1, 2]])
-    G_target = np.array([2, 5])
+    x0 = np.array([0, 0, 0, 0, 5, 0], dtype=float)
+    x0_prune = np.array([0, 5], dtype=float)
+    A_target = np.array([[1, 2]], dtype=float)
+    G_target = np.array([2, 5], dtype=float)
     A_new, G_new, x0_new, _ = eqtk.prune_AG(A, G, x0, True)
     assert np.array_equal(A_new, A_target)
     assert np.array_equal(G_new, G_target)

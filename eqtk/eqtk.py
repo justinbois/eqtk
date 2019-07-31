@@ -10,6 +10,7 @@ from . import checks
 from . import trust_region
 from . import linalg
 from . import numba_check
+from . import constants
 
 
 def solve(
@@ -544,7 +545,9 @@ def _solve_trust_region(
     # Build new problem with inactive ones cut out
     params = (G, A, constraint_vector)
     abs_tol = tol * np.abs(constraint_vector)
-    mu0 = initial_guess(constraint_vector, G, A, None, None)
+    mu0 = initial_guess(
+        constraint_vector, G, A, np.zeros(len(constraint_vector)), perturb=False
+    )
 
     mu, converged, step_tally = trust_region.trust_region_convex_unconstrained(
         mu0,
@@ -561,9 +564,7 @@ def _solve_trust_region(
     # Try other initial guesses if it did not converge
     n_trial = 1
     while not converged and n_trial < max_trials:
-        mu0 = initial_guess(
-            constraint_vector, G, A, perturb_scale=perturb_scale, mu0=mu0
-        )
+        mu0 = initial_guess(constraint_vector, G, A, mu0, perturb=True)
         mu, converged, step_tally = trust_region.trust_region_convex_unconstrained(
             mu0,
             G,
@@ -589,7 +590,9 @@ def _solve_trust_region(
         run_stats["number of newton steps"] = int(step_tally[0])
         run_stats["number of Cauchy steps"] = int(step_tally[1])
         run_stats["number of dogleg steps"] = int(step_tally[2])
-        run_stats["number of Cholesky failures while computing Cauchy steps"] = int(step_tally[3])
+        run_stats["number of Cholesky failures while computing Cauchy steps"] = int(
+            step_tally[3]
+        )
         run_stats["number of irrelevant Cholesky failures"] = int(step_tally[4])
         run_stats["number of dogleg failures"] = int(step_tally[5])
         run_stats["constraint matrix A"] = A
@@ -601,7 +604,7 @@ def _solve_trust_region(
     return x, converged, run_stats
 
 
-def initial_guess(constraint_vector, G, A, perturb_scale=100.0, mu0=None):
+def initial_guess(constraint_vector, G, A, mu0, perturb_scale=100.0, perturb=False):
     """
     Calculates an initial guess for lambda such that the maximum
     mole fraction calculated will not give an overflow error and
@@ -614,25 +617,23 @@ def initial_guess(constraint_vector, G, A, perturb_scale=100.0, mu0=None):
     condition.  We compute the maximal lambda such that all mole
     fractions of all complexes are below some maximum.
     """
-
-    # Guess mu such that ln x = 1 for all x (x ~ 3).
-    mu_guess = np.linalg.solve(np.dot(A, A.transpose()), np.dot(A, G + 1.0))
-
     # OLD WAY
     # mu_guess = ((1.0 + G) / abs(A).sum(0)).min() \
     #    * ones_like(constraint_vector)
 
     # Perturb if desired
-    if mu0 is not None:
+    if perturb:
         new_mu = mu0 + perturb_scale * 2.0 * (
             np.random.rand(len(constraint_vector)) - 0.5
         )
-        while (-G + np.dot(new_mu, A)).max > constants.MAX_LOGX:  # Prevent overflow err
+        # Prevent overflow err
+        while (-G + np.dot(new_mu, A)).max() > constants.max_logx:
             perturb_scale /= 2.0
-    else:
-        new_mu = mu_guess
 
-    return new_mu
+        return new_mu
+
+    # Guess mu such that ln x = 1 for all x (x ~ 3).
+    return np.linalg.solve(np.dot(A, A.transpose()), np.dot(A, G + 1.0))
 
 
 def prune_NK(N, minus_log_K, x0):
@@ -642,7 +643,7 @@ def prune_NK(N, minus_log_K, x0):
 
     prev_active = x0 > 0
     active_compounds = x0 > 0
-    active_reactions = np.zeros(n_reactions, dtype=bool)
+    active_reactions = np.zeros(n_reactions, dtype=np.bool8)
     done = False
     n_reactions = N.shape[0]
 
@@ -666,21 +667,33 @@ def prune_NK(N, minus_log_K, x0):
                     if N[i, j] < 0:
                         active_compounds[j] = True
         done = np.all(active_compounds == prev_active)
-        prev_active = np.array(active_compounds)
+        prev_active = np.copy(active_compounds)
 
     # Select all compounds that are in at least one active reaction
-    active_compounds = np.dot(active_reactions, N != 0)
+    # Can be calc'ed as np.dot(active_reactions, N != 0), but that's not numba-able
+    active_compounds = np.empty(n_compounds, dtype=np.bool8)
+    nonzero_N = N != 0
+    nonzero_N_T = nonzero_N.transpose()
+    for i in range(nonzero_N_T.shape[0]):
+        active_compounds[i] = np.any(
+            np.logical_and(active_reactions, nonzero_N_T[i, :])
+        )
 
-    n_reactions_new = np.dot(np.ones(n_reactions), active_reactions)
-    n_compounds_new = np.dot(np.ones(n_compounds), active_compounds)
+    # active reactions and compounds are now bools, so sum to get numbers
+    n_reactions_new = np.sum(active_reactions)
+    n_compounds_new = np.sum(active_compounds)
+
     if n_reactions_new > 0 and n_compounds_new > 0:
-        minus_log_K_new = minus_log_K[active_reactions]
-        N_new = N[active_reactions, :]
-        N_new = N_new[:, active_compounds]
-        x0_new = x0[active_compounds]
+        minus_log_K_new = _boolean_index(minus_log_K, active_reactions, n_reactions_new)
+        N_new = _boolean_index_2d(
+            N, active_reactions, active_compounds, n_reactions_new, n_compounds_new
+        )
+        x0_new = _boolean_index(x0, active_compounds, n_compounds_new)
     else:
-        N_new = np.array([[]])
-        minus_log_K_new = np.array([])
+        # Use trick to get typed empty list
+        # http://numba.pydata.org/numba-doc/latest/user/troubleshoot.html#my-code-has-an-untyped-list-problem
+        N_new = np.array([np.float64(x) for x in range(0)]).reshape((1, 0))
+        minus_log_K_new = np.array([np.float64(x) for x in range(0)])
         x0_new = x0
 
     return N_new, minus_log_K_new, x0_new, active_compounds, active_reactions
@@ -711,7 +724,7 @@ def prune_AG(A, G, x0, elemental):
 
         # Determine which particles are active
         # There is more than one sink for them
-        num_active = np.dot(np.array(A > 0, dtype=int), active_compounds)
+        num_active = np.dot(np.array(A > 0, dtype=np.int64), active_compounds)
         active_particles = num_active > 1
 
         done = np.all(prev_active == active_particles)
@@ -1206,12 +1219,46 @@ def calc_smooth_curve(
     return result_x
 
 
+def _boolean_index(a, b, n_true):
+    """Returns a[b] where b is a Boolean array."""
+    # if n_true == 0:
+    #     return np.array([np.float64(x) for x in range(0)])
+
+    out = np.empty(n_true)
+    j = 0
+    for i, tf in enumerate(b):
+        if tf:
+            out[j] = a[i]
+            j += 1
+
+    return out
+
+
+def _boolean_index_2d(a, b_row, b_col, n_true_row, n_true_col):
+    """Does the following:
+    a_new = a[b_row, :]
+    a_new = a_new[:, b_col]
+    """
+    out = np.empty((n_true_row, n_true_col))
+    m = 0
+    for i, tf_row in enumerate(b_row):
+        if tf_row:
+            n = 0
+            for j, tf_col in enumerate(b_col):
+                if tf_col:
+                    out[m, n] = a[i, j]
+                    n += 1
+            m += 1
+
+    return out
+
+
 # Use Numba'd functions
 if numba_check.numba_check():
     import numba
 
-#   _thermal_energy = numba.jit(_thermal_energy, nopython=True)
-# _dimensionless_free_energy = numba.jit(_dimensionless_free_energy,
-#                                       nopython=True)
-# _water_density = numba.jit(_water_density, nopython=True)
-#    _nullspace_svd = numba.jit(_nullspace_svd, nopython=True)
+    _boolean_index = numba.jit(_boolean_index, nopython=True)
+    _boolean_index_2d = numba.jit(_boolean_index_2d, nopython=True)
+    initial_guess = numba.jit(initial_guess, nopython=True)
+    prune_NK = numba.jit(prune_NK, nopython=True)
+#    prune_AG = numba.jit(prune_AG, nopython=True)
