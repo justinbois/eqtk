@@ -95,7 +95,7 @@ def modified_cholesky(A):
     p = np.arange(n)
 
     # Keep track if factorization was successful.
-    success = 1
+    success = True
 
     xi = 0
     for i in range(n):
@@ -157,7 +157,7 @@ def modified_cholesky(A):
         # Make sure L is semi-positive definite.
         if L[k, k] < 0:
             # Otherwise the factorization was not completed successfully.
-            success = 0
+            success = False
 
         temp = abs(L[k, k])
         temp = max(temp, constants.float_eps * eta)

@@ -590,7 +590,7 @@ def _solve_trust_region(
         run_stats["number of newton steps"] = int(step_tally[0])
         run_stats["number of Cauchy steps"] = int(step_tally[1])
         run_stats["number of dogleg steps"] = int(step_tally[2])
-        run_stats["number of Cholesky failures while computing Cauchy steps"] = int(
+        run_stats["number of Cholesky failures forcing a Cauchy step"] = int(
             step_tally[3]
         )
         run_stats["number of irrelevant Cholesky failures"] = int(step_tally[4])
@@ -744,7 +744,30 @@ def prune_AG(A, G, x0, elemental):
 
 
 def _print_run_stats(run_stats):
-    pass
+    print("Run stats:")
+    print("  converged:", run_stats["converged"])
+    print("  max trials:", run_stats["max trials"])
+    print("  number of trials:", run_stats["number of trials"])
+    print("  number of constraints:", run_stats["number of constraints"])
+    print("  number of iterations:", run_stats["number of iterations"])
+    print("  number of newton steps:", run_stats["number of newton steps"])
+    print("  number of Cauchy steps:", run_stats["number of Cauchy steps"])
+    print("  number of dogleg steps:", run_stats["number of dogleg steps"])
+    print(
+        "  number of Cholesky failures forcing a Cauchy step:",
+        run_stats["number of Cholesky failures forcing a Cauchy step"],
+    )
+    print(
+        "  number of irrelevant Cholesky failures:",
+        run_stats["number of irrelevant Cholesky failures"],
+    )
+    print("  number of dogleg failures:", run_stats["number of dogleg failures"])
+    print("  constraint matrix A:", run_stats["constraint matrix A"])
+    print("  compound free energies G:", run_stats["compound free energies G"])
+    print(
+        "  constraint vector np.dot(A, x0):",
+        run_stats["constraint vector np.dot(A, x0)"],
+    )
 
 
 def _solve_NK(
@@ -1259,6 +1282,7 @@ if numba_check.numba_check():
 
     _boolean_index = numba.jit(_boolean_index, nopython=True)
     _boolean_index_2d = numba.jit(_boolean_index_2d, nopython=True)
+#    _print_run_stats = numba.jit(_print_run_stats, nopython=True)
     initial_guess = numba.jit(initial_guess, nopython=True)
     prune_NK = numba.jit(prune_NK, nopython=True)
 #    prune_AG = numba.jit(prune_AG, nopython=True)
