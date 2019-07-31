@@ -279,4 +279,10 @@ def check_input(c0, N, K, A, G):
     if np.isinf(c0).any():
         raise ValueError("All c0's must be finite!")
 
+    # Ensure N and A have full row rank
+    if N is not None and len(N) > 0 and np.linalg.matrix_rank(N) != n_reactions:
+        raise ValueError("N must have full row rank.")
+    if A is not None and len(A) > 0 and np.linalg.matrix_rank(A) != A.shape[0]:
+        raise ValueError("A must have full row rank.")
+
     return c0, N, K, A, G
