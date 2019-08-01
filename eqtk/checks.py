@@ -4,6 +4,31 @@ from . import linalg
 
 
 def check_equilibrium_NK(c0, c, N=None, K=None):
+    """Check to make sure equilibrium is satisfied."""
+    single_point = False
+    if len(c0.shape) == 1:
+        single_point = True
+
+    c0, N, K, _, _ = check_input(c0, N, K, A=None, G=None)
+    c, _, _, _, _ = check_input(c, N, K, A=None, G=None)
+
+    if c0.shape != c.shape:
+        raise ValueError("`c0` and `c` must have the same shape.")
+
+    eq_ok = np.empty((c.shape[0], N.shape[0]), dtype=bool)
+    cons_mass_ok = np.empty((c.shape[0], N.shape[1] - N.shape[0]), dtype=bool)
+    for i, (c0_i, c_i) in enumerate(zip(c0, c)):
+        eq_ok_i, cons_mass_ok_i = _check_equilibrium_NK_single_point(c0_i, c_i, N, K)
+        eq_ok[i] = eq_ok_i
+        cons_mass_ok[i] = cons_mass_ok_i
+
+    if single_point:
+        return eq_ok.flatten(), cons_mass_ok.flatten()
+
+    return eq_ok, cons_mass_ok
+
+
+def _check_equilibrium_NK_single_point(c0, c, N=None, K=None):
     """
     Check concentrations to verify equilibrium conditions are met.
 
@@ -61,16 +86,12 @@ def check_equilibrium_NK(c0, c, N=None, K=None):
     >>> cons_mass_err
     array([ -4.11757295e-11,  -1.28775509e-11])
     """
-    c0_corr, N_corr, K_corr, _, _ = check_input(c0, N, K, A=None, G=None)
-
-    N_new, minus_log_K_new, c0_new, active_compounds, active_reactions = eqtk.prune_NK(
-        N_corr, -np.log(K_corr), c0_corr
-    )
+    N_new, _, _, active_compounds, active_reactions = eqtk.prune_NK(N, -np.log(K), c0)
 
     # Check equilibrium expressions
-    eq_ok = np.empty(len(active_reactions))
+    eq_ok = np.empty(len(active_reactions), dtype=bool)
     r_active = 0
-    for r, K in enumerate(K_corr):
+    for r, K in enumerate(K):
         if active_reactions[r]:
             rhs = np.dot(N_new[r_active], np.log(c[active_compounds]))
             eq_ok[r] = np.isclose(np.exp(rhs - np.log(K)), 1)
@@ -79,10 +100,10 @@ def check_equilibrium_NK(c0, c, N=None, K=None):
             eq_ok[r] = 1
 
     # Check conservation expressions
-    A = linalg.nullspace_svd(N_corr).transpose()
-    target = np.dot(A, c0_corr)
+    A = linalg.nullspace_svd(N).transpose()
+    target = np.dot(A, c0)
     res = np.dot(A, c)
-    cons_mass_ok = np.empty(len(res))
+    cons_mass_ok = np.empty(len(res), dtype=bool)
     for i, (res_val, target_val) in enumerate(zip(res, target)):
         if target_val == 0:
             if res_val != 0:
@@ -96,6 +117,29 @@ def check_equilibrium_NK(c0, c, N=None, K=None):
 
 
 def check_equilibrium_AG(c0, c, A, G):
+    """Check to make sure equilibrium is satisfied."""
+    single_point = False
+    if len(c0.shape) == 1:
+        single_point = True
+
+    c0, _, _, A, G = check_input(c0, N=None, K=None, A=A, G=G)
+    c, _, _, _, _ = check_input(c, N=None, K=None, A=A, G=G)
+
+    if c0.shape != c.shape:
+        raise ValueError("`c0` and `c` must have the same shape.")
+
+    cons_mass_ok = np.empty((c.shape[0], A.shape[0]), dtype=bool)
+    for i, (c0_i, c_i) in enumerate(zip(c0, c)):
+        cons_mass_ok_i = _check_equilibrium_AG_single_point(c0_i, c_i, A, G)
+        cons_mass_ok[i] = cons_mass_ok_i
+
+    if single_point:
+        return cons_mass_ok.flatten()
+
+    return cons_mass_ok
+
+
+def _check_equilibrium_AG_single_point(c0, c, A, G):
     """Check equilibrium for the AG formulation.
 
     Equilibrium conditions are satisfied by construction; we need only
@@ -188,7 +232,7 @@ def check_input(c0, N, K, A, G):
     elif K is None or A is not None or G is not None:
         raise RuntimeError(err_str)
 
-    # Check c0 first
+    # Check c0
     if type(c0) == list or type(c0) == tuple or not c0.flags["C_CONTIGUOUS"]:
         c0 = np.array(c0, order="C")
 
@@ -196,6 +240,7 @@ def check_input(c0, N, K, A, G):
 
     if len(c0.shape) == 1:
         n_compounds = c0.shape[0]
+        c0 = np.expand_dims(c0, axis=0)
     elif len(np.shape(c0)) == 2:
         n_compounds = c0.shape[1]
     else:
@@ -234,8 +279,11 @@ def check_input(c0, N, K, A, G):
     if A is not None:
         if type(A) == list or type(A) == tuple:
             A = np.array(A, order="C").astype(float)
-        else:
-            A = np.ascontiguousarray(A, dtype=float)
+
+        if len(A.shape) == 1:
+            A = A.reshape((1, -1), order="C").astype(float)
+
+        A = np.ascontiguousarray(A, dtype=float)
 
     # Check G
     if G is not None:

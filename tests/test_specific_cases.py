@@ -59,12 +59,9 @@ def test_sequential_binding():
 
     c = eqtk.solve(c0, N=N, K=K, units="M")
 
-    for c_val, c0_val in zip(c, c0):
-        equilibrium_ok, cons_mass_ok = eqtk.checks.check_equilibrium_NK(
-            c0_val, c_val, N=N, K=K
-        )
-        assert equilibrium_ok.all(), "Equilibrium error"
-        assert cons_mass_ok.all(), "Conservation of mass error"
+    equilibrium_ok, cons_mass_ok = eqtk.checks.check_equilibrium_NK(c0, c, N=N, K=K)
+    assert equilibrium_ok.all(), "Equilibrium error"
+    assert cons_mass_ok.all(), "Conservation of mass error"
 
 
 def test_aspartic_acid_titration():
@@ -86,12 +83,9 @@ def test_aspartic_acid_titration():
     )
 
     new_c0 = eqtk.volumetric_to_c0(c0, c0_titrant, initial_volume, vol_titrated)
-    for c_val, c0_val in zip(c, new_c0):
-        equilibrium_ok, cons_mass_ok = eqtk.checks.check_equilibrium_NK(
-            c0_val, c_val, N=N, K=K
-        )
-        assert equilibrium_ok.all(), "Equilibrium error"
-        assert cons_mass_ok.all(), "Conservation of mass error"
+    equilibrium_ok, cons_mass_ok = eqtk.checks.check_equilibrium_NK(new_c0, c, N=N, K=K)
+    assert equilibrium_ok.all(), "Equilibrium error"
+    assert cons_mass_ok.all(), "Conservation of mass error"
 
 
 def test_phosphoric_acid_titration():
@@ -125,12 +119,9 @@ def test_exponential_chain():
 
     c = eqtk.solve(c0, N=N, K=K, units="M")
 
-    for c_val, c0_val in zip(c, c0):
-        equilibrium_ok, cons_mass_ok = eqtk.checks.check_equilibrium_NK(
-            c0_val, c_val, N=N, K=K
-        )
-        assert equilibrium_ok.all(), "Equilibrium error"
-        assert cons_mass_ok.all(), "Conservation of mass error"
+    equilibrium_ok, cons_mass_ok = eqtk.checks.check_equilibrium_NK(c0, c, N=N, K=K)
+    assert equilibrium_ok.all(), "Equilibrium error"
+    assert cons_mass_ok.all(), "Conservation of mass error"
 
 
 def test_example_1():

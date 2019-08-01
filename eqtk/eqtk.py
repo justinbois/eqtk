@@ -249,6 +249,10 @@ def solve(
     >>> c
     array([ 0.96274868,  0.00246853,  0.01028015,  0.04753147,  0.98971985])
     """
+    single_point = False
+    if len(c0.shape) == 1:
+        single_point = True
+
     c0, N, K, A, G = checks.check_input(c0, N, K, A, G)
 
     # Solve for mole fractions
@@ -273,6 +277,7 @@ def solve(
         x0, G, solvent_density = _nondimensionalize_AG(
             c0, G, T, solvent_density, units, G_units
         )
+
         x = _solve_AG(
             A,
             G,
@@ -287,7 +292,12 @@ def solve(
         )
 
     # Convert x to appropriate units
-    return x * solvent_density
+    x *= solvent_density
+
+    # If a single titration point was inputted, return single 1D array
+    if single_point:
+        return x.flatten()
+    return x
 
 
 def volumetric_to_c0(c0, c0_titrant, initial_volume, vol_titrated):
@@ -814,14 +824,6 @@ def _solve_NK(
     x : array_like, shape (n_compounds)
         x[j] = the equilibrium concentration of compound j.  Units are
         given as specified in the units keyword argument.
-    run_stats : a class with atrributes:
-        Statistics of steps taken by the trust region algorithm.
-        n_newton_steps : # of Newton steps taken
-        n_cauchy_steps : # of Cauchy steps taken (hit trust region boundary)
-        n_dogleg_steps : # of dogleg steps taken
-        n_chol_fail_cauchy_steps : # of Cholesky failures forcing Cauchy step
-        n_irrel_chol_fail : # of steps with irrelovant Cholesky failures
-        n_dogleg_fail : # of failed dogleg calculations
 
     Raises
     ------
@@ -842,14 +844,7 @@ def _solve_NK(
     n_reactions, n_compounds = N.shape
     ret_shape = x0.shape
 
-    if len(x0.shape) == 1:
-        x0 = np.reshape(x0, (1, len(x0)), order="C")
-
     n_titration_points = x0.shape[0]
-
-    # Check argument lengths
-    if x0.shape[1] != n_compounds:
-        raise ValueError("x0 must contain an entry for each compound.")
 
     x = np.empty((n_titration_points, n_compounds))
     for i_point in range(n_titration_points):
@@ -861,15 +856,7 @@ def _solve_NK(
             n_constraints_new = n_compounds_new - n_reactions_new
 
             # Compute and check stoichiometric matrix
-            A = linalg.nullspace_svd(N_new).transpose()
-            A = np.ascontiguousarray(A, dtype="float")
-
-            if A.shape[0] > n_constraints_new:
-                raise ValueError(
-                    "Rows in stoichiometric matrix N must " + "be linearly independent."
-                )
-            elif A.shape[0] < n_constraints_new:
-                raise RuntimeError("Improperly specified stoichiometric matrix N.")
+            A = np.ascontiguousarray(linalg.nullspace_svd(N_new).transpose())
 
             # If completely constrained (N square), solve directly
             if n_constraints_new == 0:
@@ -1195,7 +1182,7 @@ def _thermal_energy(T, units):
         )
 
 
-def calc_smooth_curve(
+def final_value_titration(
     N,
     K,
     x0,
@@ -1327,4 +1314,5 @@ if numba_check.numba_check():
     perturb_initial_guess = numba.jit(perturb_initial_guess, nopython=True)
     prune_NK = numba.jit(prune_NK, nopython=True)
     _solve_trust_region = numba.jit(_solve_trust_region, nopython=True)
+    _solve_NK = numba.jit(_solve_NK, nopython=True)
 #    prune_AG = numba.jit(prune_AG, nopython=True)

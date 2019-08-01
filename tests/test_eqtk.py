@@ -199,8 +199,7 @@ def test_large_diffs():
     G = np.array([0.0, 40, 40, 40, -2000, -2050])
     x0 = np.array([[1e-6, 1e-6, 1e-6, 1.0000e-6, 0, 0]])
     x = eqtk.solve(c0=x0, A=A, G=G, G_units=None, units=None)
-    for x_val, x0_val in zip(x, x0):
-        assert np.all(eqtk.checks.check_equilibrium_AG(x0_val, x_val, A=A, G=G))
+    assert np.all(eqtk.checks.check_equilibrium_AG(x0, x, A=A, G=G))
 
     A = np.array(
         [
@@ -213,8 +212,7 @@ def test_large_diffs():
     G = np.array([0.0, 40, 40, 40, -2100, -2100])
     x0 = np.array([[1e-6, 1e-6, 1e-6, 1.0001e-6, 0, 0]])
     x = eqtk.solve(c0=x0, A=A, G=G, G_units=None, units=None)
-    for x_val, x0_val in zip(x, x0):
-        assert np.all(eqtk.checks.check_equilibrium_AG(x0_val, x_val, A=A, G=G))
+    assert np.all(eqtk.checks.check_equilibrium_AG(x0, x, A=A, G=G))
 
     A = np.array(
         [
@@ -227,8 +225,7 @@ def test_large_diffs():
     G = np.array([0.0, 40, 150, 200, -4200, -4215])
     x0 = np.array([[1e-6, 1e-6, 1e-6, 1.0000e-6, 0, 0]])
     x = eqtk.solve(c0=x0, A=A, G=G, G_units=None, units=None)
-    for x_val, x0_val in zip(x, x0):
-        assert np.all(eqtk.checks.check_equilibrium_AG(x0_val, x_val, A=A, G=G))
+    assert np.all(eqtk.checks.check_equilibrium_AG(x0, x, A=A, G=G))
 
 
 def test_scale_factor_failure():
@@ -246,8 +243,7 @@ def test_scale_factor_failure():
         ]
     )
     x = eqtk.solve(c0=x0, A=A, G=G)
-    for x_val, x0_val in zip(x, x0):
-        assert np.all(eqtk.checks.check_equilibrium_AG(x0_val, x_val, A=A, G=G))
+    assert np.all(eqtk.checks.check_equilibrium_AG(x0, x, A=A, G=G))
 
 
 def test_past_failures():
@@ -327,8 +323,7 @@ def test_past_failures():
         ]
     )
     x = eqtk.solve(c0=x0, A=A, G=G)
-    for x_val, x0_val in zip(x, x0):
-        assert np.all(eqtk.checks.check_equilibrium_AG(x0_val, x_val, A=A, G=G))
+    assert np.all(eqtk.checks.check_equilibrium_AG(x0, x, A=A, G=G))
 
 
 def test_large():
@@ -573,8 +568,7 @@ def test_large():
         ]
     )
     x = eqtk.solve(c0=x0, A=A, G=G)
-    for x_val, x0_val in zip(x, x0):
-        assert np.all(eqtk.checks.check_equilibrium_AG(x0_val, x_val, A=A, G=G))
+    assert np.all(eqtk.checks.check_equilibrium_AG(x0, x, A=A, G=G))
 
 
 # # Tests
