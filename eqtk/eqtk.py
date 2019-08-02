@@ -23,7 +23,6 @@ def solve(
     solvent_density=None,
     T=20.0,
     G_units=None,
-    elemental=False,
     max_iters=1000,
     tol=0.0000001,
     delta_bar=1000.0,
@@ -75,11 +74,6 @@ def solve(
         Units in which free energy is given.  If None, the free energies are
         specified in units of kT.  Other acceptable options are: 'kcal/mol',
         'J', 'J/mol', 'kJ/mol', and 'pN-nm'.
-    elemental : bool, default False
-        If True and `A` is not None, then `A` is assumed to be an
-        elemental conservation matrix. This means that `A[i, j]` is the
-        number of particles of type `i` in compound `j`. Ignored is `A`
-        is None.
     return_run_stats : Boolean, default = False
         If True, also returns a list of statistics on steps taken by
         the trust region algorithm.
@@ -706,48 +700,39 @@ def prune_NK(N, minus_log_K, x0):
     return N_new, minus_log_K_new, x0_new, active_compounds, active_reactions
 
 
-def prune_AG(A, G, x0, elemental):
+def prune_AG(A, G, x0, A_positive):
     """Prune constraint matrix and free energy to ignore inert and
     missing species.
-
-    The matrix A must be elemental.
     """
+    constraint_vector = np.dot(A, x0)
 
-    # Generate new x0 for only particles
-    x0_part = np.dot(A, x0)
+    if A_positive:
+        active_constraints = constraint_vector > 0.0
+        active_compounds = np.ones(len(x0), dtype=np.bool8)
 
-    if not elemental:
-        return A, G, x0_part, np.array([True] * len(x0))
+        for i, act_const in enumerate(active_constraints):
+            if not act_const:
+                for j in range(A.shape[1]):
+                    if A[i,j] > 0.0:
+                        active_compounds[j] = False
 
-    # Find active particles/compounds
-    active_particles = x0_part > 0
+        n_active_constraints = np.sum(active_constraints)
+        n_active_compounds = np.sum(active_compounds)
 
-    done = False
-    while not done:
-        # Determine which compounds are active (there are no inactive
-        # particles contained in them).
-        prev_active = np.array(active_particles)
-        active_compounds = np.dot(active_particles == False, A > 0) == False
+        A_new = _boolean_index_2d(
+            A, active_constraints, active_compounds, n_active_constraints, n_active_compounds)
 
-        # Determine which particles are active
-        # There is more than one sink for them
-        num_active = np.dot(np.array(A > 0, dtype=np.int64), active_compounds)
-        active_particles = num_active > 1
-
-        done = np.all(prev_active == active_particles)
-
-    # Return the original concentrations if there is no freedom
-    if active_particles.sum() > 0:
-        x0_new = x0_part[np.nonzero(active_particles == 1)[0]]
-        A_new_1 = A[np.nonzero(active_particles)[0], :]
-        A_new = A_new_1[:, np.nonzero(active_compounds)[0]]
-        G_new = G[np.nonzero(active_compounds)[0]]
+        constraint_vector_new = _boolean_index(constraint_vector, active_constraints, n_active_constraints)
     else:
-        A_new = np.array([[]])
-        G_new = np.array([])
-        x0_new = x0
+        N = linalg.nullspace_svd(A).transpose()
+        dummy_minus_log_K = np.ones(N.shape[0])
+        N_new, _, x0_new, active_compounds, _ = prune_NK(N, dumy_minus_log_K, x0)
+        A_new = linalg.nullspace_svd(N).transpose()
+        constraint_vector_new = np.dot(A_new, x0_new)
 
-    return np.ascontiguousarray(A_new, dtype="float"), G_new, x0_new, active_compounds
+    G_new = _boolean_index(G, active_compounds, np.sum(active_compounds))
+
+    return np.ascontiguousarray(A_new), G_new, constraint_vector_new, active_compounds
 
 
 def _print_runstats(
@@ -921,7 +906,6 @@ def _solve_AG(
     A,
     G,
     x0,
-    elemental=False,
     max_iters=1000,
     tol=0.0000001,
     delta_bar=1000.0,
@@ -972,33 +956,33 @@ def _solve_AG(
     """
     n_particles, n_compounds = A.shape
 
-    # For now, we stipulate that A must be elemental and therefore nonnegative
-    if np.any(A < 0):
-        raise ValueError("A must contain only non-negative entries")
-
-    ret_shape = x0.shape
-    if len(x0.shape) == 1:
-        x0 = np.reshape(x0, (1, len(x0)), order="C")
-
     n_titration_points = x0.shape[0]
-
-    # Check argument lengths
-    if x0.shape[1] != n_compounds:
-        raise ValueError("x0 must contain an entry for each compound.")
 
     x = np.empty((n_titration_points, n_compounds))
 
-    for i_point in range(n_titration_points):
-        A_new, G_new, constraint_vector, active_compounds = prune_AG(
-            A, G, x0[i_point], elemental
-        )
+    if np.all(A >= 0):
+        A_nonnegative = True
+    else:
+        A_nonnegative = False
 
-        # Return the original concentrations if there is no freedom
-        if len(G_new) > 0:
-            if len(A_new) == 0:
+    for i_point in range(n_titration_points):
+        A_new, G_new, constraint_vector, active_compounds = prune_AG(A, G, x0[i_point], A_nonnegative)
+
+        # Detect if A is empty (no constraints)
+        A_empty = np.sum(A_new.shape) == 1
+
+        # Problem is entirely contrained, must have x = x0.
+        if (not A_empty) and A_new.shape[0] >= A.shape[1]:
+            x[i_point, :] = x0
+            converged = True
+            run_stats = None
+        else:
+            # No constraints, directly use analytical solution to primal problem
+            if A_empty:
                 x_new = np.exp(-G_new)
                 converged = True
                 run_stats = None
+            # Go ahead and solve
             else:
                 x_new, converged, n_trial, step_tally = _solve_trust_region(
                     A_new,
@@ -1013,36 +997,35 @@ def _solve_AG(
                     perturb_scale=perturb_scale,
                 )
 
-            # If not converged, throw exception
-            if not converged:
-                print("**** Convergence failure! ****")
-                _print_runstats(
-                    A,
-                    G,
-                    x0,
-                    constraint_vector,
-                    n_trial,
-                    max_trials,
-                    tol,
-                    delta_bar,
-                    eta,
-                    min_delta,
-                    perturb_scale,
-                    converged,
-                    step_tally,
-                    max_iters,
-                )
-                raise RuntimeError("Calculation did not converge")
+                # If not converged, throw exception
+                if not converged:
+                    print("**** Convergence failure! ****")
+                    _print_runstats(
+                        A,
+                        G,
+                        x0,
+                        constraint_vector,
+                        n_trial,
+                        max_trials,
+                        tol,
+                        delta_bar,
+                        eta,
+                        min_delta,
+                        perturb_scale,
+                        converged,
+                        step_tally,
+                        max_iters,
+                    )
+                    raise RuntimeError("Calculation did not converge")
 
-        # Put in concentrations that were cut out
-        j = 0
-        for i in range(n_compounds):
-            if active_compounds[i]:
-                x[i_point, i] = x_new[j]
-                j += 1
-            else:
-                x[i_point, i] = x0[i_point, i]
-    x = np.reshape(x, ret_shape)
+            # Put in concentrations that were cut out
+            j = 0
+            for i in range(n_compounds):
+                if active_compounds[i]:
+                    x[i_point, i] = x_new[j]
+                    j += 1
+                else:
+                    x[i_point, i] = x0[i_point, i]
 
     return x
 

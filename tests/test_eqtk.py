@@ -11,7 +11,8 @@ def test_prune_NK():
             [-1, 0, -1, 1, 0, 0],
             [0, -2, 0, 0, 1, 0],
             [0, -1, -1, 0, 0, 1],
-        ], dtype=float
+        ],
+        dtype=float,
     )
     minus_log_K = np.array([1, 2, 3, 4], dtype=float)
 
@@ -61,7 +62,8 @@ def test_prune_NK():
             [-1, -1, 0, 1, 0, 0],
             [0, -2, 0, 0, 1, 0],
             [0, -1, -1, 0, 0, 1],
-        ], dtype=float
+        ],
+        dtype=float,
     )
     minus_log_K = np.array([1, 2, 3, 4], dtype=float)
 
@@ -112,47 +114,112 @@ def test_prune_AG():
     G = np.array([1, 2, 3, 4, 5, 6], dtype=float)
 
     # No pruning
-    x0 = np.array([1, 2, 3, 4, 5, 6], dtype=float)
-    A_new, G_new, x0_new, _ = eqtk.prune_AG(A, G, x0, True)
-    assert np.array_equal(A_new, A)
-    assert np.array_equal(G_new, G)
-    assert np.array_equal(x0_new, np.dot(A, x0))
-
-    # No pruning
-    x0 = np.array([1, 2, 0, 0, 0, 0], dtype=float)
-    A_new, G_new, x0_new, _ = eqtk.prune_AG(A, G, x0, True)
-    assert np.array_equal(A_new, A)
-    assert np.array_equal(G_new, G)
-    assert np.array_equal(x0_new, np.dot(A, x0))
-
-    # No pruning
-    x0 = np.array([0, 0, 0, 0, 0, 6], dtype=float)
-    A_new, G_new, x0_new, _ = eqtk.prune_AG(A, G, x0, True)
-    assert np.array_equal(A_new, A)
-    assert np.array_equal(G_new, G)
-    assert np.array_equal(x0_new, np.dot(A, x0))
+    for x0_val in [[1, 2, 3, 4, 5, 6], [1, 2, 0, 0, 0, 0], [0, 0, 0, 0, 0, 6]]:
+        x0 = np.array(x0_val, dtype=float)
+        A_new, G_new, constraint_vector_new, active_compounds = eqtk.prune_AG(
+            A, G, x0, True
+        )
+        assert np.array_equal(active_compounds, np.ones(6, dtype=np.bool8))
+        assert np.array_equal(A_new, A)
+        assert np.array_equal(G_new, G)
+        assert np.array_equal(constraint_vector_new, np.dot(A, x0))
 
     # Only species 1 and 4
     x0 = np.array([0, 0, 0, 0, 5, 0], dtype=float)
     x0_prune = np.array([0, 5], dtype=float)
     A_target = np.array([[1, 2]], dtype=float)
     G_target = np.array([2, 5], dtype=float)
-    A_new, G_new, x0_new, _ = eqtk.prune_AG(A, G, x0, True)
+    A_new, G_new, constraint_vector_new, active_compounds = eqtk.prune_AG(A, G, x0, True)
+    assert np.array_equal(active_compounds, np.array([0, 1, 0, 0, 1, 0], dtype=np.bool8))
     assert np.array_equal(A_new, A_target)
     assert np.array_equal(G_new, G_target)
-    assert np.array_equal(x0_new, np.dot(A_new, x0_prune))
+    assert np.array_equal(constraint_vector_new, np.dot(A_new, x0_prune))
 
+    # Simple case, binary binding
+    A = np.array([[1, 0, 1], [0, 1, 1]], dtype=float)
+    G = np.array([0, 0, 1], dtype=float)
 
-def test_trivial():
-    N = np.array([[1]]).astype(float)
-    K = np.array([0.5]).astype(float)
-    A = np.array([[]]).reshape((0, 1)).astype(float)
-    G = -np.log(K)
-    x0 = np.array([0]).astype(float)
-    res_NK = eqtk.solve(c0=x0, N=N, K=K)
-    res_AG = eqtk.solve(c0=x0, A=A, G=G)
-    assert np.allclose(res_NK, K)
-    assert np.allclose(res_AG, K)
+    # No pruning
+    for x0_val in [[1, 1, 1], [1, 1, 0], [0, 0, 1]]:
+        x0 = np.array(x0_val, dtype=float)
+        A_new, G_new, constraint_vector_new, active_compounds = eqtk.prune_AG(
+            A, G, x0, True
+        )
+        assert np.array_equal(active_compounds, np.ones(3, dtype=np.bool8))
+        assert np.array_equal(A_new, A)
+        assert np.array_equal(G_new, G)
+        assert np.array_equal(constraint_vector_new, np.dot(A, x0))
+
+    # Only keep element 0
+    x0 = np.array([1, 0, 0], dtype=float)
+    x0_prune = np.array([1.0])
+    A_target = np.array([[1]], dtype=float)
+    G_target = np.array([0.0])
+    A_new, G_new, constraint_vector_new, active_compounds = eqtk.prune_AG(
+        A, G, x0, True
+    )
+    assert np.array_equal(active_compounds, np.array([1, 0, 0], dtype=np.bool8))
+    assert np.array_equal(A_new, A_target)
+    assert np.array_equal(G_new, G_target)
+    assert np.array_equal(constraint_vector_new, np.dot(A_new, x0_prune))
+
+    # Only keep element 1
+    x0 = np.array([0, 1, 0], dtype=float)
+    x0_prune = np.array([1.0])
+    A_target = np.array([[1]], dtype=float)
+    G_target = np.array([0.0])
+    A_new, G_new, constraint_vector_new, active_compounds = eqtk.prune_AG(
+        A, G, x0, True
+    )
+    assert np.array_equal(active_compounds, np.array([0, 1, 0], dtype=np.bool8))
+    assert np.array_equal(A_new, A_target)
+    assert np.array_equal(G_new, G_target)
+    assert np.array_equal(constraint_vector_new, np.dot(A_new, x0_prune))
+
+    # A trickier case
+    A = np.array(
+        [[1, 0, 1, 1, 1], [0, 1, 2, 1, 0], [1, 1, 0, 1, 0], [0, 0, 0, 0, 1]],
+        dtype=float,
+    )
+    G = np.array([1, 2, 3, 4, 5], dtype=float)
+
+    # No pruning
+    for x0_val in [[1, 1, 0, 0, 1], [0, 0, 0, 1, 1], [0, 1, 0, 0, 1], [1, 1, 1, 1, 1]]:
+        x0 = np.array(x0_val, dtype=float)
+        A_new, G_new, constraint_vector_new, active_compounds = eqtk.prune_AG(
+            A, G, x0, True
+        )
+        assert np.array_equal(active_compounds, np.ones(5, dtype=np.bool8))
+        assert np.array_equal(A_new, A)
+        assert np.array_equal(G_new, G)
+        assert np.array_equal(constraint_vector_new, np.dot(A, x0))
+
+    # Only entry 2
+    x0 = np.array([0, 0, 1, 0, 0], dtype=float)
+    x0_prune = np.array([1], dtype=float)
+    A_target = np.array([[1], [2]], dtype=float)
+    G_target = np.array([3], dtype=float)
+    A_new, G_new, constraint_vector_new, active_compounds = eqtk.prune_AG(
+        A, G, x0, True
+    )
+    assert np.array_equal(active_compounds, np.array([0, 0, 1, 0, 0], dtype=np.bool8))
+    assert np.array_equal(A_new, A_target)
+    assert np.array_equal(G_new, G_target)
+    assert np.array_equal(constraint_vector_new, np.dot(A_new, x0_prune))
+
+    # All but last entry
+    A_target = A[:-1, :-1]
+    G_target = np.array([1, 2, 3, 4], dtype=float)
+    for x0_val in [[1, 1, 0, 0, 0], [0, 0, 0, 1, 0], [1, 1, 1, 1, 0]]:
+        x0 = np.array(x0_val, dtype=float)
+        x0_prune = x0[:-1]
+        A_new, G_new, constraint_vector_new, active_compounds = eqtk.prune_AG(
+            A, G, x0, True
+        )
+        assert np.array_equal(active_compounds, np.array([1, 1, 1, 1, 0], dtype=np.bool8))
+        assert np.array_equal(A_new, A_target)
+        assert np.array_equal(G_new, G_target)
+        assert np.array_equal(constraint_vector_new, np.dot(A_new, x0_prune))
 
 
 def test_random_cases(n_random_test_cases=1, max_particles=4, max_compound_size=5):
@@ -569,6 +636,19 @@ def test_large():
     )
     x = eqtk.solve(c0=x0, A=A, G=G)
     assert np.all(eqtk.checks.check_equilibrium_AG(x0, x, A=A, G=G))
+
+
+def test_trivial():
+    N = np.array([[1]]).astype(float)
+    K = np.array([0.5]).astype(float)
+    A = np.array([[]]).reshape((0, 1)).astype(float)
+    G = -np.log(K)
+    x0 = np.array([0]).astype(float)
+    res_NK = eqtk.solve(c0=x0, N=N, K=K)
+    res_AG = eqtk.solve(c0=x0, A=A, G=G)
+    assert np.allclose(res_NK, K)
+    assert np.allclose(res_AG, K)
+
 
 
 # # Tests

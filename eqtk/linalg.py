@@ -487,12 +487,8 @@ def nullspace_svd(A, tol=1e-12):
         A matrix of shape (K, N) where K is the rank of the null space,
         at least N-M
 
-        Every element in np.dot(A,N.T) should be approximately 0
+        Every element in np.dot(A, N.T) should be approximately 0
     """
-    # This currently uses SVD since it is provided by numpy. The C backend
-    # function may use QR decomposition instead since numerical stability
-    # isn't a worry for the well-conditioned matrices that we are dealing with.
-
     u, sigma, v_trans = np.linalg.svd(A)
     nonzero_inds = (sigma >= tol).sum()
     return v_trans[nonzero_inds:, :].transpose()

@@ -283,6 +283,10 @@ def check_input(c0, N, K, A, G):
         if len(A.shape) == 1:
             A = A.reshape((1, -1), order="C").astype(float)
 
+        # Make sure empty constraint matrix has correct dimensions
+        if A is not None and np.sum(A.shape) == 1:
+            A = A.reshape((0, 1))
+
         A = np.ascontiguousarray(A, dtype=float)
 
     # Check G
