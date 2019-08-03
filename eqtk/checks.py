@@ -1,5 +1,5 @@
 import numpy as np
-import eqtk
+from . import eqtk
 from . import linalg
 
 
@@ -86,22 +86,22 @@ def _check_equilibrium_NK_single_point(c0, c, N=None, K=None):
     >>> cons_mass_err
     array([ -4.11757295e-11,  -1.28775509e-11])
     """
-    N_new, _, _, active_compounds, active_reactions = eqtk.eqtk._prune_NK(N, -np.log(K), c0)
+    _, _, _, _, active_reactions = eqtk._prune_NK(N, -np.log(K), c0)
 
     # Check equilibrium expressions
     eq_ok = np.empty(len(active_reactions), dtype=bool)
-    r_active = 0
+    logc = np.array([np.log(ci) if ci > 0 else 0.0 for ci in c])
     for r, K in enumerate(K):
         if active_reactions[r]:
-            rhs = np.dot(N_new[r_active], np.log(c[active_compounds]))
+            rhs = np.dot(N[r], logc)
             eq_ok[r] = np.isclose(np.exp(rhs - np.log(K)), 1)
-            r_active += 1
         else:
             eq_ok[r] = 1
 
     # Check conservation expressions
     A = linalg.nullspace_svd(N).transpose()
-    target = np.dot(A, c0)
+    c0_adjusted = eqtk._create_from_nothing(N, c0)
+    target = np.dot(A, c0_adjusted)
     res = np.dot(A, c)
     cons_mass_ok = np.empty(len(res), dtype=bool)
     for i, (res_val, target_val) in enumerate(zip(res, target)):

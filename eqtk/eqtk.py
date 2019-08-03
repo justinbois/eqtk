@@ -787,6 +787,17 @@ def _prune_NK(N, minus_log_K, x0):
     return N_new, minus_log_K_new, x0_new, active_compounds, active_reactions
 
 
+def _create_from_nothing(N, x0):
+    for i in range(N.shape[0]):
+        Ni = N[i, :]
+        if np.all(Ni >= 0):
+            x0 += Ni
+        elif np.all(Ni <= 0):
+            x0 -= Ni
+
+    return x0
+
+
 def _prune_AG(A, G, x0, A_positive):
     """Prune constraint matrix and free energy to ignore inert and
     missing species.
@@ -945,11 +956,14 @@ def _solve_NK(
                 ln_x = np.linalg.solve(N_new, -minus_log_K_new)
                 x_new = np.exp(ln_x)
             else:
+                # In case we have null <=> compds type reaction, adjust x0
+                x0_adjusted = _create_from_nothing(N_new, x0_new)
+
                 # Compute the free energies in units of kT from the K's
                 b = np.concatenate((np.zeros(n_constraints_new), minus_log_K_new))
                 N_prime = np.vstack((A, N_new))
                 G = np.linalg.solve(N_prime, b)
-                constraint_vector = np.dot(A, x0_new)
+                constraint_vector = np.dot(A, x0_adjusted)
 
                 x_new, converged, n_trial, step_tally = _solve_trust_region(
                     A,
@@ -1310,5 +1324,6 @@ if numba_check.numba_check():
     _prune_NK = numba.jit(_prune_NK, nopython=True)
     _prune_AG = numba.jit(_prune_AG, nopython=True)
     _solve_trust_region = numba.jit(_solve_trust_region, nopython=True)
+    _create_from_nothing = numba.jit(_create_from_nothing, nopython=True)
     _solve_NK = numba.jit(_solve_NK, nopython=True)
     _solve_AG = numba.jit(_solve_AG, nopython=True)

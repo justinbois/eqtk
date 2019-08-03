@@ -108,6 +108,40 @@ def test_prune_NK():
     assert np.array_equal(minus_log_K_new, minus_log_K_target)
     assert np.array_equal(x0_new, x0_target)
 
+    # Reactions with solvent dissociation
+    N = np.array(
+        [
+            [1, 0, 1, 0, -1, 0],
+            [1, 0, 0, 1, 0, -1],
+            [1, 1, 1, 0, 0, 0]
+        ],
+        dtype=float,
+    )
+    minus_log_K = np.array([1, 2, 3], dtype=float)
+
+    # No pruning
+    for x0_val in [[1, 1, 1, 1, 1, 1],
+                   [0, 0, 0, 1, 0, 0],
+                   [1, 1, 1, 1, 0, 0],
+                   [0, 0, 0, 0, 0, 1]]:
+        x0 = np.array(x0_val, dtype=float)
+        N_new, minus_log_K_new, x0_new, _, _ = eqtk.eqtk._prune_NK(N, minus_log_K, x0)
+        assert np.array_equal(N_new, N)
+        assert np.array_equal(minus_log_K_new, minus_log_K)
+        assert np.array_equal(x0_new, x0)
+
+    # Only entries 0, 1, 2, and 4
+    x0 = np.zeros(6, dtype=float)
+    x0_target = np.zeros(4, dtype=float)
+    N_target = np.array([[1, 0, 1, -1], [1, 1, 1, 0]], dtype=float)
+    minus_log_K_target = np.array([1.0, 3.0])
+    active_compounds_target = np.array([True, True, True, False, True, False])
+    N_new, minus_log_K_new, x0_new, active_compounds, active_reactions = eqtk.eqtk._prune_NK(N, minus_log_K, x0)
+    assert np.array_equal(active_compounds, active_compounds_target)
+    assert np.array_equal(N_new, N_target)
+    assert np.array_equal(minus_log_K_new, minus_log_K_target)
+    assert np.array_equal(x0_new, x0_target)
+
 
 def test_prune_AG():
     A = np.array([[1, 0, 1, 1, 0, 1], [0, 1, 0, 1, 2, 1]], dtype=float)
@@ -636,6 +670,36 @@ def test_large():
     )
     x = eqtk.solve(c0=x0, A=A, G=G)
     assert np.all(eqtk.checks.check_equilibrium_AG(x0, x, A=A, G=G))
+
+
+def test_A_with_negative_entries():
+    N = np.array(
+        [
+            [1, 0, 1, 0, -1, 0],
+            [1, 0, 0, 1, 0, -1],
+            [1, 1, 1, 0, 0, 0]
+        ],
+        dtype=float,
+    )
+
+    A = np.array([[0, 0, 0, 1, 0, 1], 
+                  [1, 0, -1, 0, 0, 1], 
+                  [0, -1, 1, 0, 1, 0]], dtype=float)
+
+    G = np.array([0, 1, 2, 3, 4, 5])
+    K = np.exp(-np.dot(N, G))
+
+    for x0_val in [[1, 1, 1, 1, 1, 1],
+                   [0, 0, 0, 1, 0, 0],
+                   [1, 1, 1, 1, 0, 0],
+                   [0, 0, 0, 0, 0, 0]]:
+        x0 = np.array(x0_val, dtype=float)
+        x_NK = eqtk.solve(c0=x0, N=N, K=K)
+        eq_check, cons_mass_check = eqtk.checks.check_equilibrium_NK(x0, x_NK, N=N, K=K)
+        my_A = eqtk.linalg.nullspace_svd(N).transpose()
+        print(cons_mass_check, my_A @ x_NK, my_A @ x0)
+        assert np.all(eq_check)
+        assert np.all(cons_mass_check)
 
 
 def test_trivial():
