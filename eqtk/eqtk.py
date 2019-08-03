@@ -798,45 +798,35 @@ def _create_from_nothing(N, x0):
     return x0
 
 
-def _prune_AG(A, G, x0, A_positive):
+def _prune_AG(A, G, x0):
     """Prune constraint matrix and free energy to ignore inert and
     missing species.
     """
     constraint_vector = np.dot(A, x0)
 
-    if A_positive:
-        active_constraints = constraint_vector > 0.0
-        active_compounds = np.ones(len(x0), dtype=np.bool8)
+    active_constraints = constraint_vector > 0.0
+    active_compounds = np.ones(len(x0), dtype=np.bool8)
 
-        for i, act_const in enumerate(active_constraints):
-            if not act_const:
-                for j in range(A.shape[1]):
-                    if A[i, j] > 0.0:
-                        active_compounds[j] = False
+    for i, act_const in enumerate(active_constraints):
+        if not act_const:
+            for j in range(A.shape[1]):
+                if A[i, j] > 0.0:
+                    active_compounds[j] = False
 
-        n_active_constraints = np.sum(active_constraints)
-        n_active_compounds = np.sum(active_compounds)
+    n_active_constraints = np.sum(active_constraints)
+    n_active_compounds = np.sum(active_compounds)
 
-        A_new = _boolean_index_2d(
-            A,
-            active_constraints,
-            active_compounds,
-            n_active_constraints,
-            n_active_compounds,
-        )
+    A_new = _boolean_index_2d(
+        A,
+        active_constraints,
+        active_compounds,
+        n_active_constraints,
+        n_active_compounds,
+    )
 
-        constraint_vector_new = _boolean_index(
-            constraint_vector, active_constraints, n_active_constraints
-        )
-    else:
-        N = linalg.nullspace_svd(A).transpose()
-        dummy_minus_log_K = np.ones(N.shape[0])
-        N_new, dummy_K_new, x0_new, active_compounds, _ = _prune_NK(
-            N, dummy_minus_log_K, x0
-        )
-        A_new_F = linalg.nullspace_svd(N).transpose()
-        A_new = np.ascontiguousarray(A_new_F)
-        constraint_vector_new = np.dot(A_new, x0_new)
+    constraint_vector_new = _boolean_index(
+        constraint_vector, active_constraints, n_active_constraints
+    )
 
     G_new = _boolean_index(G, active_compounds, np.sum(active_compounds))
 
@@ -1071,15 +1061,8 @@ def _solve_AG(
 
     x = np.empty((n_titration_points, n_compounds))
 
-    if np.all(A >= 0):
-        A_nonnegative = True
-    else:
-        A_nonnegative = False
-
     for i_point in range(n_titration_points):
-        A_new, G_new, constraint_vector, active_compounds = _prune_AG(
-            A, G, x0[i_point], A_nonnegative
-        )
+        A_new, G_new, constraint_vector, active_compounds = _prune_AG(A, G, x0[i_point])
 
         # Detect if A is empty (no constraints)
         A_empty = (A_new.shape[0] + A_new.shape[1] == 1)

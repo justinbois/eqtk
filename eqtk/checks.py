@@ -259,8 +259,12 @@ def check_input(c0, N, K, A, G):
         if len(N.shape) == 1:
             N = N.reshape((1, -1), order="C").astype(float)
 
-        if not N.flags["C_CONTIGUOUS"]:
-            N = np.array(N, order="C").astype(float)
+        N = np.ascontiguousarray(N, dtype=float)
+
+        if np.isinf(N).any():
+            raise ValueError("All entries in N must be finite.")
+        if np.isnan(N).any():
+            raise ValueError("No NaN values are allowed in N.")
 
         n_reactions = N.shape[0]
 
@@ -286,6 +290,14 @@ def check_input(c0, N, K, A, G):
         # Make sure empty constraint matrix has correct dimensions
         if A is not None and np.sum(A.shape) == 1:
             A = A.reshape((0, 1))
+
+        if np.isinf(A).any():
+            raise ValueError("All entries in A must be finite.")
+        if np.isnan(A).any():
+            raise ValueError("No NaN values are allowed in A.")
+
+        if np.any(A < 0):
+            raise ValueError("A must have all nonnegative entries.")
 
         A = np.ascontiguousarray(A, dtype=float)
 

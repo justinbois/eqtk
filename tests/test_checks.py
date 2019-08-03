@@ -93,3 +93,17 @@ def test_reshape_empty_A():
     x0, N, K, A, G = eqtk.checks.check_input(x0, N=None, K=None, A=A, G=G)
     assert A.shape[0] == 0
     assert A.shape[1] == 1
+
+
+def test_A_negative():
+    A = np.array([[1, -1]])
+    G = np.ones(2)
+    with pytest.raises(ValueError) as excinfo:
+        eqtk.checks.check_input([], A=A, G=G, N=None, K=None)
+    excinfo.match("A must have all nonnegative entries.")
+
+    A = np.array([[0, 0, 1, 1], [1, -1, 0, 1]])
+    G = np.ones(4)
+    with pytest.raises(ValueError) as excinfo:
+        eqtk.checks.check_input([], A=A, G=G, N=None, K=None)
+    excinfo.match("A must have all nonnegative entries.")
