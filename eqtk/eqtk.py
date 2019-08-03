@@ -294,22 +294,6 @@ def solve(
     return x
 
 
-def volumetric_to_c0(c0, c0_titrant, initial_volume, vol_titrated):
-    """Convert volumetric titration to input concentrations."""
-    n_titration_points = len(vol_titrated)
-    n_compounds = len(c0_titrant)
-    if n_compounds != len(c0):
-        raise ValueError("Dimensions of c0 and c0_titrant must agree")
-
-    vol_titrated_col = np.reshape(vol_titrated, (n_titration_points, 1))
-    c_titrant_row = np.reshape(c0_titrant, (1, n_compounds))
-    c0_row = np.reshape(c0, (1, n_compounds))
-    titrated_scale = vol_titrated_col / (initial_volume + vol_titrated_col)
-    original_scale = initial_volume / (initial_volume + vol_titrated_col)
-
-    return np.dot(titrated_scale, c_titrant_row) + np.dot(original_scale, c0_row)
-
-
 def volumetric_titration(
     c0,
     initial_volume,
@@ -495,6 +479,109 @@ def volumetric_titration(
     return c
 
 
+def final_value_titration(
+    x0,
+    final_x,
+    final_species,
+    N,
+    K,
+    final_tolerance=1e-6,
+    max_iters=1000,
+    tol=0.0000001,
+    delta_bar=1000.0,
+    eta=0.125,
+    min_delta=1.0e-12,
+    max_trials=100,
+    perturb_scale=100.0,
+):
+    """
+    Solve for equilibrium concentrations of all species in a dilute
+    solution given the dimensionless equilibrium constants for the
+    possible chemical reactions. Attempt to solve for each point in
+    a curve where the desired concentration of a single species is
+    specified for each point by specified_x. The particular species
+    is specified by specified_species. Each point is found by
+    Ridder's method for now. Can use Newton's method if we find an
+    exact derivative later.
+
+    Parameters
+    ----------
+    N : array_like, shape (n_reactions , n_compounds)
+        N[r][j] = the stoichiometric coefficient of compounds j
+        in chemical reaction r.
+    K : array_like, shape (n_reactions,)
+        K[r] is the equilibrium constant for chemical reaction r
+    x0 : array_like, shape (n_compounds,)
+        Array containing the total "initial" mole fraction of all
+        compounds in solution.
+    final_x : array_like, shape (n_points,)
+        Array containing the total "final" mole fraction of a
+        particular compound in solution.
+    final_species : Integer
+        The index of the species referred to by final_x
+    final_tolerance : Float, default=1e-14
+        The relative tolerance of the final concentration with
+        respect to final_x
+
+    Returns
+    -------
+    x : array_like, shape (n_points, n_compounds)
+        x[i, j] = the equilibrium mole fraction of compound j at point i
+    converged : Boolean
+        True is trust region calculation converged, False otherwise.
+
+    Raises
+    ------
+    ValueError
+        If N, K, and x0 have a dimensional mismatch.
+
+    """
+    n_reactions, n_compounds = N.shape
+
+    # Add a new reaction: just straight up production of the final_species
+    N_new = np.vstack((np.zeros(n_compounds), N))
+    N_new[0, final_species] = 1
+    K_new = np.concatenate(((0,), K))
+
+    result_x = np.empty((len(final_x), n_compounds))
+
+    for i, pt in enumerate(final_x):
+        # Set concentration of final_species by setting K of its prod. rxn.
+        K_new[0] = pt
+
+        res_x, converged, res_stats = solve(
+            N_new,
+            K_new,
+            x0,
+            max_iters=max_iters,
+            tol=tol,
+            delta_bar=1000.0,
+            eta=eta,
+            min_delta=min_delta,
+            max_trials=max_trials,
+            perturb_scale=perturb_scale,
+        )
+        result_x[i, :] = res_x
+
+    return result_x
+
+
+def volumetric_to_c0(c0, c0_titrant, initial_volume, vol_titrated):
+    """Convert volumetric titration to input concentrations."""
+    n_titration_points = len(vol_titrated)
+    n_compounds = len(c0_titrant)
+    if n_compounds != len(c0):
+        raise ValueError("Dimensions of c0 and c0_titrant must agree")
+
+    vol_titrated_col = np.reshape(vol_titrated, (n_titration_points, 1))
+    c_titrant_row = np.reshape(c0_titrant, (1, n_compounds))
+    c0_row = np.reshape(c0, (1, n_compounds))
+    titrated_scale = vol_titrated_col / (initial_volume + vol_titrated_col)
+    original_scale = initial_volume / (initial_volume + vol_titrated_col)
+
+    return np.dot(titrated_scale, c_titrant_row) + np.dot(original_scale, c0_row)
+
+
 def _solve_trust_region(
     A,
     G,
@@ -549,7 +636,7 @@ def _solve_trust_region(
     # Build new problem with inactive ones cut out
     params = (G, A, constraint_vector)
     abs_tol = tol * np.abs(constraint_vector)
-    mu0 = initial_guess(constraint_vector, G, A)
+    mu0 = _initial_guess(constraint_vector, G, A)
 
     mu, converged, step_tally = trust_region.trust_region_convex_unconstrained(
         mu0,
@@ -566,7 +653,7 @@ def _solve_trust_region(
     # Try other initial guesses if it did not converge
     n_trial = 1
     while not converged and n_trial < max_trials:
-        mu0 = perturb_initial_guess(constraint_vector, G, A, mu0, perturb_scale)
+        mu0 = _perturb_initial_guess(constraint_vector, G, A, mu0, perturb_scale)
         mu, converged, step_tally = trust_region.trust_region_convex_unconstrained(
             mu0,
             G,
@@ -585,7 +672,7 @@ def _solve_trust_region(
     return x, converged, n_trial, step_tally
 
 
-def initial_guess(constraint_vector, G, A):
+def _initial_guess(constraint_vector, G, A):
     """
     Calculates an initial guess for lambda such that the maximum
     mole fraction calculated will not give an overflow error and
@@ -612,7 +699,7 @@ def initial_guess(constraint_vector, G, A):
         return np.linalg.solve(A_AT, b)
 
 
-def perturb_initial_guess(constraint_vector, G, A, mu0, perturb_scale=100.0):
+def _perturb_initial_guess(constraint_vector, G, A, mu0, perturb_scale=100.0):
     """
     Calculates an initial guess for lambda such that the maximum
     mole fraction calculated will not give an overflow error and
@@ -637,7 +724,7 @@ def perturb_initial_guess(constraint_vector, G, A, mu0, perturb_scale=100.0):
     return new_mu
 
 
-def prune_NK(N, minus_log_K, x0):
+def _prune_NK(N, minus_log_K, x0):
     """Prune reactions to ignore inert and missing species.
     """
     n_reactions, n_compounds = N.shape
@@ -700,7 +787,7 @@ def prune_NK(N, minus_log_K, x0):
     return N_new, minus_log_K_new, x0_new, active_compounds, active_reactions
 
 
-def prune_AG(A, G, x0, A_positive):
+def _prune_AG(A, G, x0, A_positive):
     """Prune constraint matrix and free energy to ignore inert and
     missing species.
     """
@@ -733,7 +820,7 @@ def prune_AG(A, G, x0, A_positive):
     else:
         N = linalg.nullspace_svd(A).transpose()
         dummy_minus_log_K = np.ones(N.shape[0])
-        N_new, dummy_K_new, x0_new, active_compounds, _ = prune_NK(
+        N_new, dummy_K_new, x0_new, active_compounds, _ = _prune_NK(
             N, dummy_minus_log_K, x0
         )
         A_new_F = linalg.nullspace_svd(N).transpose()
@@ -843,7 +930,7 @@ def _solve_NK(
 
     x = np.empty((n_titration_points, n_compounds))
     for i_point in range(n_titration_points):
-        N_new, minus_log_K_new, x0_new, active_compounds, _ = prune_NK(
+        N_new, minus_log_K_new, x0_new, active_compounds, _ = _prune_NK(
             N, minus_log_K, x0[i_point]
         )
         if len(minus_log_K_new) > 0:
@@ -976,7 +1063,7 @@ def _solve_AG(
         A_nonnegative = False
 
     for i_point in range(n_titration_points):
-        A_new, G_new, constraint_vector, active_compounds = prune_AG(
+        A_new, G_new, constraint_vector, active_compounds = _prune_AG(
             A, G, x0[i_point], A_nonnegative
         )
 
@@ -1177,93 +1264,6 @@ def _thermal_energy(T, units):
         )
 
 
-def final_value_titration(
-    N,
-    K,
-    x0,
-    final_x,
-    final_species,
-    final_tolerance=1e-6,
-    max_iters=1000,
-    tol=0.0000001,
-    delta_bar=1000.0,
-    eta=0.125,
-    min_delta=1.0e-12,
-    max_trials=100,
-    perturb_scale=100.0,
-):
-    """
-    Solve for equilibrium concentrations of all species in a dilute
-    solution given the dimensionless equilibrium constants for the
-    possible chemical reactions. Attempt to solve for each point in
-    a curve where the desired concentration of a single species is
-    specified for each point by specified_x. The particular species
-    is specified by specified_species. Each point is found by
-    Ridder's method for now. Can use Newton's method if we find an
-    exact derivative later.
-
-    Parameters
-    ----------
-    N : array_like, shape (n_reactions , n_compounds)
-        N[r][j] = the stoichiometric coefficient of compounds j
-        in chemical reaction r.
-    K : array_like, shape (n_reactions,)
-        K[r] is the equilibrium constant for chemical reaction r
-    x0 : array_like, shape (n_compounds,)
-        Array containing the total "initial" mole fraction of all
-        compounds in solution.
-    final_x : array_like, shape (n_points,)
-        Array containing the total "final" mole fraction of a
-        particular compound in solution.
-    final_species : Integer
-        The index of the species referred to by final_x
-    final_tolerance : Float, default=1e-14
-        The relative tolerance of the final concentration with
-        respect to final_x
-
-    Returns
-    -------
-    x : array_like, shape (n_points, n_compounds)
-        x[i, j] = the equilibrium mole fraction of compound j at point i
-    converged : Boolean
-        True is trust region calculation converged, False otherwise.
-
-    Raises
-    ------
-    ValueError
-        If N, K, and x0 have a dimensional mismatch.
-
-    """
-    n_reactions, n_compounds = N.shape
-
-    # Add a new reaction: just straight up production of the final_species
-    N_new = np.vstack((np.zeros(n_compounds), N))
-    N_new[0, final_species] = 1
-    K_new = np.concatenate(((0,), K))
-
-    result_x = np.empty((len(final_x), n_compounds))
-
-    for i, pt in enumerate(final_x):
-        # Set concentration of final_species by setting K of its prod. rxn.
-        K_new[0] = pt
-
-        res_x, converged, res_stats = solve(
-            N_new,
-            K_new,
-            x0,
-            max_iters=max_iters,
-            tol=tol,
-            delta_bar=1000.0,
-            eta=eta,
-            min_delta=min_delta,
-            max_trials=max_trials,
-            perturb_scale=perturb_scale,
-        )
-        result_x[i, :] = res_x
-
-    return result_x
-
-
 def _boolean_index(a, b, n_true):
     """Returns a[b] where b is a Boolean array."""
     # if n_true == 0:
@@ -1305,10 +1305,10 @@ if numba_check.numba_check():
     _boolean_index = numba.jit(_boolean_index, nopython=True)
     _boolean_index_2d = numba.jit(_boolean_index_2d, nopython=True)
     _print_runstats = numba.jit(_print_runstats, nopython=True)
-    initial_guess = numba.jit(initial_guess, nopython=True)
-    perturb_initial_guess = numba.jit(perturb_initial_guess, nopython=True)
-    prune_NK = numba.jit(prune_NK, nopython=True)
-    prune_AG = numba.jit(prune_AG, nopython=True)
+    _initial_guess = numba.jit(_initial_guess, nopython=True)
+    _perturb_initial_guess = numba.jit(_perturb_initial_guess, nopython=True)
+    _prune_NK = numba.jit(_prune_NK, nopython=True)
+    _prune_AG = numba.jit(_prune_AG, nopython=True)
     _solve_trust_region = numba.jit(_solve_trust_region, nopython=True)
     _solve_NK = numba.jit(_solve_NK, nopython=True)
     _solve_AG = numba.jit(_solve_AG, nopython=True)

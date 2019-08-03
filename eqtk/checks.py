@@ -86,7 +86,7 @@ def _check_equilibrium_NK_single_point(c0, c, N=None, K=None):
     >>> cons_mass_err
     array([ -4.11757295e-11,  -1.28775509e-11])
     """
-    N_new, _, _, active_compounds, active_reactions = eqtk.prune_NK(N, -np.log(K), c0)
+    N_new, _, _, active_compounds, active_reactions = eqtk.eqtk._prune_NK(N, -np.log(K), c0)
 
     # Check equilibrium expressions
     eq_ok = np.empty(len(active_reactions), dtype=bool)
