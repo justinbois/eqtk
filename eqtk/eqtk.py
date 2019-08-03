@@ -713,26 +713,36 @@ def prune_AG(A, G, x0, A_positive):
         for i, act_const in enumerate(active_constraints):
             if not act_const:
                 for j in range(A.shape[1]):
-                    if A[i,j] > 0.0:
+                    if A[i, j] > 0.0:
                         active_compounds[j] = False
 
         n_active_constraints = np.sum(active_constraints)
         n_active_compounds = np.sum(active_compounds)
 
         A_new = _boolean_index_2d(
-            A, active_constraints, active_compounds, n_active_constraints, n_active_compounds)
+            A,
+            active_constraints,
+            active_compounds,
+            n_active_constraints,
+            n_active_compounds,
+        )
 
-        constraint_vector_new = _boolean_index(constraint_vector, active_constraints, n_active_constraints)
+        constraint_vector_new = _boolean_index(
+            constraint_vector, active_constraints, n_active_constraints
+        )
     else:
         N = linalg.nullspace_svd(A).transpose()
         dummy_minus_log_K = np.ones(N.shape[0])
-        N_new, _, x0_new, active_compounds, _ = prune_NK(N, dumy_minus_log_K, x0)
-        A_new = linalg.nullspace_svd(N).transpose()
+        N_new, dummy_K_new, x0_new, active_compounds, _ = prune_NK(
+            N, dummy_minus_log_K, x0
+        )
+        A_new_F = linalg.nullspace_svd(N).transpose()
+        A_new = np.ascontiguousarray(A_new_F)
         constraint_vector_new = np.dot(A_new, x0_new)
 
     G_new = _boolean_index(G, active_compounds, np.sum(active_compounds))
 
-    return np.ascontiguousarray(A_new), G_new, constraint_vector_new, active_compounds
+    return A_new, G_new, constraint_vector_new, active_compounds
 
 
 def _print_runstats(
@@ -966,10 +976,12 @@ def _solve_AG(
         A_nonnegative = False
 
     for i_point in range(n_titration_points):
-        A_new, G_new, constraint_vector, active_compounds = prune_AG(A, G, x0[i_point], A_nonnegative)
+        A_new, G_new, constraint_vector, active_compounds = prune_AG(
+            A, G, x0[i_point], A_nonnegative
+        )
 
         # Detect if A is empty (no constraints)
-        A_empty = np.sum(A_new.shape) == 1
+        A_empty = (A_new.shape[0] + A_new.shape[1] == 1)
 
         # Problem is entirely contrained, must have x = x0.
         if (not A_empty) and A_new.shape[0] >= A.shape[1]:
@@ -1296,6 +1308,7 @@ if numba_check.numba_check():
     initial_guess = numba.jit(initial_guess, nopython=True)
     perturb_initial_guess = numba.jit(perturb_initial_guess, nopython=True)
     prune_NK = numba.jit(prune_NK, nopython=True)
+    prune_AG = numba.jit(prune_AG, nopython=True)
     _solve_trust_region = numba.jit(_solve_trust_region, nopython=True)
     _solve_NK = numba.jit(_solve_NK, nopython=True)
-#    prune_AG = numba.jit(prune_AG, nopython=True)
+    _solve_AG = numba.jit(_solve_AG, nopython=True)
