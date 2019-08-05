@@ -1065,7 +1065,7 @@ def _solve_AG(
         A_new, G_new, constraint_vector, active_compounds = _prune_AG(A, G, x0[i_point])
 
         # Detect if A is empty (no constraints)
-        A_empty = (A_new.shape[0] + A_new.shape[1] == 1)
+        A_empty = A_new.shape[0] + A_new.shape[1] == 1
 
         # Problem is entirely contrained, must have x = x0.
         if (not A_empty) and A_new.shape[0] >= A.shape[1]:
