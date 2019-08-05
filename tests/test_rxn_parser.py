@@ -148,5 +148,46 @@ def test_is_positive_number():
     assert eqtk.parse_rxn._is_positive_number('0.01')
 
 
+def test_parse_element():
+    N_dict = {}
+    element = '2 A'
+    eqtk.parse_rxn._parse_element(N_dict, element, -1)
+    assert N_dict == {'A': -2.0}
+
+    N_dict = {}
+    element = '2A'
+    eqtk.parse_rxn._parse_element(N_dict, element, -1)
+    assert N_dict == {'2A': -1.0}
+
+    N_dict = {}
+    element = '2 A2+'
+    eqtk.parse_rxn._parse_element(N_dict, element, -1)
+    assert N_dict == {'A2+': -2.0}
+
+    N_dict = {}
+    element = '2 A'
+    eqtk.parse_rxn._parse_element(N_dict, element, 1)
+    assert N_dict == {'A': 2.0}
+
+    N_dict = {}
+    element = '2A'
+    eqtk.parse_rxn._parse_element(N_dict, element, 1)
+    assert N_dict == {'2A': 1.0}
+
+    N_dict = {}
+    element = '2 A2+'
+    eqtk.parse_rxn._parse_element(N_dict, element, 1)
+    assert N_dict == {'A2+': 2.0}
+
+    N_dict = {'A': 3.0}
+    element = '2 A'
+    eqtk.parse_rxn._parse_element(N_dict, element, -1)
+    assert N_dict == {'A': 1.0}
+
+    N_dict = {'A': 3.0}
+    element = '2 A'
+    eqtk.parse_rxn._parse_element(N_dict, element, 1)
+    assert N_dict == {'A': 5.0}
+
 
 
