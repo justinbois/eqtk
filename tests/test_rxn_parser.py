@@ -119,3 +119,34 @@ def test_invalid_K():
     with pytest.raises(ValueError) as excinfo:
         N, K, species = eqtk.parse_rxns(rxns)
     excinfo.match("Either all or none of the equilibrium constants must be specified.")
+
+
+def test_is_positive_number():
+    assert not eqtk.parse_rxn._is_positive_number(' ')
+    assert not eqtk.parse_rxn._is_positive_number('')
+    assert not eqtk.parse_rxn._is_positive_number('nan')
+    assert not eqtk.parse_rxn._is_positive_number('np.inf')
+    assert not eqtk.parse_rxn._is_positive_number('1f')
+    assert not eqtk.parse_rxn._is_positive_number('blah')
+    assert not eqtk.parse_rxn._is_positive_number('11111.111.1')
+    assert not eqtk.parse_rxn._is_positive_number('129.f')
+    assert not eqtk.parse_rxn._is_positive_number('0')
+    assert not eqtk.parse_rxn._is_positive_number('0.0')
+    assert not eqtk.parse_rxn._is_positive_number('-1')
+    assert not eqtk.parse_rxn._is_positive_number('-2')
+    assert not eqtk.parse_rxn._is_positive_number('-6')
+    assert not eqtk.parse_rxn._is_positive_number('-1.6')
+    assert not eqtk.parse_rxn._is_positive_number('-1e4')
+    assert not eqtk.parse_rxn._is_positive_number('-7.8e-6')
+    assert not eqtk.parse_rxn._is_positive_number('-0.01')
+    assert eqtk.parse_rxn._is_positive_number('1')
+    assert eqtk.parse_rxn._is_positive_number('2')
+    assert eqtk.parse_rxn._is_positive_number('6')
+    assert eqtk.parse_rxn._is_positive_number('1.6')
+    assert eqtk.parse_rxn._is_positive_number('1e4')
+    assert eqtk.parse_rxn._is_positive_number('7.8e-6')
+    assert eqtk.parse_rxn._is_positive_number('0.01')
+
+
+
+

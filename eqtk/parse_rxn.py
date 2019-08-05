@@ -47,10 +47,10 @@ def _parse_rxn(rxn):
             raise ValueError("One one semicolon is allowed in reaction specification.")
 
         K_str = rxn[rxn.index(';')+1:].strip()
-        if _is_number(K_str):
+        if _is_positive_number(K_str):
             K = float(K_str)
         else:
-            raise ValueError("Equilibrium constant cannot be converted to float.")
+            raise ValueError("Equilibrium constant cannot be converted to positive float.")
 
         # Chopp equilibrium constant from the end of the string
         rxn = rxn[:rxn.index(';')]
@@ -76,10 +76,10 @@ def _parse_rxn(rxn):
     return N_dict, K
 
 
-def _is_number(s):
+def _is_positive_number(s):
     try:
-        float(s)
-        return True
+        num = float(s)
+        return True if num > 0 else False
     except ValueError:
         return False
 
@@ -92,7 +92,7 @@ def _parse_element(N_dict, element, sgn):
         else:
             N_dict[term[0]] += sgn * 1.0
     elif len(term) == 2:
-        if _is_number(term[0]):
+        if _is_positive_number(term[0]):
             if term[1] not in N_dict:
                 N_dict[term[1]] = sgn * float(term[0])
             else:
@@ -101,39 +101,3 @@ def _parse_element(N_dict, element, sgn):
             raise ValueError(f"Invalid term '{element}' in reaction.")
     else:
         raise ValueError(f"Invalid term '{element}' in reaction.")    
-
-
-def _parse_stoich_coeff(s):
-    """
-    Stoichiometic coefficient * compound name.
-
-    E.g.:
-    2*A
-    3*2-butanol
-
-    Implied stoich coefficient of unity:
-    2-butanol
-    *A
-    A*B*C
-    2A
-
-    """
-    if "*" in s:
-        if s[0] == "*":
-            return 1.0, s
-        elif s[-1] == "*":
-            return 1.0, s
-
-        stoich = s[: s.index("*")]
-
-        if _is_number(stoich):
-            return float(stoich), s[s.index("*") + 1 :]
-
-        return 1.0, s
-
-    if s[0].isdigit() and len(s) > 1 and not s[1].isdigit():
-        warnings.warn(
-            f"Interpreting '{s}'' as a chemical species, i.e., with no stoichiometic coefficient. You might have intended '2*{s[1:]}'."
-        )
-
-    return 1.0, s
