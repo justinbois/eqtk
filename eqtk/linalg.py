@@ -536,7 +536,11 @@ if numba_check.numba_check():
     upper_tri_solve = numba.jit(upper_tri_solve, nopython=True)
     lup_decomposition = numba.jit(lup_decomposition, nopython=True)
     lup_solve = numba.jit(lup_solve, nopython=True)
-    nullspace_svd = numba.jit(nullspace_svd, nopython=True)
+    nullspace_svd = numba.jit(
+        nullspace_svd,
+#        signature=numba.double[:, :](numba.double[:, :], numba.double),
+        nopython=True,
+    )
     solve_pos_def = numba.jit(solve_pos_def, nopython=True)
 else:
     solve_pos_def = np.linalg.solve

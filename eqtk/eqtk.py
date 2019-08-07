@@ -21,6 +21,7 @@ def solve(
     K=None,
     A=None,
     G=None,
+    names=None,
     units=None,
     solvent_density=None,
     T=293.15,
@@ -249,7 +250,9 @@ def solve(
     if len(c0.shape) == 1:
         single_point = True
 
-    c0, N, K, A, G = checks.check_input(c0, N, K, A, G, units, solvent_density, T, G_units)
+    c0, N, K, A, G, names = checks.parse_input(
+        c0, N, K, A, G, names, units, solvent_density, T, G_units
+    )
 
     # Solve for mole fractions
     if G is None:
@@ -593,16 +596,16 @@ def to_df(c0, c, names, units):
         c0 = c0.reshape((1, len(c0)))
 
     if c.shape != c0.shape:
-        raise ValueError('`c` and `c0` must have the same shape.')
+        raise ValueError("`c` and `c0` must have the same shape.")
 
     if len(names) != c0.shape[1]:
-        raise ValueError('`len(names)` must equal number of columns in `c0`')
+        raise ValueError("`len(names)` must equal number of columns in `c0`")
 
     if len(set(names)) != len(names):
-        raise ValueError('Not all names are unique.')
+        raise ValueError("Not all names are unique.")
 
-    units_str = ' (' + units + ')' if units is not None else ''
-    cols = [name + '__0' + units_str for name in names]
+    units_str = " (" + units + ")" if units is not None else ""
+    cols = [name + "__0" + units_str for name in names]
     cols += [name + units_str for name in names]
 
     return pd.DataFrame(columns=cols, data=np.concatenate((c0, c), axis=1))

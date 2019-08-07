@@ -46,27 +46,29 @@ def _parse_rxn(rxn):
         if rxn.count(";") > 1:
             raise ValueError("One one semicolon is allowed in reaction specification.")
 
-        K_str = rxn[rxn.index(';')+1:].strip()
+        K_str = rxn[rxn.index(";") + 1 :].strip()
         if _is_positive_number(K_str):
             K = float(K_str)
         else:
-            raise ValueError("Equilibrium constant cannot be converted to positive float.")
+            raise ValueError(
+                "Equilibrium constant cannot be converted to positive float."
+            )
 
         # Chopp equilibrium constant from the end of the string
-        rxn = rxn[:rxn.index(';')]
+        rxn = rxn[: rxn.index(";")]
     else:
         K = None
 
     # Ensure there is exactly one <=> operator and put spaces around it
-    if rxn.count('<=>') != 1:
+    if rxn.count("<=>") != 1:
         raise ValueError("A reaction must have exactly one '<=>' operator.")
 
-    op_index = rxn.find('<=>')
+    op_index = rxn.find("<=>")
     lhs_str = rxn[:op_index]
-    rhs_str = rxn[op_index+3:]
+    rhs_str = rxn[op_index + 3 :]
 
-    lhs_elements = [s.strip() for s in lhs_str.split(' + ') if s.strip()]
-    rhs_elements = [s.strip() for s in rhs_str.split(' + ') if s.strip()]
+    lhs_elements = [s.strip() for s in lhs_str.split(" + ") if s.strip()]
+    rhs_elements = [s.strip() for s in rhs_str.split(" + ") if s.strip()]
 
     for element in lhs_elements:
         _parse_element(N_dict, element, -1)
@@ -100,4 +102,4 @@ def _parse_element(N_dict, element, sgn):
         else:
             raise ValueError(f"Invalid term '{element}' in reaction.")
     else:
-        raise ValueError(f"Invalid term '{element}' in reaction.")    
+        raise ValueError(f"Invalid term '{element}' in reaction.")
