@@ -6,7 +6,7 @@ from . import numba_check
 
 have_numba, jit = numba_check.numba_check()
 
-@jit(nopython=True)
+@jit("double[:, ::1](double[:, ::1], double[::1])", nopython=True)
 def diag_multiply(A, d):
     """Compute the D . A . D, where d is the diagonal of diagonal
     matrix D.
@@ -22,35 +22,8 @@ def diag_multiply(A, d):
     return B
 
 
-@jit(nopython=True)
-def solve_pos_def(A, b):
-    """Solve A x = b, where A is known to be positive definite.
-
-    Parameters
-    ----------
-    A : ndarray, shape (n, n)
-        Symmetric, real, positive definite or positive semidefinite
-        matrix.
-    b : ndarray, shape (n,)
-        Array of real numbers.
-
-    Returns
-    -------
-    output : ndarray, shape (n,)
-        Solution x to A x = b.
-    success : bool
-        False if Cholesky decomposition failed.
-    """
-    L, p, success = modified_cholesky(A)
-
-    if not success:
-        return np.zeros(len(b)), success
-
-    return modified_cholesky_solve(L, p, b), success
-
-
-@jit(nopython=True)
-def _check_symmetry(A, atol=1e-8, rtol=1e-5):
+@jit("void(double[:, ::1], double, double)", nopython=True)
+def _check_symmetry(A, atol, rtol):
     """Check to make sure a matrix is symmetric, 2D."""
     # Make sure it's a 2D array
     if len(A.shape) != 2:
@@ -68,7 +41,120 @@ def _check_symmetry(A, atol=1e-8, rtol=1e-5):
                 raise RuntimeError("A not symmetric.")
 
 
-@jit(nopython=True)
+
+@jit("double[::1](double[:, ::1], double[::1])", nopython=True)
+def lower_tri_solve(L, b):
+    """
+    Solves the lower triangular system Lx = b.
+    Uses column-based forward substitution, outlined in algorithm
+    3.1.3 of Golub and van Loan.
+    Parameters
+    ----------
+    L : ndarray
+        Square lower triangulatar matrix (including diagonal)
+    b : ndarray, shape L.shape[0]
+        Right hand side of Lx = b equation being solved.
+    Returns
+    -------
+    x : ndarray
+        Solution to Lx = b.
+    """
+
+    # Make sure it's a 2D array.
+    if len(L.shape) != 2:
+        raise RuntimeError("L not a 2D array.")
+
+    # Make sure it's square.
+    n = L.shape[0]
+    if n != L.shape[1]:
+        raise RuntimeError("L not square.")
+
+    # Test for lower triangular.
+    for j in range(n):
+        for i in range(0, j):
+            if L[i, j] != 0:
+                raise RuntimeError("L is not lower triangular.")
+
+    # Ensure dimension of matrix system agrees
+    if n != b.shape[0]:
+        raise RuntimeError("Matrix dimensions must agree.")
+
+    # Solve Lx = b.
+    x = np.copy(b)
+    for j in range(n - 1):
+        if abs(L[j, j]) > constants.float_eps:
+            x[j] /= L[j, j]
+            for i in range(j + 1, n):
+                x[i] -= x[j] * L[i, j]
+        else:
+            x[j] = 0.0
+
+    if n > 0:
+        if abs(L[n - 1, n - 1]) > constants.float_eps:
+            x[n - 1] /= L[n - 1, n - 1]
+        else:
+            x[n - 1] = 0.0
+
+    return x
+
+
+@jit("double[::1](double[:, ::1], double[::1])", nopython=True)
+def upper_tri_solve(U, b):
+    """
+    Solves the lower triangular system Ux = b.
+    Uses column-based forward substitution, outlined in algorithm
+    3.1.4 of Golub and van Loan.
+    Parameters
+    ----------
+    U: ndarray
+        Square upper triangulatar matrix (including diagonal)
+    b : ndarray, shape L.shape[0]
+        Right hand side of Ux = b equation being solved.
+    Returns
+    -------
+    x : ndarray
+        Solution to Ux = b.
+    """
+
+    # Make sure it's a 2D array.
+    if len(U.shape) != 2:
+        raise RuntimeError("U not a 2D array.")
+
+    # Make sure it's square.
+    n = U.shape[0]
+    if n != U.shape[1]:
+        raise RuntimeError("U not square.")
+
+    # Test for upper triangular.
+    for i in range(n):
+        for j in range(0, i):
+            if U[i, j] != 0:
+                raise RuntimeError("U is not upper triangular.")
+
+    # Ensure dimension of matrix system agrees
+    if n != b.shape[0]:
+        raise RuntimeError("Matrix dimensions must agree.")
+
+    # Solve Ux = b by back substitution.
+    x = np.copy(b)
+    for j in range(n - 1, 0, -1):
+        if abs(U[j, j]) > constants.float_eps:
+            x[j] /= U[j, j]
+            for i in range(0, j):
+                x[i] -= x[j] * U[i, j]
+        else:
+            x[j] = 0.0
+
+    if n > 0:
+        if abs(U[0, 0]) > constants.float_eps:
+            x[0] /= U[0, 0]
+        else:
+            x[0] = 0.0
+
+    return x
+
+
+@jit("Tuple((double[:, ::1], int64[::1], boolean))(double[:, ::1])", nopython=True)
 def modified_cholesky(A):
     """
     Modified Cholesky decomposition.
@@ -93,7 +179,8 @@ def modified_cholesky(A):
         True if Cholesky decomposition was successful and False otherwise,
         usually due to matrix not being positive semidefinite.
     """
-    _check_symmetry(A)
+    # If only used in the context of EQTK, this check is unnecessary
+    _check_symmetry(A, constants.atol, constants.rtol)
     n = A.shape[0]
 
     L = np.copy(A)
@@ -185,7 +272,7 @@ def modified_cholesky(A):
     return L, p, success
 
 
-@jit(nopython=True)
+@jit("double[::1](double[:, ::1], int64[::1], double[::1])", nopython=True)
 def modified_cholesky_solve(L, p, b):
     """
     Solve system Ax = b, with P A P^T = L L^T post-Cholesky decomposition.
@@ -226,7 +313,7 @@ def modified_cholesky_solve(L, p, b):
     if not np.all(np.sort(p) == np.arange(p.shape[0])):
         raise RuntimeError("p not permutation vector.")
 
-    U = L.transpose()
+    U = np.ascontiguousarray(L.transpose())
     xp = np.zeros(n)
     for i in range(n):
         xp[i] = b[p[i]]
@@ -243,116 +330,31 @@ def modified_cholesky_solve(L, p, b):
     return x
 
 
-@jit(nopython=True)
-def lower_tri_solve(L, b):
-    """
-    Solves the lower triangular system Lx = b.
-    Uses column-based forward substitution, outlined in algorithm
-    3.1.3 of Golub and van Loan.
+@jit("Tuple((double[::1], boolean))(double[:, ::1], double[::1])", nopython=True)
+def solve_pos_def(A, b):
+    """Solve A x = b, where A is known to be positive definite.
+
     Parameters
     ----------
-    L : ndarray
-        Square lower triangulatar matrix (including diagonal)
-    b : ndarray, shape L.shape[0]
-        Right hand side of Lx = b equation being solved.
+    A : ndarray, shape (n, n)
+        Symmetric, real, positive definite or positive semidefinite
+        matrix.
+    b : ndarray, shape (n,)
+        Array of real numbers.
+
     Returns
     -------
-    x : ndarray
-        Solution to Lx = b.
+    output : ndarray, shape (n,)
+        Solution x to A x = b.
+    success : bool
+        False if Cholesky decomposition failed.
     """
+    L, p, success = modified_cholesky(A)
 
-    # Make sure it's a 2D array.
-    if len(L.shape) != 2:
-        raise RuntimeError("L not a 2D array.")
+    if not success:
+        return np.zeros(len(b)), success
 
-    # Make sure it's square.
-    n = L.shape[0]
-    if n != L.shape[1]:
-        raise RuntimeError("L not square.")
-
-    # Test for lower triangular.
-    for j in range(n):
-        for i in range(0, j):
-            if L[i, j] != 0:
-                raise RuntimeError("L is not lower triangular.")
-
-    # Ensure dimension of matrix system agrees
-    if n != b.shape[0]:
-        raise RuntimeError("Matrix dimensions must agree.")
-
-    # Solve Lx = b.
-    x = np.copy(b)
-    for j in range(n - 1):
-        if abs(L[j, j]) > constants.float_eps:
-            x[j] /= L[j, j]
-            for i in range(j + 1, n):
-                x[i] -= x[j] * L[i, j]
-        else:
-            x[j] = 0.0
-
-    if n > 0:
-        if abs(L[n - 1, n - 1]) > constants.float_eps:
-            x[n - 1] /= L[n - 1, n - 1]
-        else:
-            x[n - 1] = 0.0
-
-    return x
-
-
-@jit(nopython=True)
-def upper_tri_solve(U, b):
-    """
-    Solves the lower triangular system Ux = b.
-    Uses column-based forward substitution, outlined in algorithm
-    3.1.4 of Golub and van Loan.
-    Parameters
-    ----------
-    U: ndarray
-        Square upper triangulatar matrix (including diagonal)
-    b : ndarray, shape L.shape[0]
-        Right hand side of Ux = b equation being solved.
-    Returns
-    -------
-    x : ndarray
-        Solution to Ux = b.
-    """
-
-    # Make sure it's a 2D array.
-    if len(U.shape) != 2:
-        raise RuntimeError("U not a 2D array.")
-
-    # Make sure it's square.
-    n = U.shape[0]
-    if n != U.shape[1]:
-        raise RuntimeError("U not square.")
-
-    # Test for upper triangular.
-    for i in range(n):
-        for j in range(0, i):
-            if U[i, j] != 0:
-                raise RuntimeError("U is not upper triangular.")
-
-    # Ensure dimension of matrix system agrees
-    if n != b.shape[0]:
-        raise RuntimeError("Matrix dimensions must agree.")
-
-    # Solve Ux = b by back substitution.
-    x = np.copy(b)
-    for j in range(n - 1, 0, -1):
-        if abs(U[j, j]) > constants.float_eps:
-            x[j] /= U[j, j]
-            for i in range(0, j):
-                x[i] -= x[j] * U[i, j]
-        else:
-            x[j] = 0.0
-
-    if n > 0:
-        if abs(U[0, 0]) > constants.float_eps:
-            x[0] /= U[0, 0]
-        else:
-            x[0] = 0.0
-
-    return x
+    return modified_cholesky_solve(L, p, b), success
 
 
 @jit(nopython=True)
@@ -479,7 +481,7 @@ def lup_solve(LU, p, b):
 
 # numba.double[:, ::1](numba.double[:, ::1], numba.double))
 @jit(nopython=True)
-def nullspace_svd(A, tol=1e-12):
+def nullspace_svd(A, tol):
     """
     Calculate a basis for the approximate null space of A, consider any
     eigenvalue less than tolerance as 0
@@ -506,7 +508,7 @@ def nullspace_svd(A, tol=1e-12):
 
 
 @jit(nopython=True)
-def nullspace_qr(A, tol=1e-12):
+def nullspace_qr(A, tol):
     """
     Use QR factorization to compute a basis for the approximate
     null space of matrix A.

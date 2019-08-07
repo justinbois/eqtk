@@ -4,6 +4,7 @@ import pandas as pd
 from . import eqtk
 from . import linalg
 from . import rxn_parser
+from . import constants
 
 
 def check_equilibrium_NK(c0, c, N=None, K=None):
@@ -102,7 +103,7 @@ def _check_equilibrium_NK_single_point(c0, c, N=None, K=None):
             eq_ok[r] = 1
 
     # Check conservation expressions
-    A = linalg.nullspace_svd(N).transpose()
+    A = linalg.nullspace_svd(N, constants.nullspace_tol).transpose()
     c0_adjusted = eqtk._create_from_nothing(N, c0)
     target = np.dot(A, c0_adjusted)
     res = np.dot(A, c)
