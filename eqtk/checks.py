@@ -227,168 +227,31 @@ def parse_input(c0, rxns, K, A, G, names, units, solvent_density, T, G_units):
     >>> corr_K
     array([  50.,   10.,   40.,  100.])
     """
-    _check_rxn_AG(rxns, A, G)
+    _check_rxns_AG(rxns, A, G)
     _check_units(units)
     _check_G_units(G_units, T)
     _check_T(T)
     _check_solvent_density(solvent_density, units)
+
     c0, n_compounds, names, c0_from_df = _parse_c0(c0, names)
     _check_c0(c0)
+
     N, K, names = _parse_rxns_input(rxns, K, names, c0_from_df)
+    _check_N(N, n_compounds)
+
     K = _parse_K(K)
-    _check_N(N)
+    _check_K(N, K)
 
-    # Check A
-    if A is not None:
-        if type(A) == list or type(A) == tuple:
-            A = np.array(A, order="C").astype(float)
+    A = _parse_A(A, names, c0_from_df)
+    _check_A(A, n_compounds)
 
-        if len(A.shape) == 1:
-            A = A.reshape((1, -1), order="C").astype(float)
-
-        if type(A) == np.ndarray:
-            if len(A.shape) == 1:
-                A = A.reshape((1, -1), order="C").astype(float)
-        elif type(A) == pd.core.frame.DataFrame:
-            A, names_from_df = _A_and_names_from_df(A)
-
-            if names is None:
-                names = names_from_df
-            elif names_from_df != tuple(names):
-                raise ValueError(
-                    "`names` does not match columns names of inputted `A` data frame."
-                )
-            else:
-                names = tuple(names)
-        else:
-            raise ValueError(
-                "Invalid type for `A`; must be array_like or a Pandas DataFrame."
-            )
-
-        # Make sure empty constraint matrix has correct dimensions
-        if A is not None and np.sum(A.shape) == 1:
-            A = A.reshape((0, 1))
-
-        if np.isinf(A).any():
-            raise ValueError("All entries in A must be finite.")
-        if np.isnan(A).any():
-            raise ValueError("No NaN values are allowed in A.")
-
-        if np.any(A < 0):
-            raise ValueError("A must have all nonnegative entries.")
-
-        A = np.ascontiguousarray(A, dtype=float)
-
-    # Check G
-    if G is not None:
-        if type(G) == list or type(G) == tuple:
-            G = np.array(G, order="C")
-        G = G.astype(float)
-        if len(np.shape(G)) == 2 and (np.shape(G)[1] == 1 or np.shape(G)[0] == 1):
-            G = G.flatten()
-        elif len(np.shape(G)) != 1:
-            raise ValueError("G is the wrong shape.")
-
-    # Check for consistency
-    if N is not None and N.shape[1] != n_compounds:
-        raise ValueError("c0 and N must have same number of columns.")
-
-    if A is not None and A.shape[1] != n_compounds:
-        raise ValueError("c0 and A must have same number of columns.")
-
-    if K is not None:
-        if len(K) != N.shape[0]:
-            raise ValueError("K must have N.shape[0] entries")
-        if not (K > 0.0).all():
-            raise ValueError("All K's must be positive.")
-        if np.isinf(K).any():
-            raise ValueError("All K's must be finite.")
-        if np.isnan(K).any():
-            raise ValueError("No NaN values are allowed for K.")
-
-    if G is not None:
-        if len(G) != n_compounds:
-            raise ValueError("G must have A.shape[1] entries.")
-        if np.isinf(G).any():
-            raise ValueError("All G's must be finite.")
-        if np.isnan(G).any():
-            raise ValueError("No NaN values are allowed for G.")
-
-    # Ensure N and A have full row rank
-    if N is not None and len(N) > 0 and np.linalg.matrix_rank(N) != N.shape[0]:
-        raise ValueError("N must have full row rank.")
-    if A is not None and len(A) > 0 and np.linalg.matrix_rank(A) != A.shape[0]:
-        raise ValueError("A must have full row rank.")
+    G = _parse_G(G)
+    _check_G(A, G)
 
     return c0, N, K, A, G, names
 
 
-def _NK_and_names_from_df(df, names, c0_from_df):
-    if not c0_from_df:
-        raise ValueError("If `rxns` is given as a data frame, so too must `c0`.")
-
-    for name in names:
-        if name not in df:
-            raise ValueError(f"Chemical species {name} not in inputted rxns.")
-
-    N = df[names].to_numpy(dtype=float, copy=True)
-
-    if "equilibrium constant" in df:
-        K = df["equilibrium constant"].values.astype(float)
-    elif "equilibrium_constant" in df:
-        K = df["equilibrium_constant"].values.astype(float)
-    else:
-        K = None
-
-    _check_name_close_to_eqconst(names)
-
-    return N, K, names
-
-
-def _check_c0(c0):
-    if np.isnan(c0).any():
-        raise ValueError("No NaN values are allowed for c0.")
-    if (c0 < 0.0).any():
-        raise ValueError("All c0's must be nonnegative.")
-    if np.isinf(c0).any():
-        raise ValueError("All c0's must be finite!")
-
-
-def _check_N(N):
-    if N is not None:
-        if len(N) > 0 and np.linalg.matrix_rank(N) != N.shape[0]:
-            raise ValueError("N must have full row rank.")
-        if np.isinf(N).any():
-            raise ValueError("All entries in N must be finite.")
-        if np.isnan(N).any():
-            raise ValueError("No NaN values are allowed in N.")
-
-
-def _parse_K(K):
-    if K is not None:
-        if type(K) == list or type(K) == tuple:
-            K = np.array(K, order="C", dtype=float)
-
-        if len(np.shape(K)) == 2 and (np.shape(K)[1] == 1 or np.shape(K)[0] == 1):
-            K = K.flatten()
-        elif len(np.shape(K)) != 1:
-            raise ValueError("K is the wrong shape.")
-
-    return K
-
-
-def _check_name_close_to_eqconst(names):
-    for name in names:
-        if (
-            _levenshtein(name, "equilibrium constant") < 10
-            or _levenshtein(name, "equilibrium_constant") < 10
-        ):
-            warnings.warn(
-                f"Chemical species name '{name}' is close to 'equilibrium constant'. This may be a typo."
-            )
-
-
-def _check_rxn_AG(rxns, A, G):
+def _check_rxns_AG(rxns, A, G):
     if rxns is None:
         if A is None or G is None:
             raise RuntimeError("`A` and `G` must both be specified if `rxns` is None.")
@@ -427,35 +290,6 @@ def _check_solvent_density(solvent_density, units):
         )
 
 
-def _check_K_input(K, K_from_df):
-    if K is None:
-        if K_from_df is None:
-            raise ValueError(
-                "`K` must be specified either separately or in `N` data frame."
-            )
-        else:
-            K = K_from_df.copy()
-    elif K_from_df is not None:
-        raise ValueError(
-            "Equilibrium constants were specified both in `rxns` and `K`. Equilbrium constants can only be specified in one or the other."
-        )
-
-    return K
-
-
-def _check_names_input(names, names_from_df):
-    if names is None:
-        names = names_from_df
-    elif names_from_df != tuple(names):
-        raise ValueError(
-            "`names` does not match columns names of inputted `N` data frame."
-        )
-    else:
-        names = tuple(names)
-
-    return names
-
-
 def _parse_c0(c0, names):
     if type(c0) == list or type(c0) == tuple or not c0.flags["C_CONTIGUOUS"]:
         c0 = np.array(c0, order="C", dtype=float)
@@ -471,17 +305,21 @@ def _parse_c0(c0, names):
         c0_from_df = False
     elif type(c0) == pd.core.frame.DataFrame:
         c0, names_from_df = _c0_from_df(df, names)
-        if names is None:
-            names = names_from_df
-        elif names_from_df != tuple(names):
-            raise ValueError(
-                "`names` does not match column names of inputted `c0` data frame."
-            )
-        else:
-            names = tuple(names)
+        names = _check_names_input(names, names_from_df)
         c0_from_df = True
+    else:
+        raise ValueError("`c0` must be a Pandas data frame or Numpy array.")
 
-    return c0, n_compounds, names, c0_from_df
+    return np.ascontiguousarray(c0), n_compounds, names, c0_from_df
+
+
+def _check_c0(c0):
+    if np.isnan(c0).any():
+        raise ValueError("No NaN values are allowed for c0.")
+    if (c0 < 0.0).any():
+        raise ValueError("All c0's must be nonnegative.")
+    if np.isinf(c0).any():
+        raise ValueError("All c0's must be finite!")
 
 
 def _parse_rxns_input(rxns, K, names, c0_from_df):
@@ -493,7 +331,7 @@ def _parse_rxns_input(rxns, K, names, c0_from_df):
             N = _N_from_array(rxns, K)
             K = _check_K_input(K, None)
         elif type(rxns) == pd.core.frame.DataFrame:
-            N, names_from_df, K_from_df = _NK_and_names_from_df(rxns)
+            N, names_from_df, K_from_df = _NK_and_names_from_df(rxns, names, c0_from_df)
             K = _check_K_input(K, K_from_df)
             names = _check_names_input(names, names_from_df)
         elif type(rxns) == str:
@@ -515,6 +353,159 @@ def _parse_rxns_input(rxns, K, names, c0_from_df):
     return N, K, names
 
 
+def _check_N(N, n_compounds):
+    if N is not None:
+        if N.shape[1] != n_compounds:
+            raise ValueError("Dimension mismatch between `c0` and inputted chemical species via `rxn`.")
+        if len(N) > 0 and np.linalg.matrix_rank(N) != N.shape[0]:
+            raise ValueError("Innputed `rxn` results in rank deficient stoichiometic matrix.")
+        if np.isinf(N).any():
+            raise ValueError("All entries in the stoichiometic matrix must be finite.")
+        if np.isnan(N).any():
+            raise ValueError("No NaN values are allowed in the stoichiometric matrix.")
+
+
+def _parse_K(K):
+    if K is not None:
+        if type(K) == list or type(K) == tuple:
+            K = np.array(K, order="C", dtype=float)
+
+        if len(np.shape(K)) == 2 and (np.shape(K)[1] == 1 or np.shape(K)[0] == 1):
+            K = K.flatten()
+        elif len(np.shape(K)) != 1:
+            raise ValueError("`K` is the wrong shape.")
+
+    return K
+
+
+def _check_K(N, K):
+    if K is not None:
+        if len(K) != N.shape[0]:
+            raise ValueError("`K` must have `N.shape[0]` entries")
+        if not (K > 0.0).all():
+            raise ValueError("All `K`'s must be positive.")
+        if np.isinf(K).any():
+            raise ValueError("All `K`'s must be finite.")
+        if np.isnan(K).any():
+            raise ValueError("No NaN values are allowed for K.")
+
+
+def _parse_A(A, names, c0_from_df):
+    if A is not None:
+        if type(A) == list or type(A) == tuple:
+            A = np.array(A, order="C").astype(float)
+
+        if type(A) == np.ndarray:
+            if c0_from_df:
+                raise ValueError()
+            if len(A.shape) == 1:
+                A = A.reshape((1, -1), order="C").astype(float)
+        elif type(A) == pd.core.frame.DataFrame:
+            A, names_from_df = _A_and_names_from_df(A, names, c0_from_df)
+            names = _check_names_input(names, names_from_df)
+        else:
+            raise ValueError(
+                "Invalid type for `A`; must be array_like or a Pandas DataFrame."
+            )
+
+        # Make sure empty array has the correct shape
+        if np.sum(A.shape) == 1:
+            A = A.reshape((0, 1))
+
+        return np.ascontiguousarray(A, dtype=float)
+
+    return None
+
+
+def _check_A(A, n_compounds):
+    if A is not None:
+        if A.shape[1] != n_compounds:
+            raise ValueError("Dimension mismatch between `c0` and the constraint matrix.")
+        if len(A) > 0 and np.linalg.matrix_rank(A) != A.shape[0]:
+            raise ValueError("`A` must have full row rank.")
+        if np.isinf(A).any():
+            raise ValueError("All entries in `A` must be finite.")
+        if np.isnan(A).any():
+            raise ValueError("No NaN values are allowed in `A`.")
+        if np.any(A < 0):
+            raise ValueError("`A` must have all nonnegative entries.")
+
+
+def _parse_G(G):
+    # ADD CODE FOR G AS A DATA FRAME WITH NAMES
+    if G is not None:
+        if type(G) == list or type(G) == tuple:
+            G = np.array(G, order="C", dtype=float)
+
+        if len(np.shape(G)) == 2 and (np.shape(G)[1] == 1 or np.shape(G)[0] == 1):
+            G = G.flatten()
+        elif len(np.shape(G)) != 1:
+            raise ValueError("`G` is the wrong shape.")
+
+    return G
+
+
+def _check_G(A, G):
+    if G is not None:
+        if len(G) != A.shape[1]:
+            raise ValueError("`G` must have `A.shape[1]` entries")
+        if np.isinf(G).any():
+            raise ValueError("All `G`'s must be finite.")
+        if np.isnan(G).any():
+            raise ValueError("No NaN values are allowed for `G`.")
+
+
+def _NK_and_names_from_df(df, names, c0_from_df):
+    if not c0_from_df:
+        raise ValueError("If `rxns` is given as a data frame, so too must `c0`.")
+
+    for name in names:
+        if name not in df:
+            raise ValueError(f"Chemical species {name} not in inputted rxns.")
+
+    N = df[names].to_numpy(dtype=float, copy=True)
+
+    if "equilibrium constant" in df:
+        K = df["equilibrium constant"].values.astype(float)
+    elif "equilibrium_constant" in df:
+        K = df["equilibrium_constant"].values.astype(float)
+    else:
+        K = None
+
+    _check_name_close_to_eqconst(names)
+
+    return N, K, names
+
+
+def _check_K_input(K, K_from_df):
+    if K is None:
+        if K_from_df is None:
+            raise ValueError(
+                "`K` must be specified either separately or in `N` data frame."
+            )
+        else:
+            K = K_from_df.copy()
+    elif K_from_df is not None:
+        raise ValueError(
+            "Equilibrium constants were specified both in `rxns` and `K`. Equilbrium constants can only be specified in one or the other."
+        )
+
+    return K
+
+
+def _check_names_input(names, names_from_df):
+    if names is None:
+        names = names_from_df
+    elif names_from_df != tuple(names):
+        raise ValueError(
+            "`names` does not match columns names of inputted data frame."
+        )
+    else:
+        names = tuple(names)
+
+    return names
+
+
 def _N_from_array(N, K):
     if K is None:
         raise ValueError("`K` must be specified.")
@@ -525,7 +516,10 @@ def _N_from_array(N, K):
     return np.ascontiguousarray(N, dtype=float)
 
 
-def _A_and_names_from_df(df, names):
+def _A_and_names_from_df(df, names, c0_from_df):
+    if not c0_from_df:
+        raise ValueError("If `rxns` is given as a data frame, so too must `c0`.")
+
     A = np.empty((len(df), len(names)), dtype=float, order="C")
     for i, name in enumerate(names):
         if name not in df:
@@ -540,6 +534,17 @@ def _c0_from_df(df):
     names = tuple(df.columns)
 
     return np.ascontiguousarray(c0), names
+
+
+def _check_name_close_to_eqconst(names):
+    for name in names:
+        if (
+            _levenshtein(name, "equilibrium constant") < 10
+            or _levenshtein(name, "equilibrium_constant") < 10
+        ):
+            warnings.warn(
+                f"Chemical species name '{name}' is close to 'equilibrium constant'. This may be a typo."
+            )
 
 
 def _levenshtein(s1, s2):

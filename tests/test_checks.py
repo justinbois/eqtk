@@ -19,19 +19,19 @@ def test_c0_mismatch():
 
     with pytest.raises(ValueError) as excinfo:
         eqtk.checks.parse_input([], N, K, None, None, *tuple([None]*5))
-    excinfo.match("c0 and N must have same number of columns.")
+    excinfo.match("Dimension mismatch between `c0` and inputted chemical species via `rxn`.")
 
     with pytest.raises(ValueError) as excinfo:
         eqtk.checks.parse_input([0.1, 0.2, 0.1, 0.2, 0.3], N, K, None, None, *tuple([None]*5))
-    excinfo.match("c0 and N must have same number of columns.")
+    excinfo.match("Dimension mismatch between `c0` and inputted chemical species via `rxn`.")
 
     with pytest.raises(ValueError) as excinfo:
         eqtk.checks.parse_input([], None, None, A, G, *tuple([None]*5))
-    excinfo.match("c0 and A must have same number of columns.")
+    excinfo.match("Dimension mismatch between `c0` and the constraint matrix.")
 
     with pytest.raises(ValueError) as excinfo:
         eqtk.checks.parse_input([0.1, 0.2, 0.1, 0.2, 0.3], None, None, A, G, *tuple([None]*5))
-    excinfo.match("c0 and A must have same number of columns.")
+    excinfo.match("Dimension mismatch between `c0` and the constraint matrix.")
 
     # Should raise no exception
     _ = eqtk.checks.parse_input(
@@ -83,7 +83,7 @@ def test_A_rank_deficient():
     G = np.zeros(5)
     with pytest.raises(ValueError) as excinfo:
         eqtk.checks.parse_input([0.1, 0.2, 0.1, 0.2, 0.3], None, None, A, G, *tuple([None]*5))
-    excinfo.match("A must have full row rank.")
+    excinfo.match("`A` must have full row rank.")
 
 
 def test_reshape_empty_A():
@@ -99,11 +99,11 @@ def test_A_negative():
     A = np.array([[1, -1]])
     G = np.ones(2)
     with pytest.raises(ValueError) as excinfo:
-        eqtk.checks.parse_input([], None, None, A, G, *tuple([None]*5))
-    excinfo.match("A must have all nonnegative entries.")
+        eqtk.checks.parse_input([1, 1], None, None, A, G, *tuple([None]*5))
+    excinfo.match("`A` must have all nonnegative entries.")
 
     A = np.array([[0, 0, 1, 1], [1, -1, 0, 1]])
     G = np.ones(4)
     with pytest.raises(ValueError) as excinfo:
-        eqtk.checks.parse_input([], None, None, A, G, *tuple([None]*5))
-    excinfo.match("A must have all nonnegative entries.")
+        eqtk.checks.parse_input([1, 1, 1, 1], None, None, A, G, *tuple([None]*5))
+    excinfo.match("`A` must have all nonnegative entries.")
