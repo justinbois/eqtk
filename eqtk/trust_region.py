@@ -10,23 +10,28 @@ from . import constants
 from . import linalg
 from . import numba_check
 
+have_numba, jit = numba_check.numba_check()
 
+@jit(nopython=True)
 def compute_logx(mu, G, A):
     return -G + np.dot(mu, A)
 
 
+@jit(nopython=True)
 def rescale_x(x, log_scale_param):
     """Rescale the concentrations.
     """
     return x * np.exp(-log_scale_param)
 
 
+@jit(nopython=True)
 def rescale_constraint_vector(constraint_vector, log_scale_param):
     """Rescale the constraint vector by the maximal concentration.
     """
     return constraint_vector * np.exp(-log_scale_param)
 
 
+@jit(nopython=True)
 def obj_fun(mu, x, G, A, constraint_vector):
     """
     Compute the negative dual function for equilibrium calcs.
@@ -37,6 +42,7 @@ def obj_fun(mu, x, G, A, constraint_vector):
     return np.sum(x) - np.dot(mu, constraint_vector)
 
 
+@jit(nopython=True)
 def grad(x, A, constraint_vector):
     """
     Computes the gradient of the negative dual function.
@@ -47,6 +53,7 @@ def grad(x, A, constraint_vector):
     return -constraint_vector + np.dot(A, x)
 
 
+@jit(nopython=True)
 def hes(x, A):
     """
     Computes the gradient of the negative dual function.
@@ -60,21 +67,25 @@ def hes(x, A):
     return B
 
 
+@jit(nopython=True)
 def inv_scaling(B):
     """Computes diagonal of scaling matrix."""
     return 1.0 / np.sqrt(np.diag(B))
 
 
+@jit(nopython=True)
 def scaled_grad(g, inv_d):
     """Computes the scaled gradient."""
     return inv_d * g
 
 
+@jit(nopython=True)
 def scaled_hes(B, inv_d):
     """Computes the scaled Hessian."""
     return linalg.diag_multiply(B, inv_d)
 
 
+@jit(nopython=True)
 def trust_region_convex_unconstrained(
     mu0,
     G,
@@ -221,6 +232,7 @@ def trust_region_convex_unconstrained(
     return mu, converged, step_tally
 
 
+@jit(nopython=True)
 def search_direction_dogleg(g, B, delta):
     """
     Computes the search direction using the dogleg method (Nocedal and Wright,
@@ -307,6 +319,7 @@ def search_direction_dogleg(g, B, delta):
         return inv_d * pU, 6
 
 
+@jit(nopython=True)
 def check_tol(g, tol, log_scale_param):
     """
     Check to see if the tolerance has been met.  Returns False if
@@ -317,21 +330,3 @@ def check_tol(g, tol, log_scale_param):
         if abs(gradient) > tolerance / s:
             return True
     return False
-
-
-if numba_check.numba_check():
-    import numba
-
-    compute_logx = numba.jit(compute_logx, nopython=True)
-    rescale_constraint_vector = numba.jit(rescale_constraint_vector, nopython=True)
-    obj_fun = numba.jit(obj_fun, nopython=True)
-    grad = numba.jit(grad, nopython=True)
-    hes = numba.jit(hes, nopython=True)
-    inv_scaling = numba.jit(inv_scaling, nopython=True)
-    scaled_grad = numba.jit(scaled_grad, nopython=True)
-    scaled_hes = numba.jit(scaled_hes, nopython=True)
-    search_direction_dogleg = numba.jit(search_direction_dogleg, nopython=True)
-    trust_region_convex_unconstrained = numba.jit(
-        trust_region_convex_unconstrained, nopython=True
-    )
-    check_tol = numba.jit(check_tol, nopython=True)

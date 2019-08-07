@@ -32,4 +32,28 @@ def numba_check():
     except:
         have_numba = False
 
-    return have_numba
+    if have_numba:
+        jit = numba.jit
+    else:
+        jit = _dummy_jit
+
+    return have_numba, jit
+
+
+def _dummy_jit(*args, **kwargs):
+    """Dummy wrapper for jitting if numba is not installed."""
+    def wrapper(f):
+        return f
+
+    if len(args) > 0 and (args[0] is marker or not callable(args[0])) or len(kwargs) > 0:
+        # @jit(int32(int32, int32)), @jit(signature="void(int32)")
+        return wrapper
+    elif len(args) == 0:
+        # @jit()
+        return wrapper
+    else:
+        # @jit
+        return args[0]
+
+    def marker(*args, **kwargs):
+        return marker

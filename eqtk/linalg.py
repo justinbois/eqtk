@@ -4,7 +4,9 @@ import numpy as np
 from . import constants
 from . import numba_check
 
+have_numba, jit = numba_check.numba_check()
 
+@jit(nopython=True)
 def diag_multiply(A, d):
     """Compute the D . A . D, where d is the diagonal of diagonal
     matrix D.
@@ -20,6 +22,7 @@ def diag_multiply(A, d):
     return B
 
 
+@jit(nopython=True)
 def solve_pos_def(A, b):
     """Solve A x = b, where A is known to be positive definite.
 
@@ -46,6 +49,7 @@ def solve_pos_def(A, b):
     return modified_cholesky_solve(L, p, b), success
 
 
+@jit(nopython=True)
 def _check_symmetry(A, atol=1e-8, rtol=1e-5):
     """Check to make sure a matrix is symmetric, 2D."""
     # Make sure it's a 2D array
@@ -64,6 +68,7 @@ def _check_symmetry(A, atol=1e-8, rtol=1e-5):
                 raise RuntimeError("A not symmetric.")
 
 
+@jit(nopython=True)
 def modified_cholesky(A):
     """
     Modified Cholesky decomposition.
@@ -180,6 +185,7 @@ def modified_cholesky(A):
     return L, p, success
 
 
+@jit(nopython=True)
 def modified_cholesky_solve(L, p, b):
     """
     Solve system Ax = b, with P A P^T = L L^T post-Cholesky decomposition.
@@ -237,6 +243,7 @@ def modified_cholesky_solve(L, p, b):
     return x
 
 
+@jit(nopython=True)
 def lower_tri_solve(L, b):
     """
     Solves the lower triangular system Lx = b.
@@ -292,6 +299,7 @@ def lower_tri_solve(L, b):
     return x
 
 
+@jit(nopython=True)
 def upper_tri_solve(U, b):
     """
     Solves the lower triangular system Ux = b.
@@ -347,6 +355,7 @@ def upper_tri_solve(U, b):
     return x
 
 
+@jit(nopython=True)
 def lup_decomposition(A_in):
 
     """
@@ -413,6 +422,7 @@ def lup_decomposition(A_in):
     return A, p
 
 
+@jit(nopython=True)
 def lup_solve(LU, p, b):
 
     """
@@ -467,7 +477,8 @@ def lup_solve(LU, p, b):
 
     return x
 
-
+# numba.double[:, ::1](numba.double[:, ::1], numba.double))
+@jit(nopython=True)
 def nullspace_svd(A, tol=1e-12):
     """
     Calculate a basis for the approximate null space of A, consider any
@@ -491,9 +502,10 @@ def nullspace_svd(A, tol=1e-12):
     """
     u, sigma, v_trans = np.linalg.svd(A)
     nonzero_inds = (sigma >= tol).sum()
-    return v_trans[nonzero_inds:, :].transpose()
+    return np.ascontiguousarray(v_trans[nonzero_inds:, :].transpose())
 
 
+@jit(nopython=True)
 def nullspace_qr(A, tol=1e-12):
     """
     Use QR factorization to compute a basis for the approximate
@@ -523,24 +535,3 @@ def nullspace_qr(A, tol=1e-12):
     q, r = np.linalg.qr(A.transpose(), "complete")
     rank = np.sum(np.abs(np.diag(r)) > tol)
     return q[:, n - rank - 1 :]
-
-
-if numba_check.numba_check():
-    import numba
-
-    _check_symmetry = numba.jit(_check_symmetry, nopython=True)
-    diag_multiply = numba.jit(diag_multiply, nopython=True)
-    modified_cholesky = numba.jit(modified_cholesky, nopython=True)
-    modified_cholesky_solve = numba.jit(modified_cholesky_solve, nopython=True)
-    lower_tri_solve = numba.jit(lower_tri_solve, nopython=True)
-    upper_tri_solve = numba.jit(upper_tri_solve, nopython=True)
-    lup_decomposition = numba.jit(lup_decomposition, nopython=True)
-    lup_solve = numba.jit(lup_solve, nopython=True)
-    nullspace_svd = numba.jit(
-        nullspace_svd,
-#        signature=numba.double[:, :](numba.double[:, :], numba.double),
-        nopython=True,
-    )
-    solve_pos_def = numba.jit(solve_pos_def, nopython=True)
-else:
-    solve_pos_def = np.linalg.solve

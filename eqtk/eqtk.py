@@ -14,6 +14,7 @@ from . import linalg
 from . import numba_check
 from . import constants
 
+have_numba, jit = numba_check.numba_check()
 
 def solve(
     c0,
@@ -611,6 +612,7 @@ def to_df(c0, c, names, units):
     return pd.DataFrame(columns=cols, data=np.concatenate((c0, c), axis=1))
 
 
+@jit(nopython=True)
 def _solve_trust_region(
     A,
     G,
@@ -701,6 +703,7 @@ def _solve_trust_region(
     return x, converged, n_trial, step_tally
 
 
+@jit(nopython=True)
 def _initial_guess(constraint_vector, G, A):
     """
     Calculates an initial guess for lambda such that the maximum
@@ -728,6 +731,7 @@ def _initial_guess(constraint_vector, G, A):
         return np.linalg.solve(A_AT, b)
 
 
+@jit(nopython=True)
 def _perturb_initial_guess(constraint_vector, G, A, mu0, perturb_scale=100.0):
     """
     Calculates an initial guess for lambda such that the maximum
@@ -753,6 +757,7 @@ def _perturb_initial_guess(constraint_vector, G, A, mu0, perturb_scale=100.0):
     return new_mu
 
 
+@jit(nopython=True)
 def _prune_NK(N, minus_log_K, x0):
     """Prune reactions to ignore inert and missing species.
     """
@@ -816,6 +821,7 @@ def _prune_NK(N, minus_log_K, x0):
     return N_new, minus_log_K_new, x0_new, active_compounds, active_reactions
 
 
+@jit(nopython=True)
 def _create_from_nothing(N, x0):
     for i in range(N.shape[0]):
         Ni = N[i, :]
@@ -827,6 +833,7 @@ def _create_from_nothing(N, x0):
     return x0
 
 
+@jit(nopython=True)
 def _prune_AG(A, G, x0):
     """Prune constraint matrix and free energy to ignore inert and
     missing species.
@@ -862,6 +869,7 @@ def _prune_AG(A, G, x0):
     return A_new, G_new, constraint_vector_new, active_compounds
 
 
+@jit(nopython=True)
 def _print_runstats(
     A,
     G,
@@ -902,6 +910,7 @@ def _print_runstats(
     print("    number of dogleg failures:", step_tally[5])
 
 
+@jit(nopython=True)
 def _solve_NK(
     N,
     minus_log_K,
@@ -1032,6 +1041,7 @@ def _solve_NK(
     return x
 
 
+@jit(nopython=True)
 def _solve_AG(
     A,
     G,
@@ -1286,6 +1296,7 @@ def _thermal_energy(T, units):
         )
 
 
+@jit(nopython=True)
 def _boolean_index(a, b, n_true):
     """Returns a[b] where b is a Boolean array."""
     # if n_true == 0:
@@ -1301,6 +1312,7 @@ def _boolean_index(a, b, n_true):
     return out
 
 
+@jit(nopython=True)
 def _boolean_index_2d(a, b_row, b_col, n_true_row, n_true_col):
     """Does the following:
     a_new = a[b_row, :]
@@ -1318,20 +1330,3 @@ def _boolean_index_2d(a, b_row, b_col, n_true_row, n_true_col):
             m += 1
 
     return out
-
-
-# Use Numba'd functions
-if numba_check.numba_check():
-    import numba
-
-    _boolean_index = numba.jit(_boolean_index, nopython=True)
-    _boolean_index_2d = numba.jit(_boolean_index_2d, nopython=True)
-    _print_runstats = numba.jit(_print_runstats, nopython=True)
-    _initial_guess = numba.jit(_initial_guess, nopython=True)
-    _perturb_initial_guess = numba.jit(_perturb_initial_guess, nopython=True)
-    _prune_NK = numba.jit(_prune_NK, nopython=True)
-    _prune_AG = numba.jit(_prune_AG, nopython=True)
-    _solve_trust_region = numba.jit(_solve_trust_region, nopython=True)
-    _create_from_nothing = numba.jit(_create_from_nothing, nopython=True)
-    _solve_NK = numba.jit(_solve_NK, nopython=True)
-    _solve_AG = numba.jit(_solve_AG, nopython=True)
