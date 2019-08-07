@@ -9,9 +9,9 @@ def check_equilibrium_NK(c0, c, N=None, K=None):
     if len(c0.shape) == 1:
         single_point = True
 
-    c0, N, K, _, _ = check_input(c0, N, K, A=None, G=None)
-    c, _, _, _, _ = check_input(c, N, K, A=None, G=None)
-
+    c0, N, K, _, _ = check_input(c0, N, K, *tuple([None]*6))
+    c, _, _, _, _ = check_input(c, N, K, *tuple([None]*6))
+       
     if c0.shape != c.shape:
         raise ValueError("`c0` and `c` must have the same shape.")
 
@@ -122,8 +122,8 @@ def check_equilibrium_AG(c0, c, A, G):
     if len(c0.shape) == 1:
         single_point = True
 
-    c0, _, _, A, G = check_input(c0, N=None, K=None, A=A, G=G)
-    c, _, _, _, _ = check_input(c, N=None, K=None, A=A, G=G)
+    c0, _, _, A, G = check_input(c0, None, None, A, G, *tuple([None]*4))
+    c, _, _, _, _ = check_input(c, None, None, A, G, *tuple([None]*4))
 
     if c0.shape != c.shape:
         raise ValueError("`c0` and `c` must have the same shape.")
@@ -160,7 +160,7 @@ def _check_equilibrium_AG_single_point(c0, c, A, G):
     return cons_mass_ok
 
 
-def check_input(c0, N, K, A, G):
+def check_input(c0, N, K, A, G, units, solvent_density, T, G_units):
     """
     Utility to check input to the function eqtk_conc.
     Does appropriate transposing and typing and returns result.
@@ -225,12 +225,38 @@ def check_input(c0, N, K, A, G):
     array([  50.,   10.,   40.,  100.])
     """
     # Make sure inputs are ok
-    err_str = "Must specify either N/K pair of A/G pair."
+    err_str = "Must specify either N/K pair or A/G pair."
     if N is None:
-        if A is None or G is None or K is not None:
+        if A is None or G is None:
             raise RuntimeError(err_str)
-    elif K is None or A is not None or G is not None:
+    elif A is not None or G is not None:
         raise RuntimeError(err_str)
+
+    # Check units
+    allowed_units = (None, "M", "mM", "uM", "µM", "nM", "pM")
+    if units not in allowed_units:
+        raise ValueError(
+            f"Specified concentration units of {units} not in {allowed_units}."
+        )
+
+    allowed_units = (None, "kT", "kcal/mol", "J", "J/mol", "kJ/mol", "pN-nm")
+    if G_units not in allowed_units:
+        raise ValueError(
+            f"Specified free energy units of {G_units} not in {allowed_units}."
+        )
+
+    if G_units not in (None, "kT") and T is None:
+        raise ValueError("If G is specified with units, must also supply T.")
+
+    # Make sure T in in Kelvin.
+    if T is not None and T < 100.0:
+        warnings.warn("WARNING: T may be in wrong units, must be in Kelvin.")
+
+    # Make sure solvent density is ok
+    if solvent_density is not None and units is None and solvent_density != 1.0:
+        raise ValueError(
+            "If `solvent_density` is specified, `units` must also be specified."
+        )
 
     # Check c0
     if type(c0) == list or type(c0) == tuple or not c0.flags["C_CONTIGUOUS"]:
@@ -254,12 +280,23 @@ def check_input(c0, N, K, A, G):
         if type(N) == list or type(N) == tuple:
             N = np.array(N)
 
-        N = N.astype(float)
+        if type(N) == np.ndarray:
+            if K is None:
+                raise ValueError('`K` must be specified.')
+            N = N.astype(float)
 
-        if len(N.shape) == 1:
-            N = N.reshape((1, -1), order="C").astype(float)
+            if len(N.shape) == 1:
+                N = N.reshape((1, -1), order="C").astype(float)
 
-        N = np.ascontiguousarray(N, dtype=float)
+            N = np.ascontiguousarray(N, dtype=float)
+        elif type(N) == pandas.core.frame.DataFrame:
+            N, names, K, units_from_N = _NK_and_names_from_df(N)
+            if K is None:
+                raise ValueError('`K` must be specified either separately or in `N` data frame.')
+            K = _convert_K(K_units, units)
+
+        if K is None:
+            raise ValueError("`K` not specified.")
 
         if np.isinf(N).any():
             raise ValueError("All entries in N must be finite.")
@@ -350,3 +387,59 @@ def check_input(c0, N, K, A, G):
         raise ValueError("A must have full row rank.")
 
     return c0, N, K, A, G
+
+
+def _NK_and_names_from_df(df):
+    cols = []
+    K = None
+    units = None
+    for col in df.columns:
+        if 'equilibrium constant' or 'equilibrium_constant' in col:
+            K = df[col].values.astype(float)
+        else:
+            cols.append(col)
+
+    N = df[cols].to_numpy(dtype=float, copy=True)
+    names = list(cols)
+
+    for name in names:
+        if _levenshtein(name, 'equilibrium constant') < 10:
+            warnings.warn(f"Chemical species name '{name}' is close to 'equilibrium constant'. This may be a typo.")
+
+    return N, K, names
+
+
+def _A_and_names_from_df(df, solvent_density):
+    A = df[cols].to_numpy(dtype=float, copy=True)
+    names = list(cols)
+
+    return A, names
+
+
+def _c0_from_df(df, names):
+    c0 = np.empty((len(df), len(names)))
+    for i, name in enumerate(names):
+        c0[i,:] = df[name].values
+
+    return c0.astype(float)
+
+
+def _levenshtein(s1, s2):
+    if len(s1) < len(s2):
+        return levenshtein(s2, s1)
+
+    # len(s1) >= len(s2)
+    if len(s2) == 0:
+        return len(s1)
+
+    previous_row = range(len(s2) + 1)
+    for i, c1 in enumerate(s1):
+        current_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            insertions = previous_row[j + 1] + 1 # j+1 instead of j since previous_row and current_row are one character longer
+            deletions = current_row[j] + 1       # than s2
+            substitutions = previous_row[j] + (c1 != c2)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
+
+    return previous_row[-1]

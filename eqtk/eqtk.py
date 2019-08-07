@@ -6,6 +6,8 @@ import time
 import warnings
 
 import numpy as np
+import pandas as pd
+
 from . import checks
 from . import trust_region
 from . import linalg
@@ -21,7 +23,7 @@ def solve(
     G=None,
     units=None,
     solvent_density=None,
-    T=20.0,
+    T=293.15,
     G_units=None,
     max_iters=1000,
     tol=0.0000001,
@@ -247,7 +249,7 @@ def solve(
     if len(c0.shape) == 1:
         single_point = True
 
-    c0, N, K, A, G = checks.check_input(c0, N, K, A, G)
+    c0, N, K, A, G = checks.check_input(c0, N, K, A, G, units, solvent_density, T, G_units)
 
     # Solve for mole fractions
     if G is None:
@@ -305,7 +307,7 @@ def volumetric_titration(
     G=None,
     solvent_density=None,
     units=None,
-    T=20.0,
+    T=293.15,
     G_units=None,
     inputs_guaranteed=False,
     max_iters=1000,
@@ -580,6 +582,30 @@ def volumetric_to_c0(c0, c0_titrant, initial_volume, vol_titrated):
     original_scale = initial_volume / (initial_volume + vol_titrated_col)
 
     return np.dot(titrated_scale, c_titrant_row) + np.dot(original_scale, c0_row)
+
+
+def to_df(c0, c, names, units):
+    """
+    Return output as a Pandas DataFrame.
+    """
+    if len(c.shape) == 1:
+        c = c.reshape((1, len(c)))
+        c0 = c0.reshape((1, len(c0)))
+
+    if c.shape != c0.shape:
+        raise ValueError('`c` and `c0` must have the same shape.')
+
+    if len(names) != c0.shape[1]:
+        raise ValueError('`len(names)` must equal number of columns in `c0`')
+
+    if len(set(names)) != len(names):
+        raise ValueError('Not all names are unique.')
+
+    units_str = ' (' + units + ')' if units is not None else ''
+    cols = [name + '__0' + units_str for name in names]
+    cols += [name + units_str for name in names]
+
+    return pd.DataFrame(columns=cols, data=np.concatenate((c0, c), axis=1))
 
 
 def _solve_trust_region(
@@ -1132,7 +1158,7 @@ def _nondimensionalize_NK(c0, N, K, T, solvent_density, units):
 
     # Convert K's and c0 to dimensionless
     K_nondim = K / solvent_density ** N.sum(axis=1)
-    c0_nondim = _nondimensionalize_c0(c0, solvent_density)
+    c0_nondim = c0 / solvent_density
 
     return c0_nondim, K_nondim, solvent_density
 
@@ -1143,7 +1169,7 @@ def _nondimensionalize_AG(c0, G, T, solvent_density, units, G_units):
 
     # Convert G's and c0 to dimensionless
     G_nondim = _dimensionless_free_energy(G, G_units, T)
-    c0_nondim = _nondimensionalize_c0(c0, solvent_density)
+    c0_nondim = c0 / solvent_density
 
     return c0_nondim, G_nondim, solvent_density
 
@@ -1159,11 +1185,6 @@ def _parse_solvent_density(solvent_density, T, units):
     return solvent_density
 
 
-def _nondimensionalize_c0(c0, solvent_density):
-    """Nondimensionalize input concentration by solvent density."""
-    return c0 / solvent_density
-
-
 def _water_density(T, units):
     """
     Calculate the number density of water in specified units.
@@ -1171,7 +1192,7 @@ def _water_density(T, units):
     Parameters
     ----------
     T : float
-        Temperature in degrees C.
+        Temperature in Kelvin.
     units : string, default = 'M'
         The units in which the density is to be calculated.
         Valid values are: 'M', 'mM', 'uM', 'nM', 'pM'.
@@ -1197,11 +1218,14 @@ def _water_density(T, units):
     a4 = 69.34881
     a5 = 999.974950
 
+    # Convert temperature to celsius
+    T_C = T - constants.absolute_zero
+
     # Compute water density in units of molar
-    dens = a5 * (1 - (T + a1) * (T + a1) * (T + a2) / a3 / (T + a4)) / 18.0152
+    dens = a5 * (1 - (T_C + a1) * (T_C + a1) * (T_C + a2) / a3 / (T_C + a4)) / 18.0152
 
     # Valid units
-    allowed_units = [None, "M", "mM", "uM", "nM", "pM"]
+    allowed_units = (None, "M", "mM", "uM", "µM", "nM", "pM")
 
     # Convert to specified units
     if units in ["millimolar", "mM"]:
@@ -1220,7 +1244,7 @@ def _water_density(T, units):
     return dens
 
 
-def _dimensionless_free_energy(G, units, T=None):
+def _dimensionless_free_energy(G, units, T=293.15):
     """
     Convert free energy to dimensionless units, where G is in given units.
     """
@@ -1236,12 +1260,10 @@ def _dimensionless_free_energy(G, units, T=None):
 def _thermal_energy(T, units):
     """
     Return value of thermal energy kT in specified units. T is
-    assumed to be in deg. C.
+    assumed to be in Kelvin.
     """
-    if T > 150.0:
-        warnings.warn("WARNING: T may be in wrong units, must be in deg. C.")
-
-    T += constants.absolute_zero
+    if T < 100.0:
+        warnings.warn("WARNING: T may be in wrong units, must be in K.")
 
     allowed_units = ["kcal/mol", "J", "J/mol", "kJ/mol", "pN-nm"]
 
