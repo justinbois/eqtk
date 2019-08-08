@@ -16,6 +16,7 @@ from . import constants
 
 have_numba, jit = numba_check.numba_check()
 
+
 def solve(
     c0,
     N=None,
@@ -612,7 +613,106 @@ def to_df(c0, c, names, units):
     return pd.DataFrame(columns=cols, data=np.concatenate((c0, c), axis=1))
 
 
-@jit(nopython=True)
+@jit("double[::1](double[::1], boolean[::1], int64)", nopython=True)
+def _boolean_index(a, b, n_true):
+    """Returns a[b] where b is a Boolean array."""
+    # if n_true == 0:
+    #     return np.array([np.float64(x) for x in range(0)])
+
+    out = np.empty(n_true)
+    j = 0
+    for i, tf in enumerate(b):
+        if tf:
+            out[j] = a[i]
+            j += 1
+
+    return out
+
+
+@jit(
+    "double[:, ::1](double[:, ::1], boolean[::1], boolean[::1], int64, int64)",
+    nopython=True,
+)
+def _boolean_index_2d(a, b_row, b_col, n_true_row, n_true_col):
+    """Does the following:
+    a_new = a[b_row, :]
+    a_new = a_new[:, b_col]
+    """
+    out = np.empty((n_true_row, n_true_col))
+    m = 0
+    for i, tf_row in enumerate(b_row):
+        if tf_row:
+            n = 0
+            for j, tf_col in enumerate(b_col):
+                if tf_col:
+                    out[m, n] = a[i, j]
+                    n += 1
+            m += 1
+
+    return out
+
+
+@jit("double[::1](double[::1], double[::1], double[:, ::1])", nopython=True)
+def _initial_guess(constraint_vector, G, A):
+    """
+    Calculates an initial guess for lambda such that the maximum
+    mole fraction calculated will not give an overflow error and
+    the objective function $-h(µ)$ will be positive.  It is
+    best to have a positive objective function because when the
+    objective function is negative, it tends to be very close to
+    zero and there are precision issues.
+
+    We assume all the mu's have the same value in the initial
+    condition.  We compute the maximal lambda such that all mole
+    fractions of all complexes are below some maximum.
+    """
+    # OLD WAY
+    # mu_guess = ((1.0 + G) / abs(A).sum(0)).min() \
+    #    * ones_like(constraint_vector)
+
+    # Guess mu such that ln x = 1 for all x (x ~ 3).
+    A_AT = np.dot(A, A.transpose())
+    b = np.dot(A, G + 1.0)
+    mu0, success = linalg.solve_pos_def(A_AT, b)
+    if success:
+        return mu0
+    else:
+        return np.linalg.solve(A_AT, b)
+
+
+@jit(
+    "double[::1](double[::1], double[::1], double[:, ::1], double[::1], double)",
+    nopython=True,
+)
+def _perturb_initial_guess(constraint_vector, G, A, mu0, perturb_scale=100.0):
+    """
+    Calculates an initial guess for lambda such that the maximum
+    mole fraction calculated will not give an overflow error and
+    the objective function $-h(µ)$ will be positive.  It is
+    best to have a positive objective function because when the
+    objective function is negative, it tends to be very close to
+    zero and there are precision issues.
+
+    We assume all the mu's have the same value in the initial
+    condition.  We compute the maximal lambda such that all mole
+    fractions of all complexes are below some maximum.
+    """
+    # OLD WAY
+    # mu_guess = ((1.0 + G) / abs(A).sum(0)).min() \
+    #    * ones_like(constraint_vector)
+
+    new_mu = mu0 + perturb_scale * 2.0 * (np.random.rand(len(constraint_vector)) - 0.5)
+    # Prevent overflow err
+    while (-G + np.dot(new_mu, A)).max() > constants.max_logx:
+        perturb_scale /= 2.0
+
+    return new_mu
+
+
+@jit(
+    "Tuple((double[::1], boolean, int64, int64[::1]))(double[:, ::1], double[::1], double[::1], int64, double, double, double, double, int64, double)",
+    nopython=True,
+)
 def _solve_trust_region(
     A,
     G,
@@ -624,7 +724,6 @@ def _solve_trust_region(
     min_delta=1.0e-12,
     max_trials=100,
     perturb_scale=100.0,
-    return_run_stats=False,
 ):
     """
     Solve for equilibrium concentrations of all species in a dilute
@@ -703,61 +802,9 @@ def _solve_trust_region(
     return x, converged, n_trial, step_tally
 
 
-@jit(nopython=True)
-def _initial_guess(constraint_vector, G, A):
-    """
-    Calculates an initial guess for lambda such that the maximum
-    mole fraction calculated will not give an overflow error and
-    the objective function $-h(µ)$ will be positive.  It is
-    best to have a positive objective function because when the
-    objective function is negative, it tends to be very close to
-    zero and there are precision issues.
-
-    We assume all the mu's have the same value in the initial
-    condition.  We compute the maximal lambda such that all mole
-    fractions of all complexes are below some maximum.
-    """
-    # OLD WAY
-    # mu_guess = ((1.0 + G) / abs(A).sum(0)).min() \
-    #    * ones_like(constraint_vector)
-
-    # Guess mu such that ln x = 1 for all x (x ~ 3).
-    A_AT = np.dot(A, A.transpose())
-    b = np.dot(A, G + 1.0)
-    mu0, success = linalg.solve_pos_def(A_AT, b)
-    if success:
-        return mu0
-    else:
-        return np.linalg.solve(A_AT, b)
-
-
-@jit(nopython=True)
-def _perturb_initial_guess(constraint_vector, G, A, mu0, perturb_scale=100.0):
-    """
-    Calculates an initial guess for lambda such that the maximum
-    mole fraction calculated will not give an overflow error and
-    the objective function $-h(µ)$ will be positive.  It is
-    best to have a positive objective function because when the
-    objective function is negative, it tends to be very close to
-    zero and there are precision issues.
-
-    We assume all the mu's have the same value in the initial
-    condition.  We compute the maximal lambda such that all mole
-    fractions of all complexes are below some maximum.
-    """
-    # OLD WAY
-    # mu_guess = ((1.0 + G) / abs(A).sum(0)).min() \
-    #    * ones_like(constraint_vector)
-
-    new_mu = mu0 + perturb_scale * 2.0 * (np.random.rand(len(constraint_vector)) - 0.5)
-    # Prevent overflow err
-    while (-G + np.dot(new_mu, A)).max() > constants.max_logx:
-        perturb_scale /= 2.0
-
-    return new_mu
-
-
-@jit(nopython=True)
+@jit(
+    "Tuple((double[:, ::1], double[::1], double[::1], boolean[::1], boolean[::1]))(double[:, ::1], double[::1], double[::1])",
+    nopython=True)
 def _prune_NK(N, minus_log_K, x0):
     """Prune reactions to ignore inert and missing species.
     """
@@ -821,19 +868,9 @@ def _prune_NK(N, minus_log_K, x0):
     return N_new, minus_log_K_new, x0_new, active_compounds, active_reactions
 
 
-@jit(nopython=True)
-def _create_from_nothing(N, x0):
-    for i in range(N.shape[0]):
-        Ni = N[i, :]
-        if np.all(Ni >= 0):
-            x0 += Ni
-        elif np.all(Ni <= 0):
-            x0 -= Ni
-
-    return x0
-
-
-@jit(nopython=True)
+@jit(
+    "Tuple((double[:, ::1], double[::1], double[::1], boolean[::1]))(double[:, ::1], double[::1], double[::1])",
+    nopython=True)
 def _prune_AG(A, G, x0):
     """Prune constraint matrix and free energy to ignore inert and
     missing species.
@@ -869,7 +906,8 @@ def _prune_AG(A, G, x0):
     return A_new, G_new, constraint_vector_new, active_compounds
 
 
-@jit(nopython=True)
+@jit("void(double[:, ::1], double[::1], double[:, ::1], double[::1], int64, int64, double, double, double, double, double, boolean, int64[::1], int64)",
+    nopython=True)
 def _print_runstats(
     A,
     G,
@@ -910,7 +948,23 @@ def _print_runstats(
     print("    number of dogleg failures:", step_tally[5])
 
 
-@jit(nopython=True)
+@jit(
+    "double[::1](double[:, ::1], double[::1])",
+    nopython=True)
+def _create_from_nothing(N, x0):
+    for i in range(N.shape[0]):
+        Ni = N[i, :]
+        if np.all(Ni >= 0):
+            x0 += Ni
+        elif np.all(Ni <= 0):
+            x0 -= Ni
+
+    return x0
+
+
+@jit(
+    "double[:, ::1](double[:, ::1], double[::1], double[:, ::1], int64, double, double, double, double, int64, double)",
+    nopython=True)
 def _solve_NK(
     N,
     minus_log_K,
@@ -963,12 +1017,10 @@ def _solve_NK(
     """
     # Get number of particles and compounds
     n_reactions, n_compounds = N.shape
-    ret_shape = x0.shape
 
-    n_titration_points = x0.shape[0]
+    x = np.empty_like(x0)
 
-    x = np.empty((n_titration_points, n_compounds))
-    for i_point in range(n_titration_points):
+    for i_point in range(x0.shape[0]):
         N_new, minus_log_K_new, x0_new, active_compounds, _ = _prune_NK(
             N, minus_log_K, x0[i_point]
         )
@@ -977,7 +1029,9 @@ def _solve_NK(
             n_constraints_new = n_compounds_new - n_reactions_new
 
             # Compute and check stoichiometric matrix
-            A = np.ascontiguousarray(linalg.nullspace_svd(N_new, constants.nullspace_tol).transpose())
+            A = np.ascontiguousarray(
+                linalg.nullspace_svd(N_new, tol=constants.nullspace_tol).transpose()
+            )
 
             # If completely constrained (N square), solve directly
             if n_constraints_new == 0:
@@ -1036,12 +1090,13 @@ def _solve_NK(
             else:
                 x[i_point, i] = x0[i_point, i]
 
-    x = np.reshape(x, ret_shape)
-
     return x
 
 
-@jit(nopython=True)
+@jit(
+    "double[:, ::1](double[:, ::1], double[::1], double[:, ::1], int64, double, double, double, double, int64, double)",
+    nopython=True,
+)
 def _solve_AG(
     A,
     G,
@@ -1063,7 +1118,7 @@ def _solve_AG(
     A : array_like, shape (n_particles, n_compounds)
         A[i][j] = number of particles of type i in compound j.
         Leftmost square matrix of A (n_particles by n_particles) must
-        be the identitity matrix.  No column may be repeated.
+        be the identity matrix.  No column may be repeated.
     G : array_like, shape (n_compounds,)
         G[j] is the free energy of compound j in units of kT.
     x0 : array_like, shape (n_points, n_compounds)
@@ -1096,11 +1151,9 @@ def _solve_AG(
     """
     n_particles, n_compounds = A.shape
 
-    n_titration_points = x0.shape[0]
+    x = np.empty_like(x0)
 
-    x = np.empty((n_titration_points, n_compounds))
-
-    for i_point in range(n_titration_points):
+    for i_point in range(x0.shape[0]):
         A_new, G_new, constraint_vector, active_compounds = _prune_AG(A, G, x0[i_point])
 
         # Detect if A is empty (no constraints)
@@ -1294,39 +1347,3 @@ def _thermal_energy(T, units):
         raise ValueError(
             f"Specified thermal energy units of {units} not in {allowed_units}."
         )
-
-
-@jit(nopython=True)
-def _boolean_index(a, b, n_true):
-    """Returns a[b] where b is a Boolean array."""
-    # if n_true == 0:
-    #     return np.array([np.float64(x) for x in range(0)])
-
-    out = np.empty(n_true)
-    j = 0
-    for i, tf in enumerate(b):
-        if tf:
-            out[j] = a[i]
-            j += 1
-
-    return out
-
-
-@jit(nopython=True)
-def _boolean_index_2d(a, b_row, b_col, n_true_row, n_true_col):
-    """Does the following:
-    a_new = a[b_row, :]
-    a_new = a_new[:, b_col]
-    """
-    out = np.empty((n_true_row, n_true_col))
-    m = 0
-    for i, tf_row in enumerate(b_row):
-        if tf_row:
-            n = 0
-            for j, tf_col in enumerate(b_col):
-                if tf_col:
-                    out[m, n] = a[i, j]
-                    n += 1
-            m += 1
-
-    return out

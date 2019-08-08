@@ -341,7 +341,9 @@ def _parse_rxns_input(rxns, K, names, c0_from_df):
                     "`names` cannot be specified if `rxns` is given as a str."
                 )
             if not c0_from_df:
-                raise ValueError("If `rxns` is specified as a string, `c0` must be specified as a data frame.")
+                raise ValueError(
+                    "If `rxns` is specified as a string, `c0` must be specified as a data frame."
+                )
             N, K_from_rxn, names = rxn_parser.parse_rxns(rxns)
             K = _check_K_input(K, K_from_rxn)
         else:
@@ -357,9 +359,13 @@ def _parse_rxns_input(rxns, K, names, c0_from_df):
 def _check_N(N, n_compounds):
     if N is not None:
         if N.shape[1] != n_compounds:
-            raise ValueError("Dimension mismatch between `c0` and inputted chemical species via `rxn`.")
+            raise ValueError(
+                "Dimension mismatch between `c0` and inputted chemical species via `rxn`."
+            )
         if len(N) > 0 and np.linalg.matrix_rank(N) != N.shape[0]:
-            raise ValueError("Innputed `rxn` results in rank deficient stoichiometic matrix.")
+            raise ValueError(
+                "Innputed `rxn` results in rank deficient stoichiometic matrix."
+            )
         if np.isinf(N).any():
             raise ValueError("All entries in the stoichiometic matrix must be finite.")
         if np.isnan(N).any():
@@ -421,7 +427,9 @@ def _parse_A(A, names, c0_from_df):
 def _check_A(A, n_compounds):
     if A is not None:
         if A.shape[1] != n_compounds:
-            raise ValueError("Dimension mismatch between `c0` and the constraint matrix.")
+            raise ValueError(
+                "Dimension mismatch between `c0` and the constraint matrix."
+            )
         if len(A) > 0 and np.linalg.matrix_rank(A) != A.shape[0]:
             raise ValueError("`A` must have full row rank.")
         if np.isinf(A).any():
@@ -498,9 +506,7 @@ def _check_names_input(names, names_from_df):
     if names is None:
         names = names_from_df
     elif names_from_df != tuple(names):
-        raise ValueError(
-            "`names` does not match columns names of inputted data frame."
-        )
+        raise ValueError("`names` does not match columns names of inputted data frame.")
     else:
         names = tuple(names)
 

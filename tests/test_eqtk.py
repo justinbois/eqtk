@@ -760,7 +760,7 @@ def test_A_with_negative_entries():
         x0 = np.array(x0_val, dtype=float)
         x_NK = eqtk.solve(c0=x0, N=N, K=K)
         eq_check, cons_mass_check = eqtk.checks.check_equilibrium_NK(x0, x_NK, N=N, K=K)
-        my_A = eqtk.linalg.nullspace_svd(N).transpose()
+        my_A = eqtk.linalg.nullspace_svd(N, eqtk.constants.nullspace_tol).transpose()
         print(cons_mass_check, my_A @ x_NK, my_A @ x0)
         assert np.all(eq_check)
         assert np.all(cons_mass_check)

@@ -12,26 +12,30 @@ from . import numba_check
 
 have_numba, jit = numba_check.numba_check()
 
-@jit(nopython=True)
+
+@jit("double[::1](double[::1], double[::1], double[:, ::1])", nopython=True)
 def compute_logx(mu, G, A):
     return -G + np.dot(mu, A)
 
 
-@jit(nopython=True)
+@jit("double[::1](double[::1], double)", nopython=True)
 def rescale_x(x, log_scale_param):
     """Rescale the concentrations.
     """
     return x * np.exp(-log_scale_param)
 
 
-@jit(nopython=True)
+@jit("double[::1](double[::1], double)", nopython=True)
 def rescale_constraint_vector(constraint_vector, log_scale_param):
     """Rescale the constraint vector by the maximal concentration.
     """
     return constraint_vector * np.exp(-log_scale_param)
 
 
-@jit(nopython=True)
+@jit(
+    "double(double[::1], double[::1], double[::1], double[:, ::1], double[::1])",
+    nopython=True,
+)
 def obj_fun(mu, x, G, A, constraint_vector):
     """
     Compute the negative dual function for equilibrium calcs.
@@ -42,7 +46,7 @@ def obj_fun(mu, x, G, A, constraint_vector):
     return np.sum(x) - np.dot(mu, constraint_vector)
 
 
-@jit(nopython=True)
+@jit("double[::1](double[::1], double[:, ::1], double[::1])", nopython=True)
 def grad(x, A, constraint_vector):
     """
     Computes the gradient of the negative dual function.
@@ -53,7 +57,7 @@ def grad(x, A, constraint_vector):
     return -constraint_vector + np.dot(A, x)
 
 
-@jit(nopython=True)
+@jit("double[:, ::1](double[::1], double[:, ::1])", nopython=True)
 def hes(x, A):
     """
     Computes the gradient of the negative dual function.
@@ -67,25 +71,128 @@ def hes(x, A):
     return B
 
 
-@jit(nopython=True)
+@jit("double[::1](double[:, ::1])", nopython=True)
 def inv_scaling(B):
     """Computes diagonal of scaling matrix."""
     return 1.0 / np.sqrt(np.diag(B))
 
 
-@jit(nopython=True)
+@jit("double[::1](double[::1], double[::1])", nopython=True)
 def scaled_grad(g, inv_d):
     """Computes the scaled gradient."""
     return inv_d * g
 
 
-@jit(nopython=True)
+@jit("double[:, ::1](double[:, ::1], double[::1])", nopython=True)
 def scaled_hes(B, inv_d):
     """Computes the scaled Hessian."""
     return linalg.diag_multiply(B, inv_d)
 
 
-@jit(nopython=True)
+@jit("Tuple((double[::1], int64))(double[::1], double[:, ::1], double)", nopython=True)
+def search_direction_dogleg(g, B, delta):
+    """
+    Computes the search direction using the dogleg method (Nocedal and Wright,
+    page 71).  Notation is consistent with that in this reference.
+
+    p = direction to step
+    g = gradient
+    B = Hessian
+    delta = radius of trust region
+
+    Due to the construction of the problem, the minimization routine
+    to find tau can be solved exactly by solving a quadratic.  There
+    can be precision issues with this, so this is checked.  If the
+    argument of the square root in the quadratic formula is negative,
+    there must be a precision error, as such a situation is not
+    possible in the construction of the problem.
+
+    Returns:
+      p, the search direction and also an integer,
+
+      1 if step was a pure Newton step (didn't hit trust region boundary)
+      2 if the step was purely Cauchy in nature (hit trust region boundary)
+      3 if the step was a dogleg step (part Newton and part Cauchy)
+      4 if Cholesky decomposition failed and we had to take a Cauchy step
+      5 if Cholesky decompostion failed but we would've taken Cauchy step anyway
+      6 if the dogleg calculation failed (should never happen)
+    """
+    # Useful to have around
+    delta2 = delta ** 2
+
+    # Rescale
+    inv_d = inv_scaling(B)
+    g = scaled_grad(g, inv_d)
+    B = scaled_hes(B, inv_d)
+
+    # Compute Newton step, pB
+    neg_pB, cholesky_success = linalg.solve_pos_def(B, g)
+    pB = -neg_pB
+
+    # If Newton step is in trust region, take it
+    if cholesky_success:
+        pB2 = np.dot(pB, pB)
+        if pB2 <= delta2:
+            return inv_d * pB, 1
+
+    # Compute Cauchy step, pU
+    pU = -np.dot(g, g) / np.dot(g, np.dot(B, g)) * g
+    pU2 = np.dot(pU, pU)
+    if pU2 >= delta2:  # In this case, just take Cauchy step, 0 < tau <= 1
+        tau = np.sqrt(delta2 / pU2)
+        p = tau * pU
+        if not cholesky_success:
+            return inv_d * p, 5  # Cholesky failure, but doesn't matter, just use Cauchy
+        else:
+            return inv_d * p, 2  # Took Cauchy step
+
+    if not cholesky_success:  # Failed computing Newton, have to take Cauchy
+        return inv_d * pU, 4
+
+    # Compute the dogleg step
+    pBpU = np.dot(pB, pU)  # Needed for dogleg computation
+
+    # Compute constants for quadratic formula for solving
+    # ||pU + beta (pB-pU)||^2 = delta2, with beta = tau - 1
+    a = pB2 + pU2 - 2.0 * pBpU  # a > 0
+    b = 2.0 * (pBpU - pU2)  # b can be positive or negative
+    c = pU2 - delta2  # c < 0 since pU2 < delta 2 to get here
+    q = -0.5 * (b + np.sign(b) * np.sqrt(b ** 2 - 4.0 * a * c))
+
+    # Choose correct (positive) root (don't have to worry about a = 0 because
+    # if pU \approx pB, we would have already taken Newton step)
+    if abs(b) < constants.float_eps:
+        beta = np.sqrt(-c / a)
+    elif b < 0.0:
+        beta = q / a
+    else:  # b > 0
+        beta = c / q
+
+    # Take the dogleg step
+    if 0.0 <= beta <= 1.0:  # Should always be the case
+        p = pU + beta * (pB - pU)
+        return inv_d * p, 3
+    else:  # Something is messed up, take Cauchy step (should never get here)
+        return inv_d * pU, 6
+
+
+@jit("boolean(double[::1], double[::1], double)", nopython=True)
+def check_tol(g, tol, log_scale_param):
+    """
+    Check to see if the tolerance has been met.  Returns False if
+    tolerance is met.
+    """
+    s = np.exp(log_scale_param)
+    for tolerance, gradient in zip(tol, g):
+        if abs(gradient) > tolerance / s:
+            return True
+    return False
+
+
+@jit(
+    "Tuple((double[::1], boolean, int64[::1]))(double[::1], double[::1], double[:, ::1], double[::1], double[::1], double, double, double, double)",
+    nopython=True,
+)
 def trust_region_convex_unconstrained(
     mu0,
     G,
@@ -121,6 +228,12 @@ def trust_region_convex_unconstrained(
     this value, we are very very close to the minimum.  The algorithm
     then proceeds with Newton steps until convergence is achieved or
     the Newton step fails to decrease the norm of the gradient.
+
+    Suggested defaults:
+    max_iters=10000,
+    delta_bar=1000.0,
+    eta=0.125,
+    min_delta=1e-12,
     """
 
     # Initializations
@@ -230,103 +343,3 @@ def trust_region_convex_unconstrained(
         converged = True
 
     return mu, converged, step_tally
-
-
-@jit(nopython=True)
-def search_direction_dogleg(g, B, delta):
-    """
-    Computes the search direction using the dogleg method (Nocedal and Wright,
-    page 71).  Notation is consistent with that in this reference.
-
-    p = direction to step
-    g = gradient
-    B = Hessian
-    delta = radius of trust region
-
-    Due to the construction of the problem, the minimization routine
-    to find tau can be solved exactly by solving a quadratic.  There
-    can be precision issues with this, so this is checked.  If the
-    argument of the square root in the quadratic formula is negative,
-    there must be a precision error, as such a situation is not
-    possible in the construction of the problem.
-
-    Returns:
-      p, the search direction and also an integer,
-
-      1 if step was a pure Newton step (didn't hit trust region boundary)
-      2 if the step was purely Cauchy in nature (hit trust region boundary)
-      3 if the step was a dogleg step (part Newton and part Cauchy)
-      4 if Cholesky decomposition failed and we had to take a Cauchy step
-      5 if Cholesky decompostion failed but we would've taken Cauchy step anyway
-      6 if the dogleg calculation failed (should never happen)
-    """
-    # Useful to have around
-    delta2 = delta ** 2
-
-    # Rescale
-    inv_d = inv_scaling(B)
-    g = scaled_grad(g, inv_d)
-    B = scaled_hes(B, inv_d)
-
-    # Compute Newton step, pB
-    neg_pB, cholesky_success = linalg.solve_pos_def(B, g)
-    pB = -neg_pB
-
-    # If Newton step is in trust region, take it
-    if cholesky_success:
-        pB2 = np.dot(pB, pB)
-        if pB2 <= delta2:
-            return inv_d * pB, 1
-
-    # Compute Cauchy step, pU
-    pU = -np.dot(g, g) / np.dot(g, np.dot(B, g)) * g
-    pU2 = np.dot(pU, pU)
-    if pU2 >= delta2:  # In this case, just take Cauchy step, 0 < tau <= 1
-        tau = np.sqrt(delta2 / pU2)
-        p = tau * pU
-        if not cholesky_success:
-            return inv_d * p, 5  # Cholesky failure, but doesn't matter, just use Cauchy
-        else:
-            return inv_d * p, 2  # Took Cauchy step
-
-    if not cholesky_success:  # Failed computing Newton, have to take Cauchy
-        return inv_d * pU, 4
-
-    # Compute the dogleg step
-    pBpU = np.dot(pB, pU)  # Needed for dogleg computation
-
-    # Compute constants for quadratic formula for solving
-    # ||pU + beta (pB-pU)||^2 = delta2, with beta = tau - 1
-    a = pB2 + pU2 - 2.0 * pBpU  # a > 0
-    b = 2.0 * (pBpU - pU2)  # b can be positive or negative
-    c = pU2 - delta2  # c < 0 since pU2 < delta 2 to get here
-    q = -0.5 * (b + np.sign(b) * np.sqrt(b ** 2 - 4.0 * a * c))
-
-    # Choose correct (positive) root (don't have to worry about a = 0 because
-    # if pU \approx pB, we would have already taken Newton step)
-    if abs(b) < constants.float_eps:
-        beta = np.sqrt(-c / a)
-    elif b < 0.0:
-        beta = q / a
-    else:  # b > 0
-        beta = c / q
-
-    # Take the dogleg step
-    if 0.0 <= beta <= 1.0:  # Should always be the case
-        p = pU + beta * (pB - pU)
-        return inv_d * p, 3
-    else:  # Something is messed up, take Cauchy step (should never get here)
-        return inv_d * pU, 6
-
-
-@jit(nopython=True)
-def check_tol(g, tol, log_scale_param):
-    """
-    Check to see if the tolerance has been met.  Returns False if
-    tolerance is met.
-    """
-    s = np.exp(log_scale_param)
-    for tolerance, gradient in zip(tol, g):
-        if abs(gradient) > tolerance / s:
-            return True
-    return False
