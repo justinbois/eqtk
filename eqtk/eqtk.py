@@ -8,7 +8,7 @@ import warnings
 import numpy as np
 import pandas as pd
 
-from . import checks
+from . import parsers
 from . import trust_region
 from . import linalg
 from . import numba_check
@@ -252,16 +252,12 @@ def solve(
     if len(c0.shape) == 1:
         single_point = True
 
-    c0, N, K, A, G, names = checks.parse_input(
+    x0, N, K, A, G, names, solvent_density = parsers.parse_input(
         c0, N, K, A, G, names, units, solvent_density, T, G_units
     )
 
     # Solve for mole fractions
     if G is None:
-        x0, K, solvent_density = _nondimensionalize_NK(
-            c0, N, K, T, solvent_density, units
-        )
-
         x = _solve_NK(
             N,
             -np.log(K),
@@ -275,10 +271,6 @@ def solve(
             perturb_scale=perturb_scale,
         )
     else:
-        x0, G, solvent_density = _nondimensionalize_AG(
-            c0, G, T, solvent_density, units, G_units
-        )
-
         x = _solve_AG(
             A,
             G,
@@ -804,7 +796,8 @@ def _solve_trust_region(
 
 @jit(
     "Tuple((double[:, ::1], double[::1], double[::1], boolean[::1], boolean[::1]))(double[:, ::1], double[::1], double[::1])",
-    nopython=True)
+    nopython=True,
+)
 def _prune_NK(N, minus_log_K, x0):
     """Prune reactions to ignore inert and missing species.
     """
@@ -870,7 +863,8 @@ def _prune_NK(N, minus_log_K, x0):
 
 @jit(
     "Tuple((double[:, ::1], double[::1], double[::1], boolean[::1]))(double[:, ::1], double[::1], double[::1])",
-    nopython=True)
+    nopython=True,
+)
 def _prune_AG(A, G, x0):
     """Prune constraint matrix and free energy to ignore inert and
     missing species.
@@ -906,8 +900,10 @@ def _prune_AG(A, G, x0):
     return A_new, G_new, constraint_vector_new, active_compounds
 
 
-@jit("void(double[:, ::1], double[::1], double[:, ::1], double[::1], int64, int64, double, double, double, double, double, boolean, int64[::1], int64)",
-    nopython=True)
+@jit(
+    "void(double[:, ::1], double[::1], double[:, ::1], double[::1], int64, int64, double, double, double, double, double, boolean, int64[::1], int64)",
+    nopython=True,
+)
 def _print_runstats(
     A,
     G,
@@ -948,9 +944,7 @@ def _print_runstats(
     print("    number of dogleg failures:", step_tally[5])
 
 
-@jit(
-    "double[::1](double[:, ::1], double[::1])",
-    nopython=True)
+@jit("double[::1](double[:, ::1], double[::1])", nopython=True)
 def _create_from_nothing(N, x0):
     for i in range(N.shape[0]):
         Ni = N[i, :]
@@ -964,7 +958,8 @@ def _create_from_nothing(N, x0):
 
 @jit(
     "double[:, ::1](double[:, ::1], double[::1], double[:, ::1], int64, double, double, double, double, int64, double)",
-    nopython=True)
+    nopython=True,
+)
 def _solve_NK(
     N,
     minus_log_K,
@@ -1216,134 +1211,3 @@ def _solve_AG(
                     x[i_point, i] = x0[i_point, i]
 
     return x
-
-
-def _nondimensionalize_NK(c0, N, K, T, solvent_density, units):
-    # Compute solvent density in appropriate units
-    solvent_density = _parse_solvent_density(solvent_density, T, units)
-
-    # Convert K's and c0 to dimensionless
-    K_nondim = K / solvent_density ** N.sum(axis=1)
-    c0_nondim = c0 / solvent_density
-
-    return c0_nondim, K_nondim, solvent_density
-
-
-def _nondimensionalize_AG(c0, G, T, solvent_density, units, G_units):
-    # Compute solvent density in appropriate units
-    solvent_density = _parse_solvent_density(solvent_density, T, units)
-
-    # Convert G's and c0 to dimensionless
-    G_nondim = _dimensionless_free_energy(G, G_units, T)
-    c0_nondim = c0 / solvent_density
-
-    return c0_nondim, G_nondim, solvent_density
-
-
-def _parse_solvent_density(solvent_density, T, units):
-    if solvent_density is None:
-        return _water_density(T, units)
-    elif (units is None or units == "") and solvent_density != 1.0:
-        raise ValueError(
-            "If `solvent_density` is specified, `units` must also be specified."
-        )
-
-    return solvent_density
-
-
-def _water_density(T, units):
-    """
-    Calculate the number density of water in specified units.
-
-    Parameters
-    ----------
-    T : float
-        Temperature in Kelvin.
-    units : string, default = 'M'
-        The units in which the density is to be calculated.
-        Valid values are: 'M', 'mM', 'uM', 'nM', 'pM'.
-
-    Returns
-    -------
-    water_density : float
-        Number of moles of water per liter.
-
-    References
-    ----------
-    Tanaka M., Girard, G., Davis, R., Peuto A.,
-    Bignell, N.   Recommended table for the denisty
-    of water..., Metrologia, 2001, 38, 301-309
-    """
-    # If dimensionless, take solvent density to be unity
-    if units is None or units == "":
-        return 1.0
-
-    a1 = -3.983035
-    a2 = 301.797
-    a3 = 522528.9
-    a4 = 69.34881
-    a5 = 999.974950
-
-    # Convert temperature to celsius
-    T_C = T - constants.absolute_zero
-
-    # Compute water density in units of molar
-    dens = a5 * (1 - (T_C + a1) * (T_C + a1) * (T_C + a2) / a3 / (T_C + a4)) / 18.0152
-
-    # Valid units
-    allowed_units = (None, "M", "mM", "uM", "µM", "nM", "pM")
-
-    # Convert to specified units
-    if units in ["millimolar", "mM"]:
-        dens *= 1000.0
-    elif units in ["micromolar", "uM", "µM"]:
-        dens *= 1000000.0
-    elif units in ["nanomolar", "nM"]:
-        dens *= 1000000000.0
-    elif units in ["picomolar", "pM"]:
-        dens *= 1000000000000.0
-    elif units not in ["molar", "M"]:
-        raise ValueError(
-            f"Specified concentration units of {units} not in {allowed_units}."
-        )
-
-    return dens
-
-
-def _dimensionless_free_energy(G, units, T=293.15):
-    """
-    Convert free energy to dimensionless units, where G is in given units.
-    """
-    if units is None or units == "kT":
-        return G
-    elif T is None:
-        raise ValueError("If G is specified with units, must also supply T.")
-
-    kT = _thermal_energy(T, units)
-    return G / kT
-
-
-def _thermal_energy(T, units):
-    """
-    Return value of thermal energy kT in specified units. T is
-    assumed to be in Kelvin.
-    """
-    if T < 100.0:
-        warnings.warn("WARNING: T may be in wrong units, must be in K.")
-
-    allowed_units = ["kcal/mol", "J", "J/mol", "kJ/mol", "pN-nm"]
-
-    if units == "kcal/mol":
-        return constants.kB_kcal_per_mol * T
-    elif units == "J":
-        return constants.kB_J * T
-    elif units == "J/mol":
-        return constants.kB_J_per_mol * T
-    elif units == "kJ/mol":
-        return constants.kB_kJ_per_mol * T
-    elif units == "pN-nm":
-        return constants.kB_pN_nm * T
-    else:
-        raise ValueError(
-            f"Specified thermal energy units of {units} not in {allowed_units}."
-        )

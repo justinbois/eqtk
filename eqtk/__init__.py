@@ -11,7 +11,7 @@ import warnings
 # )
 
 from .eqtk import *
-from .rxn_parser import *
+from .parsers import *
 
 __author__ = """Justin Bois"""
 __email__ = "bois@caltech.edu"

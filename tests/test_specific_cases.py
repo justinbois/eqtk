@@ -1,6 +1,5 @@
 import numpy as np
 import eqtk
-import eqtk.checks
 
 
 def test_binary_binding_3():
