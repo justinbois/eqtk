@@ -1024,9 +1024,7 @@ def _solve_NK(
             n_constraints_new = n_compounds_new - n_reactions_new
 
             # Compute and check stoichiometric matrix
-            A = np.ascontiguousarray(
-                linalg.nullspace_svd(N_new, tol=constants.nullspace_tol).transpose()
-            )
+            A = linalg.nullspace_svd(N_new, tol=constants.nullspace_tol)
 
             # If completely constrained (N square), solve directly
             if n_constraints_new == 0:

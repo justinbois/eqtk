@@ -357,11 +357,12 @@ def nullspace_svd(A, tol=1e-12):
     Returns
     -------
     N : ndarray
-        A matrix of shape (K, N) where K is the rank of the null space,
-        at least N-M
+        A matrix of shape (N, K) where K is the rank of the null space,
+        at least N - M. This means that the *rows* of the output span
+        the nullspace of A.
 
         Every element in np.dot(A, N.T) should be approximately 0
     """
     u, sigma, v_trans = np.linalg.svd(A)
     nonzero_inds = (sigma >= tol).sum()
-    return np.ascontiguousarray(v_trans[nonzero_inds:, :].transpose())
+    return np.ascontiguousarray(v_trans[nonzero_inds:, :])
