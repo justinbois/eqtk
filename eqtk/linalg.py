@@ -39,25 +39,7 @@ def lower_tri_solve(L, b):
     x : ndarray
         Solution to Lx = b.
     """
-
-    # Make sure it's a 2D array.
-    if len(L.shape) != 2:
-        raise RuntimeError("L not a 2D array.")
-
-    # Make sure it's square.
     n = L.shape[0]
-    if n != L.shape[1]:
-        raise RuntimeError("L not square.")
-
-    # Test for lower triangular.
-    for j in range(n):
-        for i in range(0, j):
-            if L[i, j] != 0:
-                raise RuntimeError("L is not lower triangular.")
-
-    # Ensure dimension of matrix system agrees
-    if n != b.shape[0]:
-        raise RuntimeError("Matrix dimensions must agree.")
 
     # Solve Lx = b.
     x = np.copy(b)
@@ -95,25 +77,7 @@ def upper_tri_solve(U, b):
     x : ndarray
         Solution to Ux = b.
     """
-
-    # Make sure it's a 2D array.
-    if len(U.shape) != 2:
-        raise RuntimeError("U not a 2D array.")
-
-    # Make sure it's square.
     n = U.shape[0]
-    if n != U.shape[1]:
-        raise RuntimeError("U not square.")
-
-    # Test for upper triangular.
-    for i in range(n):
-        for j in range(0, i):
-            if U[i, j] != 0:
-                raise RuntimeError("U is not upper triangular.")
-
-    # Ensure dimension of matrix system agrees
-    if n != b.shape[0]:
-        raise RuntimeError("Matrix dimensions must agree.")
 
     # Solve Ux = b by back substitution.
     x = np.copy(b)
@@ -273,28 +237,7 @@ def modified_cholesky_solve(L, p, b):
     x : ndarray, shape L.shape[0]
         Solution to Ax = b.
     """
-    # Make sure it's a 2D array.
-    if len(L.shape) != 2:
-        raise RuntimeError("L not a 2D array.")
-
-    # Make sure it's square.
     n = L.shape[0]
-    if n != L.shape[1]:
-        raise RuntimeError("L not square.")
-
-    # Test for lower triangular.
-    for j in range(n):
-        for i in range(0, j):
-            if L[i, j] != 0:
-                raise RuntimeError("L is not lower triangular.")
-
-    # Ensure dimension of matrix system agrees
-    if n != b.shape[0] != p.shape[0]:
-        raise RuntimeError("Matrix dimensions must agree.")
-
-    # Make sure p is a permutation vector.
-    if not np.all(np.sort(p) == np.arange(p.shape[0])):
-        raise RuntimeError("p not permutation vector.")
 
     U = np.ascontiguousarray(L.transpose())
     xp = np.zeros(n)
