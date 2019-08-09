@@ -7,6 +7,47 @@ import pandas as pd
 from . import constants
 
 
+def parse_rxns(rxns):
+    rxn_list = rxns.splitlines()
+    N_dict_list = []
+    K_list = []
+    for rxn in rxn_list:
+        if rxn.strip() != "":
+            N_dict, K = _parse_rxn(rxn)
+            N_dict_list.append(N_dict)
+            K_list.append(K)
+
+    # Make sure K's are specified for all or none
+    if not (all([K is None for K in K_list]) or all([K is not None for K in K_list])):
+        raise ValueError(
+            "Either all or none of the equilibrium constants must be specified."
+        )
+
+    if K_list[0] is None:
+        K = None
+    else:
+        K = np.array(K_list, dtype=float)
+
+    # Unique chemical species
+    species = []
+    for N_dict in N_dict_list:
+        for compound in N_dict:
+            if compound not in species:
+                species.append(compound)
+
+    # Build stoichiometric matrix
+    N = np.zeros((len(N_dict_list), len(species)), dtype=float)
+    for r, N_dict in enumerate(N_dict_list):
+        for compound, coeff in N_dict.items():
+            N[r, species.index(compound)] = coeff
+
+    # Convert stoichiometic matrix and K to DataFrame
+    N = pd.DataFrame(data=N, columns=species)
+    N["equilibrium constant"] = K
+
+    return N
+
+
 def _parse_input(c0, N, K, A, G, names, units, solvent_density, T, G_units):
     """
     """
@@ -65,43 +106,6 @@ def _parse_output(x, c0, names, solvent_density, single_point):
         return pd.Series(data=np.concatenate((c0, c)), index=cols)
     else:
         return pd.DataFrame(data=np.concatenate((c0, c), axis=1), columns=cols)
-
-
-def parse_rxns(rxns):
-    rxn_list = rxns.splitlines()
-    N_dict_list = []
-    K_list = []
-    for rxn in rxn_list:
-        if rxn.strip() != "":
-            N_dict, K = _parse_rxn(rxn)
-            N_dict_list.append(N_dict)
-            K_list.append(K)
-
-    # Make sure K's are specified for all or none
-    if not (all([K is None for K in K_list]) or all([K is not None for K in K_list])):
-        raise ValueError(
-            "Either all or none of the equilibrium constants must be specified."
-        )
-
-    if K_list[0] is None:
-        K = None
-    else:
-        K = np.array(K_list, dtype=float)
-
-    # Unique chemical species
-    species = []
-    for N_dict in N_dict_list:
-        for compound in N_dict:
-            if compound not in species:
-                species.append(compound)
-
-    # Build stoichiometric matrix
-    N = np.zeros((len(N_dict_list), len(species)), dtype=float)
-    for r, N_dict in enumerate(N_dict_list):
-        for compound, coeff in N_dict.items():
-            N[r, species.index(compound)] = coeff
-
-    return N, K, species
 
 
 def _nondimensionalize_NK(c0, N, K, T, solvent_density, units):
@@ -327,11 +331,15 @@ def _check_names_type(names):
     if names is not None:
         if type(names) not in [list, tuple, np.ndarray]:
             raise ValueError("`names` must be a list, tuple, or Numpy array.")
+
         for name in names:
             if not isinstance(name, collections.Hashable):
                 raise ValueError(
                     f"{name} is an invalid name because it is not hashable."
                 )
+
+        if len(set(names)) != len(names):
+            raise ValueError("Not all names are unique.")
 
 
 def _parse_c0(c0, names):
@@ -357,6 +365,7 @@ def _parse_c0(c0, names):
         if type(c0) == pd.core.frame.DataFrame:
             names = _check_names_df(names, list(c0.columns))
         elif type(c0) == pd.core.series.Series:
+            print(names, list(c0.index))
             names = _check_names_df(names, list(c0.index))
         else:
             raise ValueError(
@@ -404,7 +413,7 @@ def _parse_N_input(N, K, names, c0_from_df):
             )
             names = _check_names_df(names, names_from_df)
             N, K = _NK_from_df(N, names, c0_from_df)
-            _check_name_close_to_eqconst()
+            _check_name_close_to_eqconst(names)
         else:
             raise ValueError(
                 "Invalid type for `N`; must be array_like or a Pandas DataFrame."

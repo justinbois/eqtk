@@ -185,14 +185,13 @@ def solve(
     >>> df_c0 = pd.DataFrame(data=np.zeros((4, 6)), columns=names)
     >>> df_c0['A'] = 1.0
     >>> df_c0['B'] = np.arange(4)
-    >>> eqtk.solve(df_c0, N=df_N, K=K, units='mM')
-    >>> c
-        array([[  1.96078431e-05,   0.00000000e+00,   9.80392157e-04,
-                  0.00000000e+00,   0.00000000e+00,   0.00000000e+00],
-               [  1.87907443e-05,   4.42652649e-04,   9.39537214e-04,
-                  8.31777274e-08,   7.83765472e-06,   4.15888637e-05],
-               [  1.80764425e-05,   8.62399860e-04,   9.03822124e-04,
-                  1.55891215e-07,   2.97493407e-05,   7.79456073e-05]])
+    >>> df_c = eqtk.solve(df_c0, N=df_N, units='mM')
+    >>> df_c.loc[:, ~df_c.columns.str.contains('__0')] # Don't disp. c0
+              A         B         C        AB        BB        BC
+    0  0.019608  0.000000  0.980392  0.000000  0.000000  0.000000
+    1  0.003750  0.043044  0.187513  0.001614  0.074110  0.807122
+    2  0.001656  0.110347  0.082804  0.001827  0.487057  0.913713
+    3  0.001213  0.154412  0.060635  0.001873  0.953718  0.936279
 
     3) Find the equilibrium concentrations of a solution containing
        species A, B, C, AB, and AC that have free energies (in units of
@@ -206,42 +205,39 @@ def solve(
        x0_C = 0.002.  The ordering of the compounds in the example is
        A, B, C, AB, AC.
 
-    >>> import numpy as np
-    >>> import eqtk
     >>> A = np.array([[ 1,  0,  0,  1,  1],
-                      [ 0,  1,  0,  1,  0],
-                      [ 0,  0,  1,  0,  1]])
+    ...               [ 0,  1,  0,  1,  0],
+    ...               [ 0,  0,  1,  0,  1]])
     >>> G = np.array([0.0, 1.0, -2.0, -3.0, -7.0])
-    >>> c0 = np.array([0.005, 0.001, 0.002])
-    >>> x, run_stats = eqtk.sweep_titration(None, None, c0, A=A, G=G, units=None,
-                                return_run_stats=True)
-    >>> x
-    array([ 0.00406569,  0.00081834,  0.00124735,  0.00018166,  0.00075265])
-    >>> run_stats.__dict__
-    {'n_cauchy_steps': 0,
-     'n_chol_fail_cauchy_steps': 0,
-     'n_dogleg_fail': 0,
-     'n_dogleg_steps': 0,
-     'n_irrel_chol_fail': 0,
-     'n_newton_steps': 11}
+    >>> c0 = np.array([0.005, 0.001, 0.002, 0.0, 0.0])
+    >>> eqtk.solve(c0, A=A, G=G)
+    array([0.00406569, 0.00081834, 0.00124735, 0.00018166, 0.00075265])
 
     4) Competition assay.  Species A binds both B and C with specified
        dissociation constants, Kd.
-           AB <--> A + B,      Kd = 50 nM
-           AC <--> A + C       Kd = 10 nM
+           AB <=> A + B,      Kd = 50 nM
+           AC <=> A + C       Kd = 10 nM
        Initial concentrations of [A]_0 = 2.0 uM, [B]_0 = 0.05 uM,
        [C]_0 = 1.0 uM.  The ordering of the compounds in the example
        is A, B, C, AB, AC.
 
-    >>> import numpy as np
-    >>> import eqtk
-    >>> N = np.array([[ 1,  1,  0, -1,  0],
-                      [ 1,  0,  1,  0, -1]])
-    >>> K = np.array([0.05, 0.01])
-    >>> c0 = np.array([2.0, 0.05, 1.0, 0.0, 0.0])
-    >>> c = eqtk.sweep_titration(N, K, c0, units='uM')
-    >>> c
-    array([ 0.96274868,  0.00246853,  0.01028015,  0.04753147,  0.98971985])
+    >>> rxns = '''
+    ... AB <=> A + B ; 0.05
+    ... AC <=> A + C ; 0.01'''
+    >>> N = eqtk.parse_rxns(rxns)
+    >>> c0 = pd.Series({'A': 2.0, 'B': 0.05, 'C': 1, 'AB': 0, 'AC': 0})
+    >>> eqtk.solve(c0, N=N, units='µM')
+    A__0     2.000000
+    B__0     0.050000
+    C__0     1.000000
+    AB__0    0.000000
+    AC__0    0.000000
+    A        0.962749
+    B        0.002469
+    C        0.010280
+    AB       0.047531
+    AC       0.989720
+    dtype: float64
     """
     x0, N, K, A, G, names, solvent_density, single_point = parsers._parse_input(
         c0, N, K, A, G, names, units, solvent_density, T, G_units
@@ -566,26 +562,42 @@ def volumetric_to_c0(c0, c0_titrant, initial_volume, vol_titrated):
     return np.dot(titrated_scale, c_titrant_row) + np.dot(original_scale, c0_row)
 
 
-def to_df(c0, c, names, units):
+def to_df(c0, c, units=None, names=None):
     """
     Return output as a Pandas DataFrame.
     """
-    if len(c.shape) == 1:
-        c = c.reshape((1, len(c)))
-        c0 = c0.reshape((1, len(c0)))
-
-    if c.shape != c0.shape:
-        raise ValueError("`c` and `c0` must have the same shape.")
-
-    if len(names) != c0.shape[1]:
-        raise ValueError("`len(names)` must equal number of columns in `c0`")
-
-    if len(set(names)) != len(names):
-        raise ValueError("Not all names are unique.")
-
     units_str = " (" + units + ")" if units is not None else ""
+
+    if type(c) == pd.core.series.Series:
+        if len(c.index) == 2 * len(c0.index) and np.sum(
+            c.index.str.contains("__0")
+        ) == len(c0.index):
+            return c.copy().rename(index=lambda x: x + units_str)
+    elif type(c) == pd.core.frame.DataFrame:
+        if len(c.columns) == 2 * len(c0.columns) and np.sum(
+            c.columns.str.contains("__0")
+        ) == len(c0.columns):
+            return c.copy().rename(columns=[col + units_str for col in c.columns])
+
+    parsers._check_names_type(names)
+
+    c0, n_compounds, names, _, single_point = parsers._parse_c0(c0, names)
+
+    if names is None:
+        names = ["species_" + str(i) for i in range(n_compounds)]
+
+    c, _, _, _, _ = parsers._parse_c0(c, names)
+
+    if c0.shape != c.shape:
+        raise ValueError("`c0` and `c` have mismatched shapes.")
+
     cols = [name + "__0" + units_str for name in names]
     cols += [name + units_str for name in names]
+
+    if single_point:
+        return pd.Series(
+            index=cols, data=np.concatenate((c0.flatten(), c.flatten()))
+        )
 
     return pd.DataFrame(columns=cols, data=np.concatenate((c0, c), axis=1))
 

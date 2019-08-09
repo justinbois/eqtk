@@ -129,7 +129,9 @@ def check_equilibrium_AG(c0, c, A, G):
     c0, _, _, A, G, _, _, _ = parsers._parse_input(
         c0, None, None, A, G, *tuple([None] * 5)
     )
-    c, _, _, _, _, _, _, _ = parsers._parse_input(c, None, None, A, G, *tuple([None] * 5))
+    c, _, _, _, _, _, _, _ = parsers._parse_input(
+        c, None, None, A, G, *tuple([None] * 5)
+    )
 
     if c0.shape != c.shape:
         raise ValueError("`c0` and `c` must have the same shape.")
