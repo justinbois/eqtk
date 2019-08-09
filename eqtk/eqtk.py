@@ -243,13 +243,7 @@ def solve(
     >>> c
     array([ 0.96274868,  0.00246853,  0.01028015,  0.04753147,  0.98971985])
     """
-
-    #    MOVE THIS TO PARSERS
-    single_point = False
-    if len(c0.shape) == 1:
-        single_point = True
-
-    x0, N, K, A, G, names, solvent_density = parsers.parse_input(
+    x0, N, K, A, G, names, solvent_density, single_point = parsers._parse_input(
         c0, N, K, A, G, names, units, solvent_density, T, G_units
     )
 

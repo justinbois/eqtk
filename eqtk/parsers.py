@@ -7,7 +7,7 @@ import pandas as pd
 from . import constants
 
 
-def parse_input(c0, N, K, A, G, names, units, solvent_density, T, G_units):
+def _parse_input(c0, N, K, A, G, names, units, solvent_density, T, G_units):
     """
     """
     _check_NK_AG(N, K, A, G)
@@ -17,7 +17,7 @@ def parse_input(c0, N, K, A, G, names, units, solvent_density, T, G_units):
     _check_solvent_density(solvent_density, units)
     _check_names_type(names)
 
-    c0, n_compounds, names, c0_from_df = _parse_c0(c0, names)
+    c0, n_compounds, names, c0_from_df, single_point = _parse_c0(c0, names)
     _check_c0(c0)
 
     N, K = _parse_N_input(N, K, names, c0_from_df)
@@ -41,7 +41,7 @@ def parse_input(c0, N, K, A, G, names, units, solvent_density, T, G_units):
             c0, G, T, solvent_density, units, G_units
         )
 
-    return x0, N, K, A, G, names, solvent_density
+    return x0, N, K, A, G, names, solvent_density, single_point
 
 
 def _parse_output(x, c0, names, solvent_density, single_point):
@@ -368,7 +368,9 @@ def _parse_c0(c0, names):
         if len(c0.shape) == 1:
             c0 = np.expand_dims(c0, axis=0)
 
-    return np.ascontiguousarray(c0), n_compounds, names, c0_from_df
+    single_point = len(c0) == 1
+
+    return np.ascontiguousarray(c0), n_compounds, names, c0_from_df, single_point
 
 
 def _check_c0(c0):
@@ -390,7 +392,7 @@ def _parse_N_input(N, K, names, c0_from_df):
         elif type(N) == pd.core.frame.DataFrame:
             if not c0_from_df:
                 raise ValueError(
-                    "If `N` is specified as a DataFrame, so too must `c0`."
+                    "If `N` is specified as a DataFrame, `c0` must be given as a Series or DataFrame."
                 )
             names_from_df = list(
                 N.columns[
@@ -505,16 +507,25 @@ def _parse_G(G, names, c0_from_df):
                 raise ValueError("`G` is the wrong shape.")
             names_from_df = None
         elif type(G) == pd.core.frame.DataFrame:
+            if not c0_from_df:
+                raise ValueError(
+                    "If `G` is given as a data frame, `c0` must be given as a Series or DataFrame."
+                )
             if len(G) != 1:
                 raise ValueError(
                     "If `G` is inputted as a DataFrame, it must have exactly one row."
                 )
-            names = list(G.columns)
-            names_from_df = _check_names_df(names, names_from_df)
-            G = np.ascontiguousarray(G.to_numpy(dtype=float, copy=True).flatten())
+            names = _check_names_df(names, list(G.columns))
+            G = np.ascontiguousarray(
+                G[names].to_numpy(dtype=float, copy=True).flatten()
+            )
         elif type(G) == pd.core.series.Series:
-            names = list(G.index)
-            G = np.ascontiguousarray(df.to_numpy(dtype=float, copy=True))
+            if not c0_from_df:
+                raise ValueError(
+                    "If `G` is given as a Pandas Series, `c0` must be given as a Series of DataFrame."
+                )
+            names = _check_names_df(names, list(G.index))
+            G = np.ascontiguousarray(G[names].to_numpy(dtype=float, copy=True))
 
     return G
 
@@ -531,7 +542,9 @@ def _check_G(A, G):
 
 def _NK_from_df(df, names, c0_from_df):
     if not c0_from_df:
-        raise ValueError("If `N` is given as a data frame, so too must `c0`.")
+        raise ValueError(
+            "If `N` is given as a data frame, `c0` must be given as a Series or DataFrame."
+        )
 
     N = df[names].to_numpy(dtype=float, copy=True)
 
@@ -570,20 +583,24 @@ def _N_from_array(N):
 
 def _A_from_df(df, names, c0_from_df):
     if not c0_from_df:
-        raise ValueError("If `A` is given as a data frame, so too must `c0`.")
+        raise ValueError(
+            "If `A` is given as a data frame, `c0` must be given as a Series or DataFrame."
+        )
 
     A = np.empty((len(df), len(names)), dtype=float, order="C")
     for i, name in enumerate(names):
         if name not in df:
             raise ValueError(f"Name mismatch between `c0` and `A`, {name}.")
-        A[i, :] = df[name].values
+        A[:, i] = df[name].values
 
     return np.ascontiguousarray(A)
 
 
 def _G_from_df(df, names, c0_from_df):
     if not c0_from_df:
-        raise ValueError("If `G` is given as a data frame, so too must `c0`.")
+        raise ValueError(
+            "If `G` is given as a data frame, `c0` must be given as a Series or DataFrame."
+        )
 
         if len(df) != 1:
             raise ValueError(
@@ -593,14 +610,6 @@ def _G_from_df(df, names, c0_from_df):
         names = _check_names_df(names, names_from_df)
 
         G = G.to_numpy(dtype=float, copy=True).flatten()
-
-    G = np.empty((len(df), len(names)), dtype=float, order="C")
-    for i, name in enumerate(names):
-        if name not in df:
-            raise ValueError(f"Name mismatch between `c0` and `A`, {name}.")
-        A[i, :] = df[name].values
-
-    return np.ascontiguousarray(A)
 
 
 def _c0_from_df(df, names):
