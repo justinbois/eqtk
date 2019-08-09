@@ -1,9 +1,6 @@
 """
 Trust region method of optimization of convex objective function.
 """
-
-import warnings
-
 import numpy as np
 
 from . import constants

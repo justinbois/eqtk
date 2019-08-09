@@ -20,7 +20,7 @@ def test_c0_mismatch():
     with pytest.raises(ValueError) as excinfo:
         eqtk.parsers.parse_input([], N, K, None, None, *tuple([None] * 5))
     excinfo.match(
-        "Dimension mismatch between `c0` and inputted chemical species via `rxn`."
+        "Dimension mismatch between `c0` and inputted chemical species via `N`."
     )
 
     with pytest.raises(ValueError) as excinfo:
@@ -28,7 +28,7 @@ def test_c0_mismatch():
             [0.1, 0.2, 0.1, 0.2, 0.3], N, K, None, None, *tuple([None] * 5)
         )
     excinfo.match(
-        "Dimension mismatch between `c0` and inputted chemical species via `rxn`."
+        "Dimension mismatch between `c0` and inputted chemical species via `N`."
     )
 
     with pytest.raises(ValueError) as excinfo:
@@ -127,3 +127,73 @@ def test_A_negative():
     with pytest.raises(ValueError) as excinfo:
         eqtk.parsers.parse_input([1, 1, 1, 1], None, None, A, G, *tuple([None] * 5))
     excinfo.match("`A` must have all nonnegative entries.")
+
+
+def test_water_density():
+    T = 293.15
+    target_molar = 55.4091403681123
+    allowed_units = (
+        "M",
+        "molar",
+        "mM",
+        "millimolar",
+        "uM",
+        "µM",
+        "micromolar",
+        "nM",
+        "nanomolar",
+        "pM",
+        "picomolar",
+    )
+    multipliers = (1, 1, 1e3, 1e3, 1e6, 1e6, 1e6, 1e9, 1e9, 1e12, 1e12)
+
+    for units, multiplier in zip(allowed_units, multipliers):
+        assert np.isclose(
+            eqtk.parsers._water_density(T, units), target_molar * multiplier
+        )
+
+    T = 310.0
+    target_molar = 55.141370764358946
+
+    for units, multiplier in zip(allowed_units, multipliers):
+        assert np.isclose(
+            eqtk.parsers._water_density(T, units), target_molar * multiplier
+        )
+
+    assert eqtk.parsers._water_density(T, None) == 1.0
+    assert eqtk.parsers._water_density(T, "") == 1.0
+
+
+def test_parse_solvent_density():
+    assert eqtk.parsers._parse_solvent_density(7.0, 293.15, "M") == 7.0
+    assert eqtk.parsers._parse_solvent_density(None, 293.15, None) == 1.0
+    assert np.isclose(
+        eqtk.parsers._parse_solvent_density(None, 293.15, "M"),
+        eqtk.parsers._water_density(293.15, "M"),
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        eqtk.parsers._parse_solvent_density(7.0, 293.15, None)
+    excinfo.match("If `solvent_density` is specified, `units` must also be specified.")
+
+
+def test_nondimensionalize_NK():
+    N = np.array(
+        [
+            [-1, 0, 1, 0, 0, 0],
+            [1, 1, 0, -1, 0, 0],
+            [0, 2, 0, 0, -1, 0],
+            [0, 1, 1, 0, 0, -1],
+        ]
+    )
+    K = np.array([50.0, 0.1, 0.025, 0.01])
+    c0 = np.array([1.0, 3.0, 0.0, 0.0, 0.0, 0.0])
+    T = 293.15
+    solvent_density = None
+    units = None
+    c0_nondim, K_nondim, solvent_density = eqtk.parsers._nondimensionalize_NK(
+        c0, N, K, T, solvent_density, units
+    )
+    assert np.array_equal(c0_nondim, c0)
+    assert np.allclose(K_nondim, K)
+    assert solvent_density == 1.0
