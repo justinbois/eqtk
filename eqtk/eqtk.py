@@ -595,9 +595,7 @@ def to_df(c0, c, units=None, names=None):
     cols += [name + units_str for name in names]
 
     if single_point:
-        return pd.Series(
-            index=cols, data=np.concatenate((c0.flatten(), c.flatten()))
-        )
+        return pd.Series(index=cols, data=np.concatenate((c0.flatten(), c.flatten())))
 
     return pd.DataFrame(columns=cols, data=np.concatenate((c0, c), axis=1))
 
@@ -1149,7 +1147,7 @@ def _solve_AG(
         # Detect if A is empty (no constraints)
         A_empty = A_new.shape[0] + A_new.shape[1] == 1
 
-        # Problem is entirely contrained, must have x = x0.
+        # Problem is entirely constrained, must have x = x0.
         if (not A_empty) and A_new.shape[0] >= A.shape[1]:
             x[i_point, :] = x0
             converged = True

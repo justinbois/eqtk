@@ -365,7 +365,6 @@ def _parse_c0(c0, names):
         if type(c0) == pd.core.frame.DataFrame:
             names = _check_names_df(names, list(c0.columns))
         elif type(c0) == pd.core.series.Series:
-            print(names, list(c0.index))
             names = _check_names_df(names, list(c0.index))
         else:
             raise ValueError(
