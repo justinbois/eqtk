@@ -75,13 +75,12 @@ def test_aspartic_acid_titration():
     K = np.array([10 ** (-1.99), 10 ** (-3.9), 10 ** (-10.002), 1e-14])
     c0 = np.array([0.0, 0.0, 0.001, 0.0, 0.0, 0.0])
     c0_titrant = np.array([0.0, 0.001, 0.0, 0.0, 0.0, 0.0])
-    vol_titrated = np.linspace(0.0, 4.0, 500)
-    initial_volume = 1.0
+    vol_titrant = np.linspace(0.0, 4.0, 500)
     c = eqtk.volumetric_titration(
-        c0, initial_volume, c0_titrant, vol_titrated, N=N, K=K, units="M"
+        c0, c0_titrant, vol_titrant, N=N, K=K, units="M"
     )
 
-    new_c0 = eqtk.volumetric_to_c0(c0, c0_titrant, initial_volume, vol_titrated)
+    new_c0 = eqtk.eqtk._volumetric_to_c0(c0, c0_titrant, vol_titrant)
     equilibrium_ok, cons_mass_ok = eqtk.checks.check_equilibrium_NK(new_c0, c, N=N, K=K)
     assert equilibrium_ok.all(), "Equilibrium error"
     assert cons_mass_ok.all(), "Conservation of mass error"
