@@ -6,9 +6,13 @@ def numba_check():
 
     Returns
     -------
-    output : bool
-        True is numba is installed and working properly; False
+    functioning_numba : bool
+        True if numba is installed and working properly; False
         otherwise.
+    jit : function
+        Function used in `@jit` decorators. If `numba` is not available,
+        a dummy function is returned. Otherwise, `numba.jit()` is
+        returned.
     """
     try:
         import numba
@@ -46,6 +50,9 @@ def _dummy_jit(*args, **kwargs):
     def wrapper(f):
         return f
 
+    def marker(*args, **kwargs):
+        return marker
+
     if (
         len(args) > 0
         and (args[0] is marker or not callable(args[0]))
@@ -60,5 +67,3 @@ def _dummy_jit(*args, **kwargs):
         # @jit
         return args[0]
 
-    def marker(*args, **kwargs):
-        return marker

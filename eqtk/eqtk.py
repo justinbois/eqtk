@@ -34,11 +34,18 @@ def solve(
 
     Parameters
     ----------
-    c0 : array_like, shape (n_points, n_compounds) or (n_compounds, )
+    c0 : array_like, Series, or DataFrame,
+         shape (n_points, n_compounds) or (n_compounds, )
         Each row contains the total "initial" concentration of all
-        possible compounds in solution. The equilibrium concentration
-        of all species is computed for each row in `c0`. `c0[i, j]` is
-        the initial concentration of compound `j` for calculation `i`.
+        possible chemical species in solution. The equilibrium
+        concentration of all species is computed for each row in `c0`.
+        `c0[i, j]` is the initial concentration of compound `j` for
+        calculation `i`. `c0` may also be passed as a Pandas Series
+        where the indices contain the name of the chemical species and
+        each value is the "initial concentration." `c0` may also be
+        passed as a Pandas DataFrame where each row contains the total
+        "initial" concentration of all possible compounds in solution
+        and the column names are the names of the chemical species.
     N : array_like or DataFrame, default `None`
         Stoichiometic matrix. `N[r, j]` = the stoichiometric coefficient
         of compound `j` in chemical reaction `r`. All rows of `N` must
@@ -62,6 +69,10 @@ def solve(
         `G[j]` is the free energy of chemical species `j` in units
         specified by `G_units`. If `G` is given, `A` must be given, and
         `N` and `K` cannot be given.
+    names : list or tuple of str, default `None`, optional
+        The names of the chemical species. Names are inferred if `N` or
+        `A` is given as a DataFrame, in which case `names` is
+        unnecessary.
     units : string or `None`, default `None`
         The units of the concentrations inputted as `c0`. The output is
         also in these units. Allowable values are {`None`, 'molar', 'M',
@@ -74,10 +85,6 @@ def solve(
         free  energies are specified in units of of the thermal energy
         kT. Allowable values are {None, 'kT', kcal/mol', 'J', 'J/mol',
         'kJ/mol', 'pN-nm'}.
-    names : list or tuple of str, default `None`, optional
-        The names of the chemical species. Names are inferred if `N` or
-        `A` is given as a DataFrame, in which case `names` is
-        unnecessary.
     solvent_density : float, default `None`
         The density of the solvent in units commensurate with the
         `units` keyword argument. Default (`None`) assumes the solvent
@@ -245,7 +252,7 @@ def solve(
 
     # Solve for mole fractions
     if G is None:
-        x = _solve_NK(
+        x = solve_NK(
             N,
             -np.log(K),
             x0,
@@ -258,7 +265,7 @@ def solve(
             perturb_scale=perturb_scale,
         )
     else:
-        x = _solve_AG(
+        x = solve_AG(
             A,
             G,
             x0,
@@ -276,18 +283,17 @@ def solve(
 
 def volumetric_titration(
     c0,
-    initial_volume,
     c0_titrant,
-    vol_titrated,
+    vol_titrant,
     N=None,
     K=None,
     A=None,
     G=None,
-    solvent_density=None,
+    names=None,
     units=None,
-    T=293.15,
     G_units=None,
-    inputs_guaranteed=False,
+    solvent_density=None,
+    T=293.15,
     max_iters=1000,
     tol=0.0000001,
     delta_bar=1000.0,
@@ -296,176 +302,229 @@ def volumetric_titration(
     max_trials=100,
     perturb_scale=100.0,
 ):
-    """
-    Solve for equilibrium concentrations of all species in a dilute
-    solution for points along a titration curve.
+    """Solve for equilibrium concentrations of all species in a dilute
+    solution as titrant is added.
 
     Parameters
     ----------
-    N : array_like, shape (n_reactions, n_compounds)
-        N[r][j] = the stoichiometric coefficient of compound j
-        in chemical reaction r.  Ignored if G is not None.
-    K : array_like, shape (n_reactions,)
-        K[r] is the equilibrium constant for chemical reaction r.
-        Ignored if G is not None.
-    c0 : array_like, shape (n_compounds,)
-        Array containing the total "initial" concentration of all compounds
-        in solution before equilibrating and before any of the titrant
-        solution is added.
-    initial_volume : float
-        Initial volume of the solution to which the titrant is added.
-        Must of the same units as the entries in vol_titrated.
-    c0_titrant : array_like, shape (n_compounds,)
-        The concentration of each species in the titrant solution.
-    vol_titrated : array_like, shape (n_titration_points,)
-        Array containing volume of titrant solution to add.
-    solvent_density : float, default = None
-        The density of the solvent in units commensurate with the units
-        keyword argument.  Default (None) assumes the solvent is water,
-        and its density is computed at the temperature specified by the
-        T keyword argument.
-    units : string, default = 'molar'
-        The units of the given concentrations.  Allowable values are
-        'molar', 'M', 'millimolar', 'mM', 'micromolar', 'uM',
-        'nanomolar', 'nM', 'picomolar', 'pM', None.  If None, concen-
-        trations are given as mole fractions.  The equilbrium constants
-        given by K have corresponding units.  The output is also given
-        in these units.
-    T : float, default = 20.0
-        Temperature, in deg. C, of the solution.  Not relevant when
-        units and G_units is None
-    A : array_like, shape (n_constraints, n_compounds)
-        Constraint matrix. No column may be repeated.  Ignored if
-        G is None.
-    G : array_like, shape (n_compounds, ), default None
-        G[j] is the free energy, either in units of kcal/mol or in units
-        of kT, depending on the value of G_units.  If not None, A must also
-        be not None.  If this is the case overrides any input for N and K.
-    G_units : string, default 'kcal/mol'
-        Units in which free energy is given.  If None, the free energies are
-        specified in units of kT.  Other acceptable options are: 'kcal/mol',
-        'J', 'J/mol', 'kJ/mol', and 'pN-nm'.
-    return_run_stats : Boolean, default = False
-        If True, also returns a list of statistics on steps taken by
-        the trust region algorithm.
-    inputs_guaranteed : Boolean, default = False
-        If True, skips input checking.  This is used if speed is impor-
-        tant, e.g., if the function is called repeatedly.
-    max_iters : int, default = 1000
-        Maximum number of interations allowed in trust region
-        method.
-    tol : float, default = 0.0000001
-        Tolerance for convergence.  The absolute tolerance is
-        tol * (mininium single-species initial mole fraction)
-    delta_bar : float, default = 1000.0
-        Maximum step size allowed in the trust region method.
-    eta : float, default = 0.125
-        Value for eta in the trust region method (see Nocedal and
-        Wright reference). 0 < eta < 1/4.
-    min_delta : float, default = 1e-12
-        Minimal allowed radius of the trust region.  When the trust region
-        radius gets below min_delta, the trust region iterations stop,
-        and a final Newton step is attempted.
-    write_log_file : Boolean, default = False
-        True to write information about trust region calculation to a
-        log file.
-    log_file : string, default = 'conc_calc.log'
-        Name of file for printing information about trust region
-        calculation.
+    c0 : array_like or Series, shape (n_compounds, )
+        An array containing the total "initial" concentration of all
+        possible compounds in solution before any titrant is added. If
+        `c0` is inputted as a Pandas Series, the indices contain the
+        name of the chemical species and each value is the "initial
+        concentration."
+    c0_titrant : array_like or Series, shape (n_compounds, )
+        An array containing the total "initial" concentration of all
+        possible compounds in the titrant. The titrant is itself is
+        also in equilibrium, but `c0` need not contain that actual
+        equilibrium concentrations in the titrant; simply the "initial"
+        concentrations of all species in the titrant such that the
+        equilibrium may be calculated. If `c0` is inputted as a Pandas
+        Series, the indices contain the name of the chemical species and
+        each value is the "initial concentration."
+    vol_titrant : array_like, shape (n_titration_points, )
+        Each entry is the volume of titrant added, as a fraction of the
+        initial volume of the solution before addition of solution. Note
+        that this is the volume of *added titrant*, not the total volume
+        of the mixed solution.
+    N : array_like or DataFrame, default `None`
+        Stoichiometic matrix. `N[r, j]` = the stoichiometric coefficient
+        of compound `j` in chemical reaction `r`. All rows of `N` must
+        be linearly independent. If entered as a DataFrame, the name of
+        chemical species `j` is `N.columns[j]`. Optionally, column
+        `'equilibrium constant'` contains the equilibrium constants for
+        each reaction in units commensurate with those of `c0`. If `N`
+        is given, `A` and `G` cannot be given.
+    K : array_like, shape (n_reactions,), default `None`
+        `K[r]` is the equilibrium constant for chemical reaction r in
+        units commensurate with those of `c0`. If `N` is given as a
+        DataFrame with an `'equilibrium constant'` column, `K` should
+        not be supplied. If `K`is given, `A` and `G` cannot be given.
+    A : array_like or DataFrame, n_compounds columns
+        Constraint matrix. If `c` is the output, then `A @ c0 = A @ c`.
+        All entries must be nonnegative and the rows of `A` must be
+        linearly independent. If entered as a DataFrame, the name of
+        chemical species `j` is `A.columns[j]`. If `A` is given, `G`
+        must be given, and `N` and `K` cannot be given.
+    G : array_like, shape (n_compounds, ), default `None`
+        `G[j]` is the free energy of chemical species `j` in units
+        specified by `G_units`. If `G` is given, `A` must be given, and
+        `N` and `K` cannot be given.
+    units : string or `None`, default `None`
+        The units of the concentrations inputted as `c0`. The output is
+        also in these units. Allowable values are {`None`, 'molar', 'M',
+        'millimolar', 'mM', 'micromolar', 'uM', 'µM', 'nanomolar', 'nM',
+        'picomolar', 'pM'}. If `None`, concentrations are given as mole
+        fractions. The equilibrium constants given by `K` must have
+        corresponding units.
+    G_units : string, default `None`
+        Units in which free energy is given. If `None` or `'kT'`, the
+        free  energies are specified in units of of the thermal energy
+        kT. Allowable values are {None, 'kT', kcal/mol', 'J', 'J/mol',
+        'kJ/mol', 'pN-nm'}.
+    names : list or tuple of str, default `None`, optional
+        The names of the chemical species. Names are inferred if `N` or
+        `A` is given as a DataFrame, in which case `names` is
+        unnecessary.
+    solvent_density : float, default `None`
+        The density of the solvent in units commensurate with the
+        `units` keyword argument. Default (`None`) assumes the solvent
+        is water, and its density is computed at the temperature
+        specified by the `T` keyword argument.
+    T : float, default = 293.15
+        Temperature, in Kelvin, of the solution. When `N` and `K` are
+        given, `T` is ignored if `solvent_density` is given or if
+        `units` is `None`. If `A` and `G` are given, `T` is ignored when
+        `units` and `G_units` are both `None`.
 
     Returns
     -------
-    c : array_like, shape (n_titration_points, n_compounds)
-        c[k,j] = the equilibrium concentration of compound when the
-        concentration of the titrated species is c0_titrated[k].
-        Units are given as specified in the units keyword argument.
+    c : array or DataFrame, shape c0.shape
+        Equilibrium concentrations of all species. `c[i, j]` is the
+        equilibrium concentration of species `j` for initial
+        concentrations given by `c0[i, :]` in units given by `units`. If
+        `c0` is inputted as a DataFrame or `names` is not `None`, then
+        `c` is a DataFrame with columns given by `names` or with the
+        same columns (without `'equilibrium constant'`) as `c0`.
+        Otherwise, `c` is returned as a Numpy array with the same shape
+        as `c0` with
+
+    Other Parameters
+    ----------------
+    max_iters : int, default 1000
+        Maximum number of iterations allowed in trust region method.
+    tol : float, default 0.0000001
+        Tolerance for convergence. The absolute tolerance for the
+        constraints are `tol * A @ c0`.
+    delta_bar : float, default 1000.0
+        Maximum step size allowed in the trust region method.
+    eta : float, default 0.125
+        Value for eta in the trust region method. `eta` must satisfy
+        `0 < eta < 0.25`.
+    min_delta : float, default 1e-12
+        Minimal allowed radius of the trust region. When the trust
+        region radius gets below `min_delta`, the trust region
+        iterations stop, and a final set of Newton steps is attempted.
+    max_trials : int, default 100
+        In the event that an attempt to solve does not converge, the
+        solver tries again with different initial guesses.
+        This continues until `max_trials` failures.
+    perturb_scale : float, default 100.0
+        Multiplier on random perturbations to the initial guesses
+        as new ones are generated.
 
     Raises
     ------
     ValueError
-        If input is in any way invalid.
+        If input is in any way invalid
     RuntimeError
-        If the trust region algorithm failed to converge.
+        If the trust region algorithm failed to converge
 
     Notes
     -----
-    .. N must have full row rank, i.e., all rows must be
-       linearly independent.
-
-    .. All K's must be positive and finite.
-
-    .. All c0's must be nonnegative and finite.
-
-    .. If N and A are specified,
+    .. Uses an elliptical trust region optimization to find the
+       equilibrium concentrations. See [1]_ for algorithmic details,
+       as well as definitions of the parameters associated with the
+       trust region algorithm.
+    .. In practice, the trust region parameters should not be adjusted
+       from their default values.
 
     References
     ----------
-    .. [1] J.S. Bois, Analysis of nucleic acids in dilute solutions,
-           Caltech Ph.D. thesis, 2007.
+    .. [1] Nocedal and Wright, Numerical Optimization, Second Edition,
+       Springer, 2006, Chapter 4.
 
     Examples
     --------
-    2) Compute the pH titration curve of a 1 M solution of weak acid HA
-       with acid dissociation constant 1e-5 M, titrating in 1.0 M NaOH.
+    Compute the pH titration curve of a 1 M solution of weak acid HA
+    with acid dissociation constant 1e-5 M, titrating in 1.0 M NaOH.
 
-    >>> import readout as ro
-    >>> import eqtk
-    >>> N = np.array([[1,  1,  0,  0],
-                      [1,  0, -1,  1]])
-    >>> K = np.array([1.0e-14, 1.0e-5])
-    >>> c0 = np.array([1.0e-7, 1.0e-7, 1.0, 0.0])
-    >>> c0_titrant = np.array([0.0, 1.0, 0.0, 0.0])
-    >>> initial_volume = 0.1
-    >>> vol_titrated = np.array([0.0, 0.1, 0.2]) # Only a few for display
-    >>> c = eqtk.volumetric_titration(N, K, c0, initial_volume, c0_titrant,
-                                    vol_titrated, units='M')
-    >>> c
-        array([[  3.15728161e-03,   3.16728162e-12,   9.96842719e-01,
-                  3.15728162e-03],
-               [  4.47219126e-10,   2.23604032e-05,   2.23599563e-05,
-                  4.99977640e-01],
-               [  2.99999999e-14,   3.33333334e-01,   9.99999994e-10,
-                  3.33333332e-01]])
+    >>> rxns = '''
+    ... <=> H+ + OH- ; 1e-14
+    ... HA <=> H+ + A- ; 1e-5'''
+    >>> N = eqtk.parse_rxns(rxns)
+    >>> c0 = pd.Series([0, 0, 1, 0], index=['H+', 'OH-', 'HA', 'A-'])
+    >>> c0_titrant = pd.Series([0, 1, 0, 0],
+                               index=['H+', 'OH-', 'HA', 'A-'])
+    >>> vol_titrant = np.array([0, 1, 2]) # Only few for display
+    >>> c = eqtk.volumetric_titration(c0, c0_titrant, vol_titrant, N=N,
+    ...     units="M")
+    >>> c['pH'] = -np.log10(c['H+'])
+    >>> c[['vol titrant / initial vol', 'pH']]
+       vol titrant / initial vol         pH
+    0                          0   2.500687
+    1                          1   9.349480
+    2                          2  13.522879
+
+
     """
+    if np.any(vol_titrant < 0):
+        raise ValueError("`vol_titrant` must have non-negative volumes.")
 
-    if initial_volume <= 0:
-        raise ValueError("initial volume must be > 0")
-    if any(c0_titrant < 0):
-        raise ValueError("c0_titrant must have non-negative concentrations.")
-    if any(vol_titrated < 0):
-        raise ValueError("vol_titrated must have non-negative volumes.")
-
-    new_c0 = volumetric_to_c0(c0, c0_titrant, initial_volume, vol_titrated)
-
-    c = solve(
-        c0=new_c0,
-        N=N,
-        K=K,
-        units=units,
-        solvent_density=solvent_density,
-        T=T,
-        A=A,
-        G=G,
-        G_units=G_units,
-        max_iters=1000,
-        tol=0.0000001,
-        delta_bar=1000.0,
-        eta=0.125,
-        min_delta=1.0e-12,
-        max_trials=100,
-        perturb_scale=100.0,
+    x0, N, K, A, G, names, solvent_density, single_point = parsers._parse_input(
+        c0, N, K, A, G, names, units, solvent_density, T, G_units
     )
+
+    if x0.shape[0] != 1:
+        raise ValueError("`c0` must be a one-dimensional array.")
+
+    x0_titrant, _, _, _, _, _, _, _ = parsers._parse_input(
+        c0_titrant, N, K, A, G, names, units, solvent_density, T, G_units
+    )
+
+    if x0_titrant.shape[0] != 1:
+        raise ValueError("`c0_titrant` must be a one-dimensional array.")
+
+    new_x0 = _volumetric_to_c0(x0.flatten(), x0_titrant.flatten(), vol_titrant)
+
+    # Solve for mole fractions
+    if G is None:
+        x = solve_NK(
+            N,
+            -np.log(K),
+            new_x0,
+            max_iters=max_iters,
+            tol=tol,
+            delta_bar=1000.0,
+            eta=eta,
+            min_delta=min_delta,
+            max_trials=max_trials,
+            perturb_scale=perturb_scale,
+        )
+    else:
+        x = solve_AG(
+            A,
+            G,
+            new_x0,
+            max_iters=max_iters,
+            tol=tol,
+            delta_bar=1000.0,
+            eta=eta,
+            min_delta=min_delta,
+            max_trials=max_trials,
+            perturb_scale=perturb_scale,
+        )
+
+    c = parsers._parse_output(x, new_x0*solvent_density, names, solvent_density, False)
+
+    if type(c) == pd.core.frame.DataFrame:
+        c['vol titrant / initial vol'] = vol_titrant
 
     return c
 
 
 def final_value_titration(
-    x0,
-    final_x,
-    final_species,
-    N,
-    K,
-    final_tolerance=1e-6,
+    c0,
+    final_c,
+    N=None,
+    K=None,
+    A=None,
+    G=None,
+    names=None,
+    units=None,
+    G_units=None,
+    solvent_density=None,
+    T=293.15,
     max_iters=1000,
     tol=0.0000001,
     delta_bar=1000.0,
@@ -475,46 +534,6 @@ def final_value_titration(
     perturb_scale=100.0,
 ):
     """
-    Solve for equilibrium concentrations of all species in a dilute
-    solution given the dimensionless equilibrium constants for the
-    possible chemical reactions. Attempt to solve for each point in
-    a curve where the desired concentration of a single species is
-    specified for each point by specified_x. The particular species
-    is specified by specified_species. Each point is found by
-    Ridder's method for now. Can use Newton's method if we find an
-    exact derivative later.
-
-    Parameters
-    ----------
-    N : array_like, shape (n_reactions , n_compounds)
-        N[r][j] = the stoichiometric coefficient of compounds j
-        in chemical reaction r.
-    K : array_like, shape (n_reactions,)
-        K[r] is the equilibrium constant for chemical reaction r
-    x0 : array_like, shape (n_compounds,)
-        Array containing the total "initial" mole fraction of all
-        compounds in solution.
-    final_x : array_like, shape (n_points,)
-        Array containing the total "final" mole fraction of a
-        particular compound in solution.
-    final_species : Integer
-        The index of the species referred to by final_x
-    final_tolerance : Float, default=1e-14
-        The relative tolerance of the final concentration with
-        respect to final_x
-
-    Returns
-    -------
-    x : array_like, shape (n_points, n_compounds)
-        x[i, j] = the equilibrium mole fraction of compound j at point i
-    converged : Boolean
-        True is trust region calculation converged, False otherwise.
-
-    Raises
-    ------
-    ValueError
-        If N, K, and x0 have a dimensional mismatch.
-
     """
     n_reactions, n_compounds = N.shape
 
@@ -544,22 +563,6 @@ def final_value_titration(
         result_x[i, :] = res_x
 
     return result_x
-
-
-def volumetric_to_c0(c0, c0_titrant, initial_volume, vol_titrated):
-    """Convert volumetric titration to input concentrations."""
-    n_titration_points = len(vol_titrated)
-    n_compounds = len(c0_titrant)
-    if n_compounds != len(c0):
-        raise ValueError("Dimensions of c0 and c0_titrant must agree")
-
-    vol_titrated_col = np.reshape(vol_titrated, (n_titration_points, 1))
-    c_titrant_row = np.reshape(c0_titrant, (1, n_compounds))
-    c0_row = np.reshape(c0, (1, n_compounds))
-    titrated_scale = vol_titrated_col / (initial_volume + vol_titrated_col)
-    original_scale = initial_volume / (initial_volume + vol_titrated_col)
-
-    return np.dot(titrated_scale, c_titrant_row) + np.dot(original_scale, c0_row)
 
 
 def to_df(c0, c, units=None, names=None):
@@ -598,6 +601,43 @@ def to_df(c0, c, units=None, names=None):
         return pd.Series(index=cols, data=np.concatenate((c0.flatten(), c.flatten())))
 
     return pd.DataFrame(columns=cols, data=np.concatenate((c0, c), axis=1))
+
+
+def _volumetric_to_c0(c0, c0_titrant, vol_titrant):
+    """Convert volumetric titration to input concentrations.
+
+    Parameters
+    ----------
+    c0 : array, shape (n_compounds, )
+        An array containing the total "initial" concentration of all
+        possible compounds in solution before any titrant is added.
+    c0_titrant : array, shape (n_compounds, )
+        An array containing the total "initial" concentration of all
+        possible compounds in the titrant.
+    vol_titrant : array_like, shape (n_titration_points, )
+        Each entry is the volume of titrant added, as a fraction of the
+        initial volume of the solution before addition of solution.
+
+    Returns
+    -------
+    output : array, shape(n_titration_points, n_compounds)
+        Values of "initial concentrations" for all species in the dilute
+        solution after addition of the titrant. The output of this
+        function is used as `c0` in `solve()` to get the results for a
+        volumetric titration.
+    """
+    n_titration_points = len(vol_titrant)
+    n_compounds = len(c0_titrant)
+    if n_compounds != len(c0):
+        raise ValueError("Dimensions of `c0` and `c0_titrant` must agree.")
+
+    vol_titrant_col = np.reshape(vol_titrant, (n_titration_points, 1))
+    c_titrant_row = np.reshape(c0_titrant, (1, n_compounds))
+    c0_row = np.reshape(c0, (1, n_compounds))
+    titrated_scale = vol_titrant_col / (1 + vol_titrant_col)
+    original_scale = 1 / (1 + vol_titrant_col)
+
+    return np.dot(titrated_scale, c_titrant_row) + np.dot(original_scale, c0_row)
 
 
 @jit("double[::1](double[::1], boolean[::1], int64)", nopython=True)
@@ -951,11 +991,8 @@ def _create_from_nothing(N, x0):
     return x0
 
 
-@jit(
-    "double[:, ::1](double[:, ::1], double[::1], double[:, ::1], int64, double, double, double, double, int64, double)",
-    nopython=True,
-)
-def _solve_NK(
+@jit(nopython=True)
+def solve_NK(
     N,
     minus_log_K,
     x0,
@@ -1012,8 +1049,9 @@ def _solve_NK(
 
     for i_point in range(x0.shape[0]):
         N_new, minus_log_K_new, x0_new, active_compounds, _ = _prune_NK(
-            N, minus_log_K, x0[i_point]
+            N, minus_log_K, x0[i_point],
         )
+
         if len(minus_log_K_new) > 0:
             n_reactions_new, n_compounds_new = N_new.shape
             n_constraints_new = n_compounds_new - n_reactions_new
@@ -1081,11 +1119,8 @@ def _solve_NK(
     return x
 
 
-@jit(
-    "double[:, ::1](double[:, ::1], double[::1], double[:, ::1], int64, double, double, double, double, int64, double)",
-    nopython=True,
-)
-def _solve_AG(
+@jit(nopython=True)
+def solve_AG(
     A,
     G,
     x0,

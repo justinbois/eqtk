@@ -51,6 +51,9 @@ def parse_rxns(rxns):
 def _parse_input(c0, N, K, A, G, names, units, solvent_density, T, G_units):
     """
     """
+    if type(N) == str:
+        N = parse_rxns(N)
+
     _check_NK_AG(N, K, A, G)
     _check_units(units)
     _check_G_units(G_units, T)
