@@ -515,7 +515,7 @@ def volumetric_titration(
     return c
 
 
-def fixed_value_titration(
+def fixed_value_solve(
     c0,
     fixed_c,
     N=None,
