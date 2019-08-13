@@ -66,4 +66,3 @@ def _dummy_jit(*args, **kwargs):
     else:
         # @jit
         return args[0]
-

@@ -505,17 +505,19 @@ def volumetric_titration(
             perturb_scale=perturb_scale,
         )
 
-    c = parsers._parse_output(x, new_x0*solvent_density, names, solvent_density, False)
+    c = parsers._parse_output(
+        x, new_x0 * solvent_density, names, solvent_density, False
+    )
 
     if type(c) == pd.core.frame.DataFrame:
-        c['vol titrant / initial vol'] = vol_titrant
+        c["vol titrant / initial vol"] = vol_titrant
 
     return c
 
 
-def final_value_titration(
+def fixed_value_titration(
     c0,
-    final_c,
+    fixed_c,
     N=None,
     K=None,
     A=None,
@@ -535,41 +537,77 @@ def final_value_titration(
 ):
     """
     """
-    n_reactions, n_compounds = N.shape
+    x0, N, K, A, G, names, solvent_density, _ = parsers._parse_input(
+        c0, N, K, A, G, names, units, solvent_density, T, G_units
+    )
 
-    # Add a new reaction: just straight up production of the final_species
-    N_new = np.vstack((np.zeros(n_compounds), N))
-    N_new[0, final_species] = 1.0
-    K_new = np.concatenate(((0.0,), K))
+    c0_from_df = type(c0) in [pd.core.frame.DataFrame, pd.core.series.Series]
+    fixed_x, x0, single_point = parsers._parse_fixed_c(
+        fixed_c, x0, c0_from_df, names, solvent_density
+    )
 
-    result_x = np.empty((len(final_x), n_compounds))
+    x = np.empty_like(x0)
+    if G is not None:
+        pass
+    else:
+        for i, (fixed_x_row, x0_row) in enumerate(zip(fixed_x, x0)):
+            N_new, K_new = _new_NK_fixed_x(fixed_x_row, N, K)
+            x_res = solve_NK(
+                N_new,
+                -np.log(K_new),
+                np.ascontiguousarray(np.expand_dims(x0_row, axis=0)),
+                max_iters=max_iters,
+                tol=tol,
+                delta_bar=1000.0,
+                eta=eta,
+                min_delta=min_delta,
+                max_trials=max_trials,
+                perturb_scale=perturb_scale,
+            )
+            x[i] = x_res[0]
 
-    for i, pt in enumerate(final_x):
-        # Set concentration of final_species by setting K of its prod. rxn.
-        K_new[0] = pt
+    return parsers._parse_output(x, c0, names, solvent_density, single_point)
 
-        res_x, converged, res_stats = solve(
-            N_new,
-            K_new,
-            x0,
-            max_iters=max_iters,
-            tol=tol,
-            delta_bar=1000.0,
-            eta=eta,
-            min_delta=min_delta,
-            max_trials=max_trials,
-            perturb_scale=perturb_scale,
+
+def _new_NK_fixed_x(fixed_x, N, K):
+    """Generate a new N and K for a fixed x.
+
+    fixed_x is a 1D array.
+    """
+    N_new = N.copy()
+    K_new = K.copy()
+
+    for j in np.nonzero(~np.isnan(fixed_x))[0]:
+        N_new_row = np.zeros(N.shape[1])
+        N_new_row[j] = 1.0
+        N_new = np.vstack((N_new_row, N_new))
+        K_new = np.concatenate(((fixed_x[j],), K_new))
+
+    if N_new.shape[0] > N_new.shape[1]:
+        raise ValueError(
+            "Cannot fix concentration as specified: Results in an over-constrained problem."
         )
-        result_x[i, :] = res_x
 
-    return result_x
+    if np.linalg.matrix_rank(N_new) != N_new.shape[0]:
+        raise ValueError(
+            "Cannot fix concentration as specified: Results in a rank-deficient stoichiometic matrix."
+        )
+
+    return np.ascontiguousarray(N_new), np.ascontiguousarray(K_new)
 
 
-def to_df(c0, c, units=None, names=None):
+def to_df(c, c0=None, units=None, names=None):
     """
     Return output as a Pandas DataFrame.
     """
     units_str = " (" + units + ")" if units is not None else ""
+
+    if c0 is None:
+        if names is None:
+            names = ["species_" + str(i) for i in range(c.shape[1])]
+        cols = [name + units_str for name in names]
+
+        return pd.DataFrame(data=c, columns=cols)
 
     if type(c) == pd.core.series.Series:
         if len(c.index) == 2 * len(c0.index) and np.sum(
@@ -1049,7 +1087,7 @@ def solve_NK(
 
     for i_point in range(x0.shape[0]):
         N_new, minus_log_K_new, x0_new, active_compounds, _ = _prune_NK(
-            N, minus_log_K, x0[i_point],
+            N, minus_log_K, x0[i_point]
         )
 
         if len(minus_log_K_new) > 0:

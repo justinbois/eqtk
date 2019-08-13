@@ -111,6 +111,64 @@ def _parse_output(x, c0, names, solvent_density, single_point):
         return pd.DataFrame(data=np.concatenate((c0, c), axis=1), columns=cols)
 
 
+def _parse_fixed_c(fixed_c, x0, c0_from_df, names, solvent_density):
+    """
+    """
+    if type(fixed_c) == list or type(fixed_c) == tuple:
+        fixed_c = np.array(fixed_c, order="C", dtype=float)
+
+    if type(fixed_c) == np.ndarray:
+        if c0_from_df:
+            raise ValueError(
+                "If `c0` is entered as a Series or DataFrame, so must `fixed_c`."
+            )
+
+        if len(fixed_c.shape) == 1:
+            n_compounds = fixed_c.shape[0]
+            fixed_c = np.expand_dims(fixed_c, axis=0)
+        elif len(np.shape(fixed_c)) == 2:
+            n_compounds = fixed_c.shape[1]
+        else:
+            raise ValueError("`fixed_c` is the wrong shape.")
+    else:
+        if type(fixed_c) == pd.core.frame.DataFrame:
+            names = _check_names_df(names, list(fixed_c.columns))
+        elif type(fixed_c) == pd.core.series.Series:
+            names = _check_names_df(names, list(fixed_c.index))
+        else:
+            raise ValueError(
+                "`fixed_c` must be a Pandas series or data frame or Numpy array."
+            )
+        fixed_c = fixed_c[names].to_numpy(dtype=float, copy=True)
+        if len(fixed_c.shape) == 1:
+            fixed_c = np.expand_dims(fixed_c, axis=0)
+
+    # Check for consistency with x0
+    if x0.shape[1] != fixed_c.shape[1]:
+        raise ValueError("`fixed_c` and `c0` must have the same number of columns.")
+
+    # Convert negative concentrations to NaN
+    fixed_c[np.less(fixed_c, 0, where=~np.isnan(fixed_c))] = np.nan
+
+    # Cannot have zero entries
+    if np.any(fixed_c == 0):
+        raise ValueError(
+            "Cannot fix the concentration of any species to zero. If you want to remove a species from consideration, you need to specify the relevant entries in `c0` to be zero."
+        )
+
+    # Expand the shapes, as necessary
+    if x0.shape[0] == 1 and fixed_c.shape[0] > 1:
+        x0 = np.repeat(x0, fixed_c.shape[0], axis=0)
+    if x0.shape[0] > 0 and fixed_c.shape[0] == 1:
+        fixed_c = np.repeat(fixed_c, x0.shape[0], axis=0)
+
+    return (
+        np.ascontiguousarray(fixed_c / solvent_density),
+        np.ascontiguousarray(x0),
+        x0.shape[0] == 1,
+    )
+
+
 def _nondimensionalize_NK(c0, N, K, T, solvent_density, units):
     # Compute solvent density in appropriate units
     solvent_density = _parse_solvent_density(solvent_density, T, units)
@@ -432,7 +490,7 @@ def _check_N(N, n_compounds):
             )
         if len(N) > 0 and np.linalg.matrix_rank(N) != N.shape[0]:
             raise ValueError(
-                "Innputed `N` results in rank deficient stoichiometic matrix."
+                "Inputted `N` results in rank deficient stoichiometic matrix."
             )
         if np.isinf(N).any():
             raise ValueError("All entries in the stoichiometic matrix must be finite.")
