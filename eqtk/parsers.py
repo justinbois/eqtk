@@ -88,16 +88,19 @@ def _parse_input(c0, N, K, A, G, names, units, solvent_density, T, G_units):
     return x0, N, K, A, G, names, solvent_density, single_point
 
 
-def _parse_output(x, c0, names, solvent_density, single_point):
+def _parse_output(x, x0, names, solvent_density, single_point):
     """
     """
     if solvent_density is None:
         c = x
+        c0 = x0
     else:
         c = x * solvent_density
+        c0 = x0 * solvent_density
 
     if single_point:
         c = c.flatten()
+        c0 = c0.flatten()
 
     if names is None:
         return c
@@ -130,6 +133,8 @@ def _parse_fixed_c(fixed_c, x0, c0_from_df, names, solvent_density):
             n_compounds = fixed_c.shape[1]
         else:
             raise ValueError("`fixed_c` is the wrong shape.")
+
+        fixed_c = fixed_c.astype(float)
     else:
         if type(fixed_c) == pd.core.frame.DataFrame:
             names = _check_names_df(names, list(fixed_c.columns))
@@ -423,6 +428,23 @@ def _parse_c0(c0, names):
                     "`len(names)` must equal the number of columns of `c0`."
                 )
     else:
+        if type(c0) == dict:
+            err_str = "All values in the inputted `c0` dictionary must be of the same type, one of {int, float, list, tuple, numpy.ndarray}."
+            dict_types = set([float if type(value) == int else type(value) for _, value in c0.items()])
+            if len(dict_types) > 1:
+                raise ValueError(err_str)
+            dtype = dict_types.pop()
+            if dtype == float:
+                c0 = pd.Series(data=c0)
+            else:
+                err_str = "All inputted arrays in `c0` must be one-dimensional and of the same length."
+                array_shapes = [np.array(value).shape for _, value in c0.items()]
+                for ashape in array_shapes:
+                    if len(ashape) != 1:
+                        raise ValueError(err_str)
+                if not np.all(array_shapes == array_shapes[0]):
+                    raise ValueError(err_str)
+                c0 = pd.DataFrame(data=c0)
         if type(c0) == pd.core.frame.DataFrame:
             names = _check_names_df(names, list(c0.columns))
         elif type(c0) == pd.core.series.Series:
@@ -571,9 +593,11 @@ def _parse_G(G, names, c0_from_df):
 
         if type(G) == np.ndarray:
             if len(np.shape(G)) == 2 and (np.shape(G)[1] == 1 or np.shape(G)[0] == 1):
-                G = np.ascontiguousarray(G.flatten())
+                G = np.ascontiguousarray(G.flatten(), dtype=float)
             elif len(np.shape(G)) != 1:
                 raise ValueError("`G` is the wrong shape.")
+            else:
+                G = np.ascontiguousarray(G, dtype=float)
             names_from_df = None
         elif type(G) == pd.core.frame.DataFrame:
             if not c0_from_df:

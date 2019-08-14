@@ -278,7 +278,7 @@ def solve(
             perturb_scale=perturb_scale,
         )
 
-    return parsers._parse_output(x, c0, names, solvent_density, single_point)
+    return parsers._parse_output(x, x0, names, solvent_density, single_point)
 
 
 def volumetric_titration(
@@ -542,32 +542,60 @@ def fixed_value_solve(
     )
 
     c0_from_df = type(c0) in [pd.core.frame.DataFrame, pd.core.series.Series]
+
     fixed_x, x0, single_point = parsers._parse_fixed_c(
         fixed_c, x0, c0_from_df, names, solvent_density
     )
 
-    x = np.empty_like(x0)
+    # Convert the problem to N, K
     if G is not None:
-        pass
-    else:
-        for i, (fixed_x_row, x0_row) in enumerate(zip(fixed_x, x0)):
-            N_new, K_new = _new_NK_fixed_x(fixed_x_row, N, K)
-            x_res = solve_NK(
-                N_new,
-                -np.log(K_new),
-                np.ascontiguousarray(np.expand_dims(x0_row, axis=0)),
-                max_iters=max_iters,
-                tol=tol,
-                delta_bar=1000.0,
-                eta=eta,
-                min_delta=min_delta,
-                max_trials=max_trials,
-                perturb_scale=perturb_scale,
-            )
-            x[i] = x_res[0]
+        # Strategy:
+        # Prune the problem for the A, G formulation, and then convert it to N, K using
+        #        N = linalg.nullspace_svd(A, tol=constants.nullspace_tol)
+        #        K = np.exp(-np.dot(N, G))
+        # and then do NOT prune the N, K problem, and solve.
 
-    return parsers._parse_output(x, c0, names, solvent_density, single_point)
+        raise NotImplementedError("Fixed value solving not yet implemented for the A, G formulation.")
 
+    x = np.empty_like(x0)
+    for i, (fixed_x_row, x0_row) in enumerate(zip(fixed_x, x0)):
+        N_new, K_new = _new_NK_fixed_x(fixed_x_row, N, K)
+        print(N_new, K_new)
+        x_res = solve_NK(
+            N_new,
+            -np.log(K_new),
+            np.ascontiguousarray(np.expand_dims(x0_row, axis=0)),
+            max_iters=max_iters,
+            tol=tol,
+            delta_bar=1000.0,
+            eta=eta,
+            min_delta=min_delta,
+            max_trials=max_trials,
+            perturb_scale=perturb_scale,
+        )
+        x[i] = x_res[0]
+
+    c = parsers._parse_output(
+        x, x0 * solvent_density, names, solvent_density, single_point
+    )
+
+    if type(c) == pd.core.series.Series:
+        for j in np.nonzero(~np.isnan(fixed_x))[0]:
+            c[names + '__0'] = np.nan
+            c[names + '__fixed'] = fixed_x[0, j] * solvent_density
+
+    if type(c) == pd.core.frame.DataFrame:
+        cols = [name + '__fixed' for name in names]
+        data = np.empty((len(c), len(names)))
+        data = np.fill(np.nan)
+        c = pd.concat((c, pd.DataFrame(data=data, columns=cols)), axis=1, ignore_index=True)
+        for i in range(len(c)):
+            for j in np.nonzero(~np.isnan(fixed_x))[0]:
+                c.loc[i, names[j]+'__0'] = np.nan
+                c.loc[i, names[j]+'__fixed'] = fixed_x[i, j] * solvent_density
+        c = c.dropna(axis=1, how='all')
+
+    return c
 
 def _new_NK_fixed_x(fixed_x, N, K):
     """Generate a new N and K for a fixed x.
@@ -1094,7 +1122,7 @@ def solve_NK(
             n_reactions_new, n_compounds_new = N_new.shape
             n_constraints_new = n_compounds_new - n_reactions_new
 
-            # Compute and check stoichiometric matrix
+            # Compute and check constraint matrix
             A = linalg.nullspace_svd(N_new, tol=constants.nullspace_tol)
 
             # If completely constrained (N square), solve directly
