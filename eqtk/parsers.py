@@ -74,7 +74,7 @@ def _parse_input(c0, N, K, A, G, names, units, solvent_density, T, G_units):
     _check_A(A, n_compounds)
 
     G = _parse_G(G, names, c0_from_df)
-    _check_G(A, G)
+    _check_G(G, N, A)
 
     if G is None:
         x0, K, solvent_density = _nondimensionalize_NK(
@@ -320,30 +320,44 @@ def _thermal_energy(T, units):
 
 def _check_NK_AG(N, K, A, G):
     if N is None:
+        if K is not None:
+            raise ValueError("If `N` is None, `K` must also be None.")
+
         if A is None or G is None:
             raise ValueError("`A` and `G` must both be specified if `N` is None.")
 
         if type(A) == pd.core.frame.DataFrame:
-            if type(G) not in [pd.core.frame.DataFrame, pd.core.series.Series]:
+            if type(G) not in [pd.core.frame.DataFrame, pd.core.series.Series, dict]:
                 raise ValueError(
                     "If `A` is inputted as a DataFrame, `G` must be inputted as a DataFrame or Series."
                 )
-        elif type(G) in [pd.core.frame.DataFrame, pd.core.series.Series]:
+        elif type(G) in [pd.core.frame.DataFrame, pd.core.series.Series, dict]:
             raise ValueError(
-                "If `G` is inputted as a DataFrame or Series, `A` must be inputted as a DataFrame."
+                "If `G` is inputted as a DataFrame, Series, or dict, `A` must be inputted as a DataFrame."
             )
-
     elif type(N) == pd.core.frame.DataFrame:
-        if "equilibrium constant" not in N and "equilibrium_constant" not in N:
+        if G is None:
+            if "equilibrium constant" not in N and "equilibrium_constant" not in N:
+                raise ValueError(
+                    "If `N` is inputted as a DataFrame and `G` is not given, `N` must have an `'equilibrium constant'` column."
+                )
+        elif type(G) not in [pd.core.frame.DataFrame, pd.core.series.Series, dict]:
             raise ValueError(
-                "If `N` is inputted as a DataFrame, it must have an `'equilibrium constant'` column."
-            )
+                "If `N` is inputted as a DataFrame, `G` must be inputted as a DataFrame or Series."
+                )
+        elif "equilibrium constant" in N or "equilibrium_constant" in N:
+                raise ValueError(
+                    "If `G` is not None, `N` cannot have an 'equilibrium constant' column."
+                )
+
         if K is not None:
             raise ValueError(
                 "If `N` is inputted as a DataFrame, `K` must be `None`. The equilibrium constants are included as the `'equilibrium constant'` column of the inputted DataFrame."
             )
-    elif K is None:
-        raise ValueError("If `N` is not inputted as a DataFrame, `K` must be provided.")
+    elif K is None and G is None:
+        raise ValueError("If `N` is not inputted as a DataFrame, `K` or `G` must be provided.")
+    elif K is not None and G is not None:
+        raise ValueError("Only one of `K` or `G` can be inputted.")
 
 
 def _check_units(units):
@@ -623,10 +637,14 @@ def _parse_G(G, names, c0_from_df):
     return G
 
 
-def _check_G(A, G):
+def _check_G(G, N, A):
     if G is not None:
-        if len(G) != A.shape[1]:
-            raise ValueError("`G` must have `A.shape[1]` entries")
+        if A is not None:
+            if len(G) != A.shape[1]:
+                raise ValueError("`G` must have `A.shape[1]` entries")
+        if N is not None:
+            if len(G) != N.shape[1]:
+                raise ValueError("`G` must have `N.shape[1]` entries")
         if np.isinf(G).any():
             raise ValueError("All `G`'s must be finite.")
         if np.isnan(G).any():

@@ -34,7 +34,7 @@ def solve(
 
     Parameters
     ----------
-    c0 : array_like, Series, or DataFrame,
+    c0 : array_like, dict, Series, or DataFrame,
          shape (n_points, n_compounds) or (n_compounds, )
         Each row contains the total "initial" concentration of all
         possible chemical species in solution. The equilibrium
@@ -45,7 +45,10 @@ def solve(
         each value is the "initial concentration." `c0` may also be
         passed as a Pandas DataFrame where each row contains the total
         "initial" concentration of all possible compounds in solution
-        and the column names are the names of the chemical species.
+        and the column names are the names of the chemical species. If
+        `c0` is passed as a dict, the dict must be convertible to a
+        Pandas Series or DataFrame as `pd.Series(c0)` or
+        `pd.DataFrame(c0)`.
     N : array_like or DataFrame, default `None`
         Stoichiometic matrix. `N[r, j]` = the stoichiometric coefficient
         of compound `j` in chemical reaction `r`. All rows of `N` must
@@ -251,27 +254,40 @@ def solve(
     )
 
     # Solve for mole fractions
-    if G is None:
-        x = solve_NK(
+    if N is None:
+        x = solveAG(
+            A,
+            G,
+            x0,
+            max_iters=max_iters,
+            tol=tol,
+            delta_bar=delta_bar,
+            eta=eta,
+            min_delta=min_delta,
+            max_trials=max_trials,
+            perturb_scale=perturb_scale,
+        )
+    elif G is None:
+        x = solveNK(
             N,
             -np.log(K),
             x0,
             max_iters=max_iters,
             tol=tol,
-            delta_bar=1000.0,
+            delta_bar=delta_bar,
             eta=eta,
             min_delta=min_delta,
             max_trials=max_trials,
             perturb_scale=perturb_scale,
         )
     else:
-        x = solve_AG(
-            A,
+        x = solveNG(
+            N,
             G,
             x0,
             max_iters=max_iters,
             tol=tol,
-            delta_bar=1000.0,
+            delta_bar=delta_bar,
             eta=eta,
             min_delta=min_delta,
             max_trials=max_trials,
@@ -312,7 +328,8 @@ def volumetric_titration(
         possible compounds in solution before any titrant is added. If
         `c0` is inputted as a Pandas Series, the indices contain the
         name of the chemical species and each value is the "initial
-        concentration."
+        concentration." If `c0` is passed as a dict, the dict must be
+        convertible to a Pandas Series as `pd.Series(c0)`.
     c0_titrant : array_like or Series, shape (n_compounds, )
         An array containing the total "initial" concentration of all
         possible compounds in the titrant. The titrant is itself is
@@ -477,28 +494,41 @@ def volumetric_titration(
 
     new_x0 = _volumetric_to_c0(x0.flatten(), x0_titrant.flatten(), vol_titrant)
 
-    # Solve for mole fractions
-    if G is None:
-        x = solve_NK(
-            N,
-            -np.log(K),
-            new_x0,
+
+    if N is None:
+        x = solveAG(
+            A,
+            G,
+            x0,
             max_iters=max_iters,
             tol=tol,
-            delta_bar=1000.0,
+            delta_bar=delta_bar,
+            eta=eta,
+            min_delta=min_delta,
+            max_trials=max_trials,
+            perturb_scale=perturb_scale,
+        )
+    elif G is None:
+        x = solveNK(
+            N,
+            -np.log(K),
+            x0,
+            max_iters=max_iters,
+            tol=tol,
+            delta_bar=delta_bar,
             eta=eta,
             min_delta=min_delta,
             max_trials=max_trials,
             perturb_scale=perturb_scale,
         )
     else:
-        x = solve_AG(
-            A,
+        x = solveNG(
+            N,
             G,
-            new_x0,
+            x0,
             max_iters=max_iters,
             tol=tol,
-            delta_bar=1000.0,
+            delta_bar=delta_bar,
             eta=eta,
             min_delta=min_delta,
             max_trials=max_trials,
@@ -561,13 +591,13 @@ def fixed_value_solve(
     for i, (fixed_x_row, x0_row) in enumerate(zip(fixed_x, x0)):
         N_new, K_new = _new_NK_fixed_x(fixed_x_row, N, K)
         print(N_new, K_new)
-        x_res = solve_NK(
+        x_res = solveNK(
             N_new,
             -np.log(K_new),
             np.ascontiguousarray(np.expand_dims(x0_row, axis=0)),
             max_iters=max_iters,
             tol=tol,
-            delta_bar=1000.0,
+            delta_bar=delta_bar,
             eta=eta,
             min_delta=min_delta,
             max_trials=max_trials,
@@ -1058,7 +1088,7 @@ def _create_from_nothing(N, x0):
 
 
 @jit(nopython=True)
-def solve_NK(
+def solveNK(
     N,
     minus_log_K,
     x0,
@@ -1186,7 +1216,133 @@ def solve_NK(
 
 
 @jit(nopython=True)
-def solve_AG(
+def solveNG(
+    N,
+    G,
+    x0,
+    max_iters=1000,
+    tol=0.0000001,
+    delta_bar=1000.0,
+    eta=0.125,
+    min_delta=1.0e-12,
+    max_trials=100,
+    perturb_scale=100.0,
+):
+    """
+    Solve for equilibrium concentrations of all species in a dilute
+    solution.
+
+    Parameters
+    ----------
+    N : array_like, shape (n_reactions, n_compounds)
+        N[r][j] = the stoichiometric coefficient of compounds j
+        in chemical reaction r.
+    G : array_like, shape (n_compounds,)
+        G[j] is the free energy of compound j in units of kT.
+    x0 : array_like, shape (n_points, n_compounds)
+        array containing the total "initial" mole fraction of all
+        compounds in solution.  Internally, this is converted into
+        n_compounds-n_reactions conservation equations.
+
+    Returns
+    -------
+    x : array_like, shape (n_compounds)
+        x[j] = the equilibrium concentration of compound j.  Units are
+        given as specified in the units keyword argument.
+
+    Raises
+    ------
+    ValueError
+        If input is in any way invalid.
+    RuntimeError
+        If the trust region algorithm failed to converge.
+
+    Notes
+    -----
+    .. N must have full row rank, i.e., all rows must be
+       linearly independent.
+
+    .. All x0's must be non-negative and finite
+
+    """
+    # Get number of particles and compounds
+    n_reactions, n_compounds = N.shape
+
+    x = np.empty_like(x0)
+
+    dummy_minus_log_K = np.ones(N.shape[0], dtype=float)
+
+    for i_point in range(x0.shape[0]):
+        N_new, dummy_throwaway, x0_new, active_compounds, _ = _prune_NK(
+            N, dummy_minus_log_K, x0[i_point]
+        )
+        G_new = _boolean_index(G, active_compounds, np.sum(active_compounds))
+
+        if N_new.shape[0] > 0:
+            n_reactions_new, n_compounds_new = N_new.shape
+            n_constraints_new = n_compounds_new - n_reactions_new
+
+            # Compute and check constraint matrix
+            A = linalg.nullspace_svd(N_new, tol=constants.nullspace_tol)
+
+            # If completely constrained (N square), solve directly
+            if n_constraints_new == 0:
+                x_new = np.exp(-G_new)
+            else:
+                # In case we have null <=> compds type reaction, adjust x0
+                x0_adjusted = _create_from_nothing(N_new, x0_new)
+
+                constraint_vector = np.dot(A, x0_adjusted)
+
+                x_new, converged, n_trial, step_tally = _solve_trust_region(
+                    A,
+                    G,
+                    constraint_vector,
+                    max_iters=max_iters,
+                    tol=tol,
+                    delta_bar=1000.0,
+                    eta=eta,
+                    min_delta=min_delta,
+                    max_trials=max_trials,
+                    perturb_scale=perturb_scale,
+                )
+
+                # If not converged, throw exception
+                if not converged:
+                    print("**** Convergence failure! ****")
+                    _print_runstats(
+                        A,
+                        G,
+                        x0,
+                        constraint_vector,
+                        n_trial,
+                        max_trials,
+                        tol,
+                        delta_bar,
+                        eta,
+                        min_delta,
+                        perturb_scale,
+                        converged,
+                        step_tally,
+                        max_iters,
+                    )
+                    raise RuntimeError("Calculation did not converge")
+
+        # Put in concentrations that were cut out
+        j = 0
+        for i in range(n_compounds):
+            if active_compounds[i]:
+                x[i_point, i] = x_new[j]
+                j += 1
+            else:
+                x[i_point, i] = x0[i_point, i]
+
+    return x
+
+
+
+@jit(nopython=True)
+def solveAG(
     A,
     G,
     x0,
