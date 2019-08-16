@@ -9,11 +9,11 @@ from . import constants
 
 def check_equilibrium_NK(c0, c, N=None, K=None):
     """Check to make sure equilibrium is satisfied."""
-    single_point = False
-    if len(c0.shape) == 1:
-        single_point = True
+    c0, N, K, _, _, names, _, single_point = parsers._parse_input(c0, N, K, *tuple([None] * 7))
 
-    c0, N, K, _, _, _, _, _ = parsers._parse_input(c0, N, K, *tuple([None] * 7))
+    if type(c) in [pd.core.series.Series, pd.core.frame.DataFrame]:
+        c = c[names]
+
     c, _, _, _, _, _, _, _ = parsers._parse_input(c, N, K, *tuple([None] * 7))
 
     if c0.shape != c.shape:

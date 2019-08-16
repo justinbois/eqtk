@@ -180,3 +180,17 @@ def test_example_3():
 
     assert equilibrium_ok.all(), "Equilibrium error"
     assert cons_mass_ok.all(), "Conservation of mass error"
+
+
+def test_example_4():
+    rxns = """
+    AB <=> A + B ; 0.015
+    AC <=> A + C ; 0.003
+    """
+    N = eqtk.parse_rxns(rxns)
+    c0 = {'A': 1.0, 'B': 0.5, 'C': 0.25, 'AB': 0, 'AC': 0}
+    c = eqtk.solve(c0, N, units='mM')
+    equilibrium_ok, cons_mass_ok = eqtk.checks.check_equilibrium_NK(c0, c, N=N)
+
+    assert equilibrium_ok.all(), "Equilibrium error"
+    assert cons_mass_ok.all(), "Conservation of mass error"
