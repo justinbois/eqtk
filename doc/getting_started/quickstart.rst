@@ -45,7 +45,9 @@ The stoichiometric matrix is then::
 
 Finally, the equilibrium constants are ``K = [0.015, 0.003]``.
 
-**Note that the equilibrium constants and initial concentrations must be in the same units.** The units are then specified with ``eqtk.solve()``'s `units` keyword argument.
+.. warning::
+    The units of the inputted ``c0`` and ``K`` must be consistent, meaning that they both must use the same units for concentration. In this case, the concentration units are millimolar. The units are then specified with ``eqtk.solve()``'s `units` keyword argument.
+
 
 Now we can solve the system. *Note*: Because the numerical routines of EQTK are `just-in-time compiled`_, importing EQTK may take a few seconds, as will the first call you make to ``eqtk.solve()``. Subsequent calculations will be fast.
 
@@ -199,13 +201,13 @@ Note that the result includes the initial concentrations of each species, with t
 Next steps
 ----------
 
-The :ref:`user guide <User Guide>` has more details about
+The :ref:`user guide <User guide>` has more details about
 
 - The class of problems EQTK can solve.
 - All modes of specifying the problem.
 - Lower level interfaces to the equilibrium solving algorithm.
 
-Finally, the :ref:`case studies <Case Studies>` section of this guide provides examples of using EQTK to study chemical systems.
+Finally, the :ref:`case studies <Case studies>` section of this guide provides examples of using EQTK to study chemical systems.
 
 
 

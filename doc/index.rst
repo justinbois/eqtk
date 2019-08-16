@@ -6,7 +6,7 @@
 Equilibrium Toolkit (EQTK): Solve coupled chemical equilibrium in solution
 ==========================================================================
 
-EQTK solved the problem of coupled equilibrium among chemical species in a dilute solution.
+EQTK solves the problem of coupled equilibrium among chemical species in a dilute solution.
 
 .. toctree::
    :maxdepth: 1
@@ -17,15 +17,17 @@ EQTK solved the problem of coupled equilibrium among chemical species in a dilut
 
 .. toctree::
    :maxdepth: 1
-   :caption: User Guide
+   :caption: User guide
 
    user_guide/core_concepts
+   user_guide/conventions
+   user_guide/high_level
 
 .. toctree::
    :maxdepth: 1
-   :caption: Case Studies
+   :caption: Case studies
 
-   ligand_receptor.ipynb
+   case_studies/ligand_receptor.ipynb
 
 
 Indices and tables
