@@ -88,7 +88,7 @@ def _parse_input(c0, N, K, A, G, names, units, solvent_density, T, G_units):
     return x0, N, K, A, G, names, solvent_density, single_point
 
 
-def _parse_output(x, x0, names, solvent_density, single_point):
+def _parse_output(x, x0, names, solvent_density, single_point, units):
     """
     """
     if solvent_density is None:
@@ -105,8 +105,12 @@ def _parse_output(x, x0, names, solvent_density, single_point):
     if names is None:
         return c
 
+    if units is None:
+        units = "mole fraction"
+
     # Names of columns for outputted data frames
-    cols = [name + "__0" for name in names] + names
+    cols = [f"[{name}]__0 ({units})" for name in names]
+    cols += [f"[{name}] ({units})" for name in names]
 
     if single_point:
         return pd.Series(data=np.concatenate((c0, c)), index=cols)

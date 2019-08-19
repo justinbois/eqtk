@@ -294,7 +294,7 @@ def solve(
             perturb_scale=perturb_scale,
         )
 
-    return parsers._parse_output(x, x0, names, solvent_density, single_point)
+    return parsers._parse_output(x, x0, names, solvent_density, single_point, units)
 
 
 def volumetric_titration(
@@ -536,7 +536,7 @@ def volumetric_titration(
         )
 
     c = parsers._parse_output(
-        x, new_x0 * solvent_density, names, solvent_density, False
+        x, new_x0 * solvent_density, names, solvent_density, False, units
     )
 
     if type(c) == pd.core.frame.DataFrame:
@@ -606,23 +606,23 @@ def fixed_value_solve(
         x[i] = x_res[0]
 
     c = parsers._parse_output(
-        x, x0 * solvent_density, names, solvent_density, single_point
+        x, x0 * solvent_density, names, solvent_density, single_point, units
     )
 
     if type(c) == pd.core.series.Series:
         for j in np.nonzero(~np.isnan(fixed_x))[0]:
-            c[names + '__0'] = np.nan
-            c[names + '__fixed'] = fixed_x[0, j] * solvent_density
+            c[f"[{names[j]}]__0 ({units})"] = np.nan
+            c[f"[{names[j]}]__fixed ({units})"] = fixed_x[0, j] * solvent_density
 
     if type(c) == pd.core.frame.DataFrame:
-        cols = [name + '__fixed' for name in names]
+        cols = [f"[{names[j]}]__fixed ({units})" for name in names]
         data = np.empty((len(c), len(names)))
         data = np.fill(np.nan)
         c = pd.concat((c, pd.DataFrame(data=data, columns=cols)), axis=1, ignore_index=True)
         for i in range(len(c)):
             for j in np.nonzero(~np.isnan(fixed_x))[0]:
-                c.loc[i, names[j]+'__0'] = np.nan
-                c.loc[i, names[j]+'__fixed'] = fixed_x[i, j] * solvent_density
+                c.loc[f"[{names[j]}]__0 ({units})"] = np.nan
+                c.loc[i, f"[{names[j]}]__fixed ({units})"] = fixed_x[i, j] * solvent_density
         c = c.dropna(axis=1, how='all')
 
     return c
