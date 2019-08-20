@@ -9,7 +9,9 @@ from . import constants
 
 def check_equilibrium_NK(c0, c, N=None, K=None):
     """Check to make sure equilibrium is satisfied."""
-    c0, N, K, _, _, names, _, single_point = parsers._parse_input(c0, N, K, *tuple([None] * 7))
+    c0, N, K, _, _, names, _, single_point = parsers._parse_input(
+        c0, N, K, *tuple([None] * 7)
+    )
 
     if type(c) in [pd.core.series.Series, pd.core.frame.DataFrame]:
         c = c[names]

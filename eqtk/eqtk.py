@@ -494,7 +494,6 @@ def volumetric_titration(
 
     new_x0 = _volumetric_to_c0(x0.flatten(), x0_titrant.flatten(), vol_titrant)
 
-
     if N is None:
         x = solveAG(
             A,
@@ -585,7 +584,9 @@ def fixed_value_solve(
         #        K = np.exp(-np.dot(N, G))
         # and then do NOT prune the N, K problem, and solve.
 
-        raise NotImplementedError("Fixed value solving not yet implemented for the A, G formulation.")
+        raise NotImplementedError(
+            "Fixed value solving not yet implemented for the A, G formulation."
+        )
 
     x = np.empty_like(x0)
     for i, (fixed_x_row, x0_row) in enumerate(zip(fixed_x, x0)):
@@ -618,14 +619,19 @@ def fixed_value_solve(
         cols = [f"[{names[j]}]__fixed ({units})" for name in names]
         data = np.empty((len(c), len(names)))
         data = np.fill(np.nan)
-        c = pd.concat((c, pd.DataFrame(data=data, columns=cols)), axis=1, ignore_index=True)
+        c = pd.concat(
+            (c, pd.DataFrame(data=data, columns=cols)), axis=1, ignore_index=True
+        )
         for i in range(len(c)):
             for j in np.nonzero(~np.isnan(fixed_x))[0]:
                 c.loc[f"[{names[j]}]__0 ({units})"] = np.nan
-                c.loc[i, f"[{names[j]}]__fixed ({units})"] = fixed_x[i, j] * solvent_density
-        c = c.dropna(axis=1, how='all')
+                c.loc[i, f"[{names[j]}]__fixed ({units})"] = (
+                    fixed_x[i, j] * solvent_density
+                )
+        c = c.dropna(axis=1, how="all")
 
     return c
+
 
 def _new_NK_fixed_x(fixed_x, N, K):
     """Generate a new N and K for a fixed x.
@@ -1338,7 +1344,6 @@ def solveNG(
                 x[i_point, i] = x0[i_point, i]
 
     return x
-
 
 
 @jit(nopython=True)

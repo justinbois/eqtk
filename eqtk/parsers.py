@@ -348,18 +348,20 @@ def _check_NK_AG(N, K, A, G):
         elif type(G) not in [pd.core.frame.DataFrame, pd.core.series.Series, dict]:
             raise ValueError(
                 "If `N` is inputted as a DataFrame, `G` must be inputted as a DataFrame or Series."
-                )
+            )
         elif "equilibrium constant" in N or "equilibrium_constant" in N:
-                raise ValueError(
-                    "If `G` is not None, `N` cannot have an 'equilibrium constant' column."
-                )
+            raise ValueError(
+                "If `G` is not None, `N` cannot have an 'equilibrium constant' column."
+            )
 
         if K is not None:
             raise ValueError(
                 "If `N` is inputted as a DataFrame, `K` must be `None`. The equilibrium constants are included as the `'equilibrium constant'` column of the inputted DataFrame."
             )
     elif K is None and G is None:
-        raise ValueError("If `N` is not inputted as a DataFrame, `K` or `G` must be provided.")
+        raise ValueError(
+            "If `N` is not inputted as a DataFrame, `K` or `G` must be provided."
+        )
     elif K is not None and G is not None:
         raise ValueError("Only one of `K` or `G` can be inputted.")
 
@@ -448,7 +450,23 @@ def _parse_c0(c0, names):
     else:
         if type(c0) == dict:
             err_str = "All values in the inputted `c0` dictionary must be of the same type, one of {int, float, list, tuple, numpy.ndarray}."
-            dict_types = set([float if type(value) == int else type(value) for _, value in c0.items()])
+            dict_types = set(
+                [
+                    float
+                    if type(value)
+                    in [
+                        float,
+                        int,
+                        np.float64,
+                        np.float32,
+                        np.float128,
+                        np.float,
+                        np.float16,
+                    ]
+                    else type(value)
+                    for _, value in c0.items()
+                ]
+            )
             if len(dict_types) > 1:
                 raise ValueError(err_str)
             dtype = dict_types.pop()
@@ -609,6 +627,30 @@ def _parse_G(G, names, c0_from_df):
         if type(G) == list or type(G) == tuple:
             G = np.array(G, order="C", dtype=float)
 
+        if type(G) == dict:
+            err_str = "All values in the inputted `G` dictionary must be of float or int type."
+            dict_types = set(
+                [
+                    float
+                    if type(value)
+                    in [
+                        float,
+                        int,
+                        np.float64,
+                        np.float32,
+                        np.float128,
+                        np.float,
+                        np.float16,
+                    ]
+                    else type(value)
+                    for _, value in G.items()
+                ]
+            )
+            if len(dict_types) > 1:
+                raise ValueError(err_str)
+
+            G = pd.Series(G)
+
         if type(G) == np.ndarray:
             if len(np.shape(G)) == 2 and (np.shape(G)[1] == 1 or np.shape(G)[0] == 1):
                 G = np.ascontiguousarray(G.flatten(), dtype=float)
@@ -633,7 +675,7 @@ def _parse_G(G, names, c0_from_df):
         elif type(G) == pd.core.series.Series:
             if not c0_from_df:
                 raise ValueError(
-                    "If `G` is given as a Pandas Series, `c0` must be given as a Series of DataFrame."
+                    "If `G` is given as a Pandas Series or dict, `c0` must be given as a Series of DataFrame."
                 )
             names = _check_names_df(names, list(G.index))
             G = np.ascontiguousarray(G[names].to_numpy(dtype=float, copy=True))
