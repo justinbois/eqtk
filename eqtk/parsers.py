@@ -661,16 +661,16 @@ def _NK_from_df(df, names, c0_from_df):
             "If `N` is given as a data frame, `c0` must be given as a Series or DataFrame."
         )
 
-    N = df[names].to_numpy(dtype=float, copy=True)
+    N = np.ascontiguousarray(df[names].to_numpy(dtype=float, copy=True))
 
     if "equilibrium constant" in df:
-        K = df["equilibrium constant"].values.astype(float)
+        K = np.ascontiguousarray(df["equilibrium constant"].values.astype(float))
     elif "equilibrium_constant" in df:
-        K = df["equilibrium_constant"].values.astype(float)
+        K = np.ascontiguousarray(df["equilibrium_constant"].values.astype(float))
     else:
         K = None
 
-    return np.ascontiguousarray(N), np.ascontiguousarray(K)
+    return N, K
 
 
 def _check_names_df(names, names_from_df):

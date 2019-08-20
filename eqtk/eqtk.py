@@ -1296,7 +1296,7 @@ def solveNG(
 
                 x_new, converged, n_trial, step_tally = _solve_trust_region(
                     A,
-                    G,
+                    G_new,
                     constraint_vector,
                     max_iters=max_iters,
                     tol=tol,
