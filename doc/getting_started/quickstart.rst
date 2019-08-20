@@ -49,7 +49,11 @@ Finally, the equilibrium constants are ``K = [0.015, 0.003]``.
     The units of the inputted ``c0`` and ``K`` must be consistent, meaning that they both must use the same units for concentration. In this case, the concentration units are millimolar. The units are then specified with ``eqtk.solve()``'s `units` keyword argument.
 
 
-Now we can solve the system. *Note*: Because the numerical routines of EQTK are `just-in-time compiled`_, importing EQTK may take a few seconds, as will the first call you make to ``eqtk.solve()``. Subsequent calculations will be fast.
+Now we can solve the system.
+
+.. note:: 
+
+    Because the numerical routines of EQTK are `just-in-time compiled`_, importing EQTK may take a few seconds, as will the first call you make to ``eqtk.solve()``. Subsequent calculations will be fast.
 
 .. code-block:: python
 
@@ -64,7 +68,7 @@ Now we can solve the system. *Note*: Because the numerical routines of EQTK are 
 
     c = eqtk.solve(c0, N, K, units="mM")
 
-The resulting ``c`` is given below, with the same units as specified with the `units` keyword argument (mM in this case). ::
+The resulting ``c`` is given below, with the same units as specified with the ``units`` keyword argument (mM in this case). ::
 
     array([0.27824281, 0.02557607, 0.00266673, 0.47442393, 0.24733327])
 
@@ -169,7 +173,7 @@ The variable ``N`` is now a Pandas data frame: ::
     1  0.0  1.0  0.0 -1.0  1.0  0.0                 0.003
     2  0.0  2.0  0.0  0.0  0.0 -1.0                 0.020
 
-Note that it now also includes the equilibrium constant for each reaction. This can be passed directly into ``eqtk.solve()``, and specification of ``K`` is no longer necessary, since ``N`` now contains the equilibrium constants.
+The data frame ``N`` now also includes the equilibrium constant for each reaction. This can be passed directly into ``eqtk.solve()``, and specification of ``K`` is no longer necessary, since ``N`` now contains the equilibrium constants.
 
 Because the chemical species now have names, we should pass ``c0`` as a Pandas Series (for a single equilibrium calculation), as a DataFrame (for a titration-like calculations as we did in the last example), or as a dictionary.
 
@@ -195,7 +199,7 @@ The resulting ``c`` is a Pandas series. ::
     AC       0.237269
     dtype: float64
 
-Note that the result includes the initial concentrations of each species, with the species names appended with ``__0``.
+The result includes the initial concentrations of each species, with the species names appended with ``__0``.
 
 
 Next steps

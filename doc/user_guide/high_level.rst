@@ -114,7 +114,7 @@ We must also specify the equilibrium constants as a Numpy array if the stoichiom
 
     K = np.array([0.05, 0.02, 0.1, 0.01])
 
-Note that entry ``K[i]`` corresponds to the chemical reaction given by the ``i``th row of the stoichiometric matrix ``N``.
+Entry ``K[i]`` corresponds to the chemical reaction given by the ``i``th row of the stoichiometric matrix ``N``.
 
 We can now solve for the equilibrium concentrations
 
@@ -187,16 +187,96 @@ If desired, you may specify names for the respective chemical species using the 
     names = ['A', 'B', 'C', 'AB', 'BB', 'BC']
     c = eqtk.solve(c0=c0, N=N, K=K, units='mM', names=names)
 
-The result is a Pandas DataFrame with columns ::
+The result is a Pandas DataFrame with descriptive column names, ::
 
-    ['A__0', 'B__0', 'C__0', 'AB__0', 'BB__0', 'BC__0', 'A', 'B', 'C', 'AB', 'BB', 'BC']
+    ['[A]__0 (mM)', '[B]__0 (mM)', '[C]__0 (mM)', '[AB]__0 (mM)',
+     '[BB]__0 (mM)', '[BC]__0 (mM)', '[A] (mM)', '[B] (mM)', '[C] (mM)',
+     '[AB] (mM)', '[BB] (mM)', '[BC] (mM)']
 
-The columns appended with ``__0`` indicate the initial conditions used in the calculation, and the remaining columns indicate the equilibrium concentrations. Executing ``c[names]`` gives ::
+The columns with ``__0`` indicate the initial conditions used in the calculation, and the remaining columns indicate the equilibrium concentrations. We can extract just the columns that contain the equilibrium concentrations by selecting those that do not contain the string ``__0``.
 
-              A         B         C        AB        BB        BC
-    0  0.952381  0.000000  0.047619  0.000000  0.000000  0.000000
-    1  0.498500  0.017382  0.024925  0.433250  0.003021  0.043325
-    2  0.188228  0.077504  0.009411  0.729418  0.060068  0.072942
+.. code-block:: python
+
+    >>> c[c.columns[~c.columns.str.contains('__0')]]
+       [A] (mM)  [B] (mM)  [C] (mM)  [AB] (mM)  [BB] (mM)  [BC] (mM)
+    0  0.952381  0.000000  0.047619   0.000000   0.000000   0.000000
+    1  0.498500  0.017382  0.024925   0.433250   0.003021   0.043325
+    2  0.188228  0.077504  0.009411   0.729418   0.060068   0.072942
+
+.. note::
+    
+    The units are given in parentheses next to the brackets (denoting concentration) around the species name. If the ``units`` keyword argument is ``None``, the phase ``mole fraction`` appears in the parentheses.
+
+
+N given as a Pandas DataFrame
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The descriptive output when the names of the chemical species are given is useful for keeping the output organized. Such organization is also useful when specifying the *input* for ``eqtk.solve()``. The function accepts the stroichometric matrix given as a Pandas DataFrame as well. The names of the columns are then assumed to be the names of the chemical species (just the names, not including the brackets and units included in output).
+
+.. code-block:: python
+
+    N = np.array([[-1,  0,  1,  0,  0,  0],
+                  [ 1,  1,  0, -1,  0,  0],
+                  [ 0,  2,  0,  0, -1,  0],
+                  [ 0,  1,  1,  0,  0, -1]])
+
+    names = ['A', 'B', 'C', 'AB', 'BB', 'BC']
+
+    N_df = pd.DataFrame(data=N, columns=names)
+
+In this data frame, we use Pandas's default row indexing, but a user may wish to name each reaction for reference. Because of this, EQTK does not assume an ordering of the data frame, so the equilibrium constants *must* be included in the data frame containing the stoichiometric matrix. They are included in a column entitled ``'equilbrium constant'``. This columns must be present, so we will add it.
+
+.. code-block:: python
+
+    N_df['equilibrium constant'] = [0.05, 0.02, 0.1, 0.01]
+
+The inputted ``N_df`` is ::
+
+       A  B  C  AB  BB  BC  equilibrium constant
+    0 -1  0  1   0   0   0                  0.05
+    1  1  1  0  -1   0   0                  0.02
+    2  0  2  0   0  -1   0                  0.10
+    3  0  1  1   0   0  -1                  0.01
+
+
+EQTK also does not assume an ordering to the columns. Therefore, the initial concentrations ``c0`` *must* be supplied as a Pandas Series or DataFrame.
+
+.. code-block:: python
+
+    # For a single calculation, a Series
+    c0 = pd.Series(data=[1, 1, 0, 0, 0, 0], index=names)
+
+    # For multiple calculations, a DataFrame
+    c0 = pd.DataFrame(data=[[1,   0, 0, 0, 0, 0],
+                            [1, 0.5, 0, 0, 0, 0],
+                            [1,   1, 0, 0, 0, 0]],
+                      columns=names)
+
+.. note:: 
+
+    The names of the indices for ``c0`` as a Series and the columns for ``c0`` as a DataFrame are the names of the chemical species, *not*, e.g., ``'[A]__0 (mM)'``. Which such input may be convenient, allowing for specification of units and matching outputs, this is not allowed. The user should explicitly supply the ``units`` keyword argument and ensure that *all* units of concentrations and equilibrium constants are consistent with those concentration units. It the user could specify units within the ``c0`` Series or DataFrame, the equilibrium constants units could be ambiguous.
+
+When we call ``eqtk.solve()``, we do not include the argument ``K`` because the equilibrium constants are already included in the inputted data frame.
+
+.. code-block:: python
+
+    >>> c = eqtk.solve(c0=c0, N=N_df, units='mM')
+    >>> c[c.columns[~c.columns.str.contains('__0')]]
+       [A] (mM)  [B] (mM)  [C] (mM)  [AB] (mM)  [BB] (mM)  [BC] (mM)
+    0  0.952381  0.000000  0.047619   0.000000   0.000000   0.000000
+    1  0.498500  0.017382  0.024925   0.433250   0.003021   0.043325
+    2  0.188228  0.077504  0.009411   0.729418   0.060068   0.072942
+
+If, however, we wish to input the free energies of the chemical species instead of the equilibrium constants, the ``'equilibrium constant'`` column should not be in the inputted data frame. Again, because no order is assumed in the inputted data frame, ``G`` must be inputted as a Pandas Series with indices given by the names of the chemical species.
+
+.. code-block:: python
+
+    # Name sure there is no 'equilibrium constant' column in the data frame
+    N_df = N_df.drop(columns='equilibrium constant')
+
+    G = pd.Series(data=[G_A, G_B, G_C, G_AB, G_BB, G_BC], index=names)
+
+    c = eqtk.solve(c0=c0, N=N_df, G=G, units='mM')
 
 
 
