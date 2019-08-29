@@ -61,4 +61,5 @@ target/
 # pyenv python configuration file
 .python-version
 
-.hypothesis/
+# Notebook checkpoints
+.ipynb_checkpoints/
