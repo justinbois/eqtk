@@ -78,11 +78,12 @@ def solve(
         unnecessary.
     units : string or `None`, default `None`
         The units of the concentrations inputted as `c0`. The output is
-        also in these units. Allowable values are {`None`, 'molar', 'M',
-        'millimolar', 'mM', 'micromolar', 'uM', 'µM', 'nanomolar', 'nM',
-        'picomolar', 'pM'}. If `None`, concentrations are given as mole
-        fractions. The equilibrium constants given by `K` must have
-        corresponding units.
+        also in these units. Allowable values are {`None`,
+        'mole fraction', 'molar', 'M', 'millimolar', 'mM', 'micromolar',
+        'uM', 'µM', 'nanomolar', 'nM', 'picomolar', 'pM'}. If `None`,
+        concentrations are considered to be dimensionless. The
+        equilibrium constants given by `K` must have corresponding
+        units.
     G_units : string, default `None`
         Units in which free energy is given. If `None` or `'kT'`, the
         free  energies are specified in units of of the thermal energy
@@ -256,9 +257,9 @@ def solve(
     # Solve for mole fractions
     if N is None:
         x = solveAG(
+            x0,
             A,
             G,
-            x0,
             max_iters=max_iters,
             tol=tol,
             delta_bar=delta_bar,
@@ -269,9 +270,9 @@ def solve(
         )
     elif G is None:
         x = solveNK(
-            N,
-            -np.log(K),
             x0,
+            N,
+            K,
             max_iters=max_iters,
             tol=tol,
             delta_bar=delta_bar,
@@ -282,9 +283,9 @@ def solve(
         )
     else:
         x = solveNG(
+            x0,
             N,
             G,
-            x0,
             max_iters=max_iters,
             tol=tol,
             delta_bar=delta_bar,
@@ -369,11 +370,12 @@ def volumetric_titration(
         `N` and `K` cannot be given.
     units : string or `None`, default `None`
         The units of the concentrations inputted as `c0`. The output is
-        also in these units. Allowable values are {`None`, 'molar', 'M',
-        'millimolar', 'mM', 'micromolar', 'uM', 'µM', 'nanomolar', 'nM',
-        'picomolar', 'pM'}. If `None`, concentrations are given as mole
-        fractions. The equilibrium constants given by `K` must have
-        corresponding units.
+        also in these units. Allowable values are {`None`,
+        'mole fraction', 'molar', 'M', 'millimolar', 'mM', 'micromolar',
+        'uM', 'µM', 'nanomolar', 'nM', 'picomolar', 'pM'}. If `None`,
+        concentrations are considered to be dimensionless. The
+        equilibrium constants given by `K` must have corresponding
+        units.
     G_units : string, default `None`
         Units in which free energy is given. If `None` or `'kT'`, the
         free  energies are specified in units of of the thermal energy
@@ -496,9 +498,9 @@ def volumetric_titration(
 
     if N is None:
         x = solveAG(
+            new_x0,
             A,
             G,
-            x0,
             max_iters=max_iters,
             tol=tol,
             delta_bar=delta_bar,
@@ -509,9 +511,9 @@ def volumetric_titration(
         )
     elif G is None:
         x = solveNK(
+            new_x0,
             N,
-            -np.log(K),
-            x0,
+            K,
             max_iters=max_iters,
             tol=tol,
             delta_bar=delta_bar,
@@ -522,9 +524,9 @@ def volumetric_titration(
         )
     else:
         x = solveNG(
+            new_x0,
             N,
             G,
-            x0,
             max_iters=max_iters,
             tol=tol,
             delta_bar=delta_bar,
@@ -591,11 +593,10 @@ def fixed_value_solve(
     x = np.empty_like(x0)
     for i, (fixed_x_row, x0_row) in enumerate(zip(fixed_x, x0)):
         N_new, K_new = _new_NK_fixed_x(fixed_x_row, N, K)
-        print(N_new, K_new)
         x_res = solveNK(
-            N_new,
-            -np.log(K_new),
             np.ascontiguousarray(np.expand_dims(x0_row, axis=0)),
+            N_new,
+            K_new,
             max_iters=max_iters,
             tol=tol,
             delta_bar=delta_bar,
@@ -658,51 +659,6 @@ def _new_NK_fixed_x(fixed_x, N, K):
         )
 
     return np.ascontiguousarray(N_new), np.ascontiguousarray(K_new)
-
-
-def to_df(c, c0=None, units=None, names=None):
-    """
-    Return output as a Pandas DataFrame.
-    """
-    units_str = " (" + units + ")" if units is not None else ""
-
-    if c0 is None:
-        if names is None:
-            names = ["species_" + str(i) for i in range(c.shape[1])]
-        cols = [name + units_str for name in names]
-
-        return pd.DataFrame(data=c, columns=cols)
-
-    if type(c) == pd.core.series.Series:
-        if len(c.index) == 2 * len(c0.index) and np.sum(
-            c.index.str.contains("__0")
-        ) == len(c0.index):
-            return c.copy().rename(index=lambda x: x + units_str)
-    elif type(c) == pd.core.frame.DataFrame:
-        if len(c.columns) == 2 * len(c0.columns) and np.sum(
-            c.columns.str.contains("__0")
-        ) == len(c0.columns):
-            return c.copy().rename(columns=[col + units_str for col in c.columns])
-
-    parsers._check_names_type(names)
-
-    c0, n_compounds, names, _, single_point = parsers._parse_c0(c0, names)
-
-    if names is None:
-        names = ["species_" + str(i) for i in range(n_compounds)]
-
-    c, _, _, _, _ = parsers._parse_c0(c, names)
-
-    if c0.shape != c.shape:
-        raise ValueError("`c0` and `c` have mismatched shapes.")
-
-    cols = [name + "__0" + units_str for name in names]
-    cols += [name + units_str for name in names]
-
-    if single_point:
-        return pd.Series(index=cols, data=np.concatenate((c0.flatten(), c.flatten())))
-
-    return pd.DataFrame(columns=cols, data=np.concatenate((c0, c), axis=1))
 
 
 def _volumetric_to_c0(c0, c0_titrant, vol_titrant):
@@ -1095,9 +1051,9 @@ def _create_from_nothing(N, x0):
 
 @jit(nopython=True)
 def solveNK(
-    N,
-    minus_log_K,
     x0,
+    N,
+    K,
     max_iters=1000,
     tol=0.0000001,
     delta_bar=1000.0,
@@ -1112,16 +1068,15 @@ def solveNK(
 
     Parameters
     ----------
-    N : array_like, shape (n_reactions, n_compounds)
-        N[r][j] = the stoichiometric coefficient of compounds j
-        in chemical reaction r.
-    minus_log_K : array_like, shape (n_reactions,)
-        minus_log_K[r] is the minus log of the equilibrium constant for
-        chemical reaction r
     x0 : array_like, shape (n_points, n_compounds)
         array containing the total "initial" mole fraction of all
         compounds in solution.  Internally, this is converted into
         n_compounds-n_reactions conservation equations.
+    N : array_like, shape (n_reactions, n_compounds)
+        N[r][j] = the stoichiometric coefficient of compounds j
+        in chemical reaction r.
+    K : array_like, shape (n_reactions,)
+        K[r] is the equilibrium constant for chemical reaction r
 
     Returns
     -------
@@ -1148,6 +1103,8 @@ def solveNK(
     n_reactions, n_compounds = N.shape
 
     x = np.empty_like(x0)
+
+    minus_log_K = -np.log(K)
 
     for i_point in range(x0.shape[0]):
         N_new, minus_log_K_new, x0_new, active_compounds, _ = _prune_NK(
@@ -1223,9 +1180,9 @@ def solveNK(
 
 @jit(nopython=True)
 def solveNG(
+    x0,
     N,
     G,
-    x0,
     max_iters=1000,
     tol=0.0000001,
     delta_bar=1000.0,
@@ -1240,15 +1197,15 @@ def solveNG(
 
     Parameters
     ----------
+    x0 : array_like, shape (n_points, n_compounds)
+        array containing the total "initial" mole fraction of all
+        compounds in solution.  Internally, this is converted into
+        n_compounds-n_reactions conservation equations.
     N : array_like, shape (n_reactions, n_compounds)
         N[r][j] = the stoichiometric coefficient of compounds j
         in chemical reaction r.
     G : array_like, shape (n_compounds,)
         G[j] is the free energy of compound j in units of kT.
-    x0 : array_like, shape (n_points, n_compounds)
-        array containing the total "initial" mole fraction of all
-        compounds in solution.  Internally, this is converted into
-        n_compounds-n_reactions conservation equations.
 
     Returns
     -------
@@ -1348,9 +1305,9 @@ def solveNG(
 
 @jit(nopython=True)
 def solveAG(
+    x0,
     A,
     G,
-    x0,
     max_iters=1000,
     tol=0.0000001,
     delta_bar=1000.0,
@@ -1365,15 +1322,15 @@ def solveAG(
 
     Parameters
     ----------
+    x0 : array_like, shape (n_points, n_compounds)
+        Array containing the total "initial" mole fraction of all
+        compounds in solution.
     A : array_like, shape (n_particles, n_compounds)
         A[i][j] = number of particles of type i in compound j.
         Leftmost square matrix of A (n_particles by n_particles) must
         be the identity matrix.  No column may be repeated.
     G : array_like, shape (n_compounds,)
         G[j] is the free energy of compound j in units of kT.
-    x0 : array_like, shape (n_points, n_compounds)
-        Array containing the total "initial" mole fraction of all
-        compounds in solution.
     elemental : bool
         If True, A is assumed to be an elemental conservation matrix.
         This means entry A[i, j] is the number of particles of type i

@@ -149,7 +149,7 @@ def test_water_density():
 
     for units, multiplier in zip(allowed_units, multipliers):
         assert np.isclose(
-            eqtk.parsers._water_density(T, units), target_molar * multiplier
+            eqtk.water_density(T, units), target_molar * multiplier
         )
 
     T = 310.0
@@ -157,11 +157,11 @@ def test_water_density():
 
     for units, multiplier in zip(allowed_units, multipliers):
         assert np.isclose(
-            eqtk.parsers._water_density(T, units), target_molar * multiplier
+            eqtk.water_density(T, units), target_molar * multiplier
         )
 
-    assert eqtk.parsers._water_density(T, None) == 1.0
-    assert eqtk.parsers._water_density(T, "") == 1.0
+    assert eqtk.water_density(T, None) == 1.0
+    assert eqtk.water_density(T, "") == 1.0
 
 
 def test_parse_solvent_density():
@@ -169,7 +169,7 @@ def test_parse_solvent_density():
     assert eqtk.parsers._parse_solvent_density(None, 293.15, None) == 1.0
     assert np.isclose(
         eqtk.parsers._parse_solvent_density(None, 293.15, "M"),
-        eqtk.parsers._water_density(293.15, "M"),
+        eqtk.water_density(293.15, "M"),
     )
 
     with pytest.raises(ValueError) as excinfo:

@@ -7,15 +7,23 @@ from . import parsers
 from . import constants
 
 
+def _c_from_df(c):
+    """Extract concentrations from outputted data frame"""
+    if type(c) == pd.core.series.Series:
+        return c[c.index[~c.index.str.contains(']__0')]]
+    elif type(c) == pd.core.frame.DataFrame:
+        return c[c.columns[~c.columns.str.contains(']__0')]]
+
+    return c
+
+
 def check_equilibrium_NK(c0, c, N=None, K=None):
     """Check to make sure equilibrium is satisfied."""
     c0, N, K, _, _, names, _, single_point = parsers._parse_input(
         c0, N, K, *tuple([None] * 7)
     )
 
-    if type(c) in [pd.core.series.Series, pd.core.frame.DataFrame]:
-        c = c[names]
-
+    c = _c_from_df(c)
     c, _, _, _, _, _, _, _ = parsers._parse_input(c, N, K, *tuple([None] * 7))
 
     if c0.shape != c.shape:
@@ -131,6 +139,8 @@ def check_equilibrium_AG(c0, c, A, G):
     c0, _, _, A, G, _, _, _ = parsers._parse_input(
         c0, None, None, A, G, *tuple([None] * 5)
     )
+
+    c = _c_from_df(c)
     c, _, _, _, _, _, _, _ = parsers._parse_input(
         c, None, None, A, G, *tuple([None] * 5)
     )

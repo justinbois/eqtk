@@ -23,11 +23,6 @@ def parse_rxns(rxns):
             "Either all or none of the equilibrium constants must be specified."
         )
 
-    if K_list[0] is None:
-        K = None
-    else:
-        K = np.array(K_list, dtype=float)
-
     # Unique chemical species
     species = []
     for N_dict in N_dict_list:
@@ -43,7 +38,8 @@ def parse_rxns(rxns):
 
     # Convert stoichiometic matrix and K to DataFrame
     N = pd.DataFrame(data=N, columns=species)
-    N["equilibrium constant"] = K
+    if K_list[0] is not None:
+        N["equilibrium constant"] = np.array(K_list, dtype=float)
 
     return N
 
@@ -88,6 +84,51 @@ def _parse_input(c0, N, K, A, G, names, units, solvent_density, T, G_units):
     return x0, N, K, A, G, names, solvent_density, single_point
 
 
+def to_df(c, c0=None, units=None, names=None):
+    """
+    Return output as a Pandas DataFrame.
+    """
+    units_str = " (" + units + ")" if units is not None else ""
+
+    if c0 is None:
+        if names is None:
+            names = ["species_" + str(i) for i in range(c.shape[1])]
+        cols = [name + units_str for name in names]
+
+        return pd.DataFrame(data=c, columns=cols)
+
+    if type(c) == pd.core.series.Series:
+        if len(c.index) == 2 * len(c0.index) and np.sum(
+            c.index.str.contains("__0")
+        ) == len(c0.index):
+            return c.copy().rename(index=lambda x: x + units_str)
+    elif type(c) == pd.core.frame.DataFrame:
+        if len(c.columns) == 2 * len(c0.columns) and np.sum(
+            c.columns.str.contains("__0")
+        ) == len(c0.columns):
+            return c.copy().rename(columns=[col + units_str for col in c.columns])
+
+    parsers._check_names_type(names)
+
+    c0, n_compounds, names, _, single_point = parsers._parse_c0(c0, names)
+
+    if names is None:
+        names = ["species_" + str(i) for i in range(n_compounds)]
+
+    c, _, _, _, _ = parsers._parse_c0(c, names)
+
+    if c0.shape != c.shape:
+        raise ValueError("`c0` and `c` have mismatched shapes.")
+
+    cols = [name + "__0" + units_str for name in names]
+    cols += [name + units_str for name in names]
+
+    if single_point:
+        return pd.Series(index=cols, data=np.concatenate((c0.flatten(), c.flatten())))
+
+    return pd.DataFrame(columns=cols, data=np.concatenate((c0, c), axis=1))
+
+
 def _parse_output(x, x0, names, solvent_density, single_point, units):
     """
     """
@@ -105,12 +146,11 @@ def _parse_output(x, x0, names, solvent_density, single_point, units):
     if names is None:
         return c
 
-    if units is None:
-        units = "mole fraction"
+    units_str = "(" + units + ")" if units is not None else ""
 
     # Names of columns for outputted data frames
-    cols = [f"[{name}]__0 ({units})" for name in names]
-    cols += [f"[{name}] ({units})" for name in names]
+    cols = [f"[{name}]__0 {units_str}" for name in names]
+    cols += [f"[{name}] {units_str}" for name in names]
 
     if single_point:
         return pd.Series(data=np.concatenate((c0, c)), index=cols)
@@ -202,7 +242,7 @@ def _nondimensionalize_AG(c0, G, T, solvent_density, units, G_units):
 
 def _parse_solvent_density(solvent_density, T, units):
     if solvent_density is None:
-        return _water_density(T, units)
+        return water_density(T, units)
     elif (units is None or units == "") and solvent_density != 1.0:
         raise ValueError(
             "If `solvent_density` is specified, `units` must also be specified."
@@ -211,7 +251,7 @@ def _parse_solvent_density(solvent_density, T, units):
     return solvent_density
 
 
-def _water_density(T, units):
+def water_density(T, units="M"):
     """
     Calculate the number density of water in specified units.
 
@@ -226,12 +266,12 @@ def _water_density(T, units):
     Returns
     -------
     water_density : float
-        Particle density of water in `units`.
+        Number density of water in `units`.
 
     References
     ----------
     Tanaka M., Girard, G., Davis, R., Peuto A.,
-    Bignell, N.   Recommended table for the denisty
+    Bignell, N.   Recommended table for the density
     of water..., Metrologia, 2001, 38, 301-309
     """
     # If dimensionless, take solvent density to be unity
@@ -253,6 +293,7 @@ def _water_density(T, units):
     # Valid units
     allowed_units = (
         None,
+        "mole fraction"
         "M",
         "molar",
         "mM",
@@ -521,14 +562,14 @@ def _parse_N_input(N, K, names, c0_from_df):
                 raise ValueError(
                     "If `N` is specified as a DataFrame, `c0` must be given as a Series or DataFrame."
                 )
-            names_from_df = list(
-                N.columns[
-                    ~(
-                        N.columns.str.contains("equilibrium constant")
-                        | N.columns.str.contains("equilibrium_constant")
-                    )
-                ]
-            )
+            names_from_df = [
+                col
+                for col in N.columns
+                if not (
+                    type(col) == str
+                    and ("equilibrium constant" in col or "equilibrium_constant" in col)
+                )
+            ]
             names = _check_names_df(names, names_from_df)
             N, K = _NK_from_df(N, names, c0_from_df)
             _check_name_close_to_eqconst(names)
@@ -776,8 +817,8 @@ def _c0_from_df(df, names):
 def _check_name_close_to_eqconst(names):
     for name in names:
         if (
-            _levenshtein(name, "equilibrium constant") < 10
-            or _levenshtein(name, "equilibrium_constant") < 10
+            _levenshtein(str(name), "equilibrium constant") < 10
+            or _levenshtein(str(name), "equilibrium_constant") < 10
         ):
             warnings.warn(
                 f"Chemical species name '{name}' is close to 'equilibrium constant'. This may be a typo."
