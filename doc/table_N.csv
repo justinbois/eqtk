@@ -1,0 +1,5 @@
+``N`` format	``K`` format	``G`` format	``c0`` format	minimal call	output type
+:math:`r\times n` Numpy array	length :math:`r` Numpy array	``None``	Numpy array	``eqtk.solve(c0, N=N, K=K)``	Numpy array (Series or DataFrame if ``names`` specified)
+:math:`r\times n` Numpy array	``None``	length :math:`n` Numpy array	Numpy array	``eqtk.solve(c0, N=N, G=G)``	Numpy array    (Series or DataFrame if ``names`` specified)
+DataFrame with ``'equilibrium constant'`` column	column in ``N`` DataFrame	``None``	Series, DataFrame, or dict	``eqtk.solve(c0, N=N)``	Series or DataFrame
+DataFrame without ``'equilibrium constant'`` column	``None``	Series or dict	Series, DataFrame, or dict	``eqtk.solve(c0, N=N, G=G)``	Series or DataFrame

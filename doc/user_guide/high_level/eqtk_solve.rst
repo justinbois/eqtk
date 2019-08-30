@@ -1,7 +1,7 @@
-.. _high_level:
+.. _eqtk_solve:
 
-High level interface
-====================
+``eqtk.solve()``
+================
 
 EQTK's main high level interface to solving the coupled equilibrium problem is ``eqtk.solve()``. It requires as input initial concentrations :math:`\mathbf{c}^0` and either a stoichiometric matrix :math:`\mathsf{N}` or a conservation matrix :math:`\mathsf{A}`. Depending on the data types of these inputs, other inputs, such as equilibrium constants and free energies, may be required. 
 
@@ -12,14 +12,14 @@ In what follows, we will assume that Numpy, Pandas, and EQTK have been imported 
 Example problem
 ---------------
 
-As we demonstrate the usage of ``eqtk.solve()``, it is useful to have an example in mind. We will use the example from the :ref:`core concepts <Core concepts>` part of the user guide. The chemical reactions and associated equilibrium constants for that example are
+As we demonstrate the usage of ``eqtk.solve()``, it is useful to have an example in mind. We will use the example from the :ref:`core concepts <Core concepts>` part of the user guide (which you should read if you have not already. The chemical reactions and associated equilibrium constants for that example are
 
 .. math::
     \begin{array}{lcl}
     \mathrm{A} \rightleftharpoons \mathrm{C} & & K = 0.5\\
-    \mathrm{A} + \mathrm{B} \rightleftharpoons \mathrm{AB}& & K = 0.02 \text{ mM}\\
-    2\mathrm{B} \rightleftharpoons \mathrm{BB}& & K = 0.1 \text{ mM}\\
-    \mathrm{B} + \mathrm{C} \rightleftharpoons \mathrm{BC}& & K = 0.01 \text{ mM}.
+    \mathrm{AB} \rightleftharpoons \mathrm{A} + \mathrm{B} & & K = 0.02 \text{ mM}\\
+    \mathrm{BB} \rightleftharpoons 2\mathrm{B}& & K = 0.1 \text{ mM}\\
+    \mathrm{BC} \rightleftharpoons \mathrm{B} + \mathrm{C}& & K = 0.01 \text{ mM}.
     \end{array}
 
 The annotated stoichiometric matrix is
@@ -197,7 +197,7 @@ The columns with ``__0`` indicate the initial conditions used in the calculation
 
 .. code-block:: python
 
-    >>> c[c.columns[~c.columns.str.contains('__0')]]
+    c[c.columns[~c.columns.str.contains('__0')]]
        [A] (mM)  [B] (mM)  [C] (mM)  [AB] (mM)  [BB] (mM)  [BC] (mM)
     0  0.952381  0.000000  0.047619   0.000000   0.000000   0.000000
     1  0.498500  0.017382  0.024925   0.433250   0.003021   0.043325
@@ -224,7 +224,12 @@ The descriptive output when the names of the chemical species are given is usefu
 
     N_df = pd.DataFrame(data=N, columns=names)
 
-In this data frame, we use Pandas's default row indexing, but a user may wish to name each reaction for reference. Because of this, EQTK does not assume an ordering of the data frame, so the equilibrium constants *must* be included in the data frame containing the stoichiometric matrix. They are included in a column entitled ``'equilbrium constant'``. This columns must be present, so we will add it.
+
+
+Specification of equilibrium constants
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In this data frame, we use Pandas's default row indexing, but a user may wish to name each reaction for reference. Because of this, EQTK does not assume an ordering of the data frame, so the equilibrium constants *must* be included in the data frame containing the stoichiometric matrix. They are included in a column entitled ``'equilibrium constant'``. This column must be present, so we will add it.
 
 .. code-block:: python
 
@@ -254,20 +259,26 @@ EQTK also does not assume an ordering to the columns. Therefore, the initial con
 
 .. note:: 
 
-    The names of the indices for ``c0`` as a Series and the columns for ``c0`` as a DataFrame are the names of the chemical species, *not*, e.g., ``'[A]__0 (mM)'``. Which such input may be convenient, allowing for specification of units and matching outputs, this is not allowed. The user should explicitly supply the ``units`` keyword argument and ensure that *all* units of concentrations and equilibrium constants are consistent with those concentration units. It the user could specify units within the ``c0`` Series or DataFrame, the equilibrium constants units could be ambiguous.
+    The names of the indices for ``c0`` as a Series and the columns for ``c0`` as a DataFrame are the names of the chemical species, *not*, e.g., ``'[A]__0 (mM)'``. While such input may be convenient, as it allows for specification of units and matching outputs, this is not allowed. The user should explicitly supply the ``units`` keyword argument and ensure that *all* units of concentrations and equilibrium constants are consistent with those concentration units. It the user could specify units within the ``c0`` Series or DataFrame, the equilibrium constants units could be ambiguous, which is why the concentration units may only be specified with the ``units`` keyword argument.
 
-When we call ``eqtk.solve()``, we do not include the argument ``K`` because the equilibrium constants are already included in the inputted data frame.
+When we call ``eqtk.solve()``, we do not include the argument ``K`` because the equilibrium constants are already included in the inputted data frame. Executing
 
 .. code-block:: python
 
-    >>> c = eqtk.solve(c0=c0, N=N_df, units='mM')
-    >>> c[c.columns[~c.columns.str.contains('__0')]]
+    c = eqtk.solve(c0=c0, N=N_df, units='mM')
+    c[c.columns[~c.columns.str.contains('__0')]]
+
+gives ::
+
        [A] (mM)  [B] (mM)  [C] (mM)  [AB] (mM)  [BB] (mM)  [BC] (mM)
     0  0.952381  0.000000  0.047619   0.000000   0.000000   0.000000
     1  0.498500  0.017382  0.024925   0.433250   0.003021   0.043325
     2  0.188228  0.077504  0.009411   0.729418   0.060068   0.072942
 
-If, however, we wish to input the free energies of the chemical species instead of the equilibrium constants, the ``'equilibrium constant'`` column should not be in the inputted data frame. Again, because no order is assumed in the inputted data frame, ``G`` must be inputted as a Pandas Series with indices given by the names of the chemical species.
+Free energies as a dictionary of Pandas Series
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If, however, we wish to input the free energies of the chemical species instead of the equilibrium constants, the ``'equilibrium constant'`` column should not be in the inputted data frame. Again, because no order is assumed in the inputted data frame, ``G`` must be inputted as a Pandas Series with indices given by the names of the chemical species, or as a dictionary with the keys given by the names of the chemical species.
 
 .. code-block:: python
 
@@ -279,24 +290,140 @@ If, however, we wish to input the free energies of the chemical species instead 
     c = eqtk.solve(c0=c0, N=N_df, G=G, units='mM')
 
 
-
 Summary of I/O using stoichiometric matrices
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The table below summarized the allowed input and output types for ``eqtk.solve()`` when specifying the problem in terms of the stoichiometric matrix :math:`\mathsf{N}`.
+The table below summarizes the allowed input and output types for ``eqtk.solve()`` when specifying the problem in terms of the stoichiometric matrix :math:`\mathsf{N}`. (The table is wide, so may need to scroll to see the whole table.)
 
-+-----------------------------------------------------+------------------------------+------------------------------+----------------------------+------------------------------+---------------------+
-| ``N`` format                                        | ``K`` format                 | ``G`` format                 | ``c0`` format              | minimal call                 | output type         |
-+=====================================================+==============================+==============================+============================+==============================+=====================+
-| :math:`r\times n` Numpy array                       | length :math:`r` Numpy array | ``None``                     | Numpy array                | ``eqtk.solve(c0, N=N, K=K)`` | Numpy array         |
-+-----------------------------------------------------+------------------------------+------------------------------+----------------------------+------------------------------+---------------------+
-| :math:`r\times n` Numpy array                       | ``None``                     | length :math:`n` Numpy array | Numpy array                | ``eqtk.solve(c0, N=N, G=G)`` | Numpy array         |
-+-----------------------------------------------------+------------------------------+------------------------------+----------------------------+------------------------------+---------------------+
-| DataFrame with ``'equilibrium constant'`` column    | Series or dict               | None                         | Series or dict             | ``eqtk.solve(c0, N=N, K=K)`` | Series or DataFrame |
-+-----------------------------------------------------+------------------------------+------------------------------+----------------------------+------------------------------+---------------------+
-| DataFrame without ``'equilibrium constant'`` column | ``None``                     | Series or dict               | Series, DataFrame, or dict | ``eqtk.solve(c0, N=N, G=G)`` | Series or DataFrame |
-+-----------------------------------------------------+------------------------------+------------------------------+----------------------------+------------------------------+---------------------+
++-----------------------------------------------------+------------------------------+------------------------------+----------------------------+------------------------------+-------------------------------------------------------------+
+| ``N`` format                                        | ``K`` format                 | ``G`` format                 | ``c0`` format              | minimal call                 | output type                                                 |
++=====================================================+==============================+==============================+============================+==============================+=============================================================+
+| :math:`r\times n` Numpy array                       | length :math:`r` Numpy array | ``None``                     | Numpy array                | ``eqtk.solve(c0, N=N, K=K)`` | Numpy array (Series or DataFrame if ``names`` specified)    |
++-----------------------------------------------------+------------------------------+------------------------------+----------------------------+------------------------------+-------------------------------------------------------------+
+| :math:`r\times n` Numpy array                       | ``None``                     | length :math:`n` Numpy array | Numpy array                | ``eqtk.solve(c0, N=N, G=G)`` | Numpy array    (Series or DataFrame if ``names`` specified) |
++-----------------------------------------------------+------------------------------+------------------------------+----------------------------+------------------------------+-------------------------------------------------------------+
+| DataFrame with ``'equilibrium constant'`` column    | column in ``N`` DataFrame    | ``None``                     | Series, DataFrame, or dict | ``eqtk.solve(c0, N=N)``      | Series or DataFrame                                         |
++-----------------------------------------------------+------------------------------+------------------------------+----------------------------+------------------------------+-------------------------------------------------------------+
+| DataFrame without ``'equilibrium constant'`` column | ``None``                     | Series or dict               | Series, DataFrame, or dict | ``eqtk.solve(c0, N=N, G=G)`` | Series or DataFrame                                         |
++-----------------------------------------------------+------------------------------+------------------------------+----------------------------+------------------------------+-------------------------------------------------------------+
 
+
+Conservation matrix A given
+---------------------------
+
+Instead of specifying a stoichiometric matrix :math:`\mathsf{N}`, we may specify a conservation matrix :math:`\mathsf{A}`. (`Recall <core_concepts.html#conservation-laws>`_ that :math:`\mathsf{N}` and :math:`\mathsf{A}` are related by :math:`\mathsf{A}^\mathsf{T}\cdot\mathsf{N} = 0`, and we need only specify :math:`\mathsf{N}` *or* :math:`\mathsf{A}`.) If we specify the conservation matrix :math:`\mathsf{A}`, however, we *must* specify the free energies :math:`\mathbf{G}`; the equilibrium constants are ill-defined absent a stoichiometric matrix. Each column of :math:`\mathsf{A}` corresponds to a chemical species. So, entry :math:`j` in :math:`\mathbf{G}` is the free energy of the chemical species corresponding to column :math:`j` of :math:`\mathsf{A}`.
+
+Recall also that all entries of the conservation matrix :math:`\mathsf{A}` `must be nonnegative <core_concepts.html#specification-in-terms-of-conservation-matrices-and-free-energies>`_.
+
+We will use an elemental conservation matrix as an example,
+
+.. math::
+  \mathsf{A} =
+  \begin{pmatrix}
+    \mathrm{A} & \mathrm{B} & \mathrm{C} & \mathrm{AB} & \mathrm{BB} & \mathrm{BC} \\ \hline
+    1 & 0 & 1 & 1 & 0 & 1 \\
+    0 & 1 & 0 & 1 & 2 & 1
+  \end{pmatrix}.
+
+
+A given as a Numpy array
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+If we choose to specify the argument ``A`` for ``eqtk.solve()`` as a Numpy array, ``G`` and ``c0`` must also be specified as Numpy arrays.
+
+.. code-block:: python
+
+    A = np.array([[1, 0, 1, 1, 0, 1],
+                  [0, 1, 0, 1, 2, 1]])
+
+    c0 = np.array([1, 1, 0, 0, 0, 0])
+
+    # Use the same G as before
+
+    eqtk.solve(c0=c0, A=A, G=G, units='mM')
+
+The result is as before. ::
+
+    array([0.1882283 , 0.07750359, 0.00941142, 0.72941844, 0.06006806, 0.07294184])
+
+A two-dimensional ``c0`` has similar behavior as we have seen when ``N`` is specified.
+
+.. code-block:: python
+
+    c0 = np.array([[1,   0, 0, 0, 0, 0],
+                   [1, 0.5, 0, 0, 0, 0],
+                   [1,   1, 0, 0, 0, 0]])
+    eqtk.solve(c0=c0, A=A, G=G, units='mM')
+
+The result is: ::
+
+    array([[0.95238103, 0.        , 0.04761905, 0.        , 0.        , 0.        ],
+           [0.49849994, 0.01738215, 0.024925  , 0.43325006, 0.00302139, 0.04332501],
+           [0.1882283 , 0.07750359, 0.00941142, 0.72941844, 0.06006806, 0.07294184]])
+
+
+If the ``names`` keyword argument is supplied, the ordering of the names must match the ordering of ``G`` and the ordering of the columns in ``N``. The result is then either a Pandas Series (for a single set of initial concentrations), or a Pandas DataFrame (for multiple initial concentrations). Executing
+
+.. code-block:: python
+
+    names = ['A', 'B', 'C', 'AB', 'BB', 'BC']
+    c = eqtk.solve(c0=c0, A=A, G=G, units='mM', names=names)
+    c[c.columns[~c.columns.str.contains('__0')]]
+
+gives ::
+
+       [A] (mM)  [B] (mM)  [C] (mM)  [AB] (mM)  [BB] (mM)  [BC] (mM)
+    0  0.952381  0.000000  0.047619   0.000000   0.000000   0.000000
+    1  0.498500  0.017382  0.024925   0.433250   0.003021   0.043325
+    2  0.188228  0.077504  0.009411   0.729418   0.060068   0.072942
+
+
+A given as a Pandas DataFrame
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+We can instead specify ``A`` as a Pandas DataFrame, where each column name is the chemical species name. In this case, ``G`` must be given either as a Pandas Series with indices corresponding to the column names of ``A`` or a dictionary with keys corresponding to those of ``A``.  ``c0`` must also be supplied as a dictionary with keys given by the names of the chemical species, a Pandas Series with indices given by the species names, or a Pandas DataFrame with column names given by the species names.
+
+.. code-block:: python
+
+    A = pd.DataFrame(data=np.array([[1, 0, 1, 1, 0, 1],
+                                    [0, 1, 0, 1, 2, 1]]),
+                     columns=names)
+
+    # Use same G's we calculated before and have been using
+    G = pd.Series(data=G, index=names)
+
+    c0 = pd.DataFrame(data=np.array([[1,   0, 0, 0, 0, 0],
+                                     [1, 0.5, 0, 0, 0, 0],
+                                     [1,   1, 0, 0, 0, 0]]),
+                      columns=names)
+
+    c = eqtk.solve(c0=c0, A=A, G=G, units='mM')
+    c[c.columns[~c.columns.str.contains('__0')]]
+
+The result is ::
+
+       [A] (mM)  [B] (mM)  [C] (mM)  [AB] (mM)  [BB] (mM)  [BC] (mM)
+    0  0.952381  0.000000  0.047619   0.000000   0.000000   0.000000
+    1  0.498500  0.017382  0.024925   0.433250   0.003021   0.043325
+    2  0.188228  0.077504  0.009411   0.729418   0.060068   0.072942
+
+.. note::
+
+    Unlike in the case with supplying the stoichiometric matrix ``N`` as a DataFrame, in which the equilibrium constants were given in the ``N`` DataFrame, no other information is included in the ``A`` DataFrame. Rather, ``G`` must be given separately.
+
+
+Summary of I/O using conservation matrices
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The table below summarizes the allowed input and output types for ``eqtk.solve()`` when specifying the problem in terms of the conservation matrix :math:`\mathsf{A}`. (The table is wide, so may need to scroll to see the whole table.)
+
++---------------------------------+------------------------------+----------------------------+------------------------------+----------------------------------------------------------+
+| ``A`` format                    | ``G`` format                 | ``c0`` format              | minimal call                 | output type                                              |
++=================================+==============================+============================+==============================+==========================================================+
+| :math:`n-r\times n` Numpy array | length :math:`n` Numpy array | Numpy array                | ``eqtk.solve(c0, A=A, G=G)`` | Numpy array (Series or DataFrame if ``names`` specified) |
++---------------------------------+------------------------------+----------------------------+------------------------------+----------------------------------------------------------+
+| DataFrame                       | Series or dict               | Series, DataFrame, or dict | ``eqtk.solve(c0, A=A, G=G)`` | Series or DataFrame                                      |
++---------------------------------+------------------------------+----------------------------+------------------------------+----------------------------------------------------------+
 
 .. ``A`` given
 

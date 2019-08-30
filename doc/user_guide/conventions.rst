@@ -1,7 +1,7 @@
 .. _conventions:
 
-EQTK conventions
-================
+Conventions
+===========
 
 Here, we define the conventions for units and solvent properties for ``eqtk.solve()``, EQTK's high level interface for solving couple equilibria. We describe the conventions for the low-level interfaces at the bottom of this page.
 
@@ -10,20 +10,20 @@ Concentration units
 
 All inputs and outputs describing concentrations (initial concentrations, equilibrium constants, and equilibrium concentrations) are assumed to be in the same units. These units are then specified with the ``units`` keyword argument. Allowed units are:
 
-- ``None``  (default)
+- ``None``  (default, specifies that concentrations are dimensionless)
+- ``"mole fraction"``
 - ``"M"``
 - ``"molar"``
 - ``"mM"``
 - ``"millimolar"``
 - ``"µM"``
-- ``"uM"``  (also micromolar)
+- ``"uM"`` (synonym for micromolar)
 - ``"micromolar"``
 - ``"nM"``
 - ``"nanomolar"``
 - ``"pM"``
 - ``"picomolar"``
 
-If ``units`` is specified as ``None``, then the concentrations are assumed to be mole fractions and the equilibrium constants dimensionless.
 
 Energy units
 ^^^^^^^^^^^^
@@ -37,7 +37,7 @@ The free energies :math:`\mathbf{G}` may also carry units, and these must be spe
 - "kJ/mol"
 - "pN-nm"
 
-If ``G_units`` is ``None``, the inputted free energies are assumed to be in units of the thermal energy, :math:`kT`, where :math:`k` is the Boltzmann constant. If ``G_units`` are specified, the user should be sure to adjust the ``T`` keyword argument, which gives the temperature of the solution in Kelvin. The default is ``T=293.15``.
+If ``G_units`` is ``None``, the inputted free energies are assumed to be in units of the thermal energy, :math:`kT`, where :math:`k` is the Boltzmann constant. If ``G_units`` are specified, the user should be sure to properly set the value of the ``T`` keyword argument, which gives the temperature of the solution in Kelvin. The default is ``T=293.15``.
 
 
 

@@ -3,7 +3,7 @@
 Installation
 ============
 
-You can install EQTK using pip.::
+You can install EQTK using pip. ::
 
 	$ pip install --upgrade eqtk
 
