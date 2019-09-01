@@ -1,7 +1,7 @@
 .. _eqtk_solve:
 
-``eqtk.solve()``
-================
+Generic equilibrium solver
+==========================
 
 EQTK's main high level interface to solving the coupled equilibrium problem is ``eqtk.solve()``. It requires as input initial concentrations :math:`\mathbf{c}^0` and either a stoichiometric matrix :math:`\mathsf{N}` or a conservation matrix :math:`\mathsf{A}`. Depending on the data types of these inputs, other inputs, such as equilibrium constants and free energies, may be required. 
 

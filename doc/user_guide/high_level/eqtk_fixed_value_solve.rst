@@ -1,11 +1,11 @@
 .. _eqtk_fixed_value_solve:
 
-``eqtk.fixed_value_solve()``
-============================
+Equilibrium with some concentrations fixed
+==========================================
 
 Sometimes we may have a chemical system in which one or more species has their concentration held constant. For example, we could have a system where a chemical species is constantly fed in such that its concentration in the reaction vessel remains constant. As another example, we might have a weak acid in solution and we add a strong acid to control the pH, thereby keeping the concentration of hydrogen ions constant.
 
-The ``eqtk.final_value_solve()`` function allows for solving the coupled equilibrium problem when one or more of of chemical species are present in fixed amounts.
+The ``eqtk.final_value_solve()`` function allows for solving the coupled equilibrium problem when one or more of of chemical species are present in fixed amounts. Its API, as we will demonstrate, is the same as ``eqtk.solve()``, except an additional input, ``fixed_c``, which specifies the fixed concentration is required. However, ``eqtk.final_value_solve()`` only accepts input of the stoichiometric matrix and equilibrium constants; input of free energies and a conservation matrix are not yet implemented.
 
 In what follows, we will assume that Numpy, Pandas, and EQTK have been imported respectively as ``np``, ``pd``, and ``eqtk``.
 
@@ -63,6 +63,8 @@ The initial concentrations of all species, $\mathbf{c}^0$, is specified the same
         "HD⁻":  0,
         "D²⁻":  0,
     }
+
+While it is convenient to specify the concentrations of the species as a dictionary, we could also use a Pandas Series or DataFrame. (We could also specify ``N``, ``K``, and ``c0`` as Numpy arrays.) The specification of inputs is the same as for ``eqtk.solve()``.
 
 We need to further specify the fixed concentrations. We will consider pH ranging from zero to 14, with 400 points in between. To set up the fixed concentrations, we create a DataFrame with six columns, one for each species, with 400 rows, one for each pH value we want to consider. Entries in the data frame that are either negative or `np.nan` denote concentrations that are **not** fixed. So, we initialize the data frame with negative ones. Following that, we fill the column for H⁺ with our desired fixed values.
 

@@ -17,6 +17,7 @@ EQTK solves the problem of coupled equilibria among chemical species in a dilute
    user_guide/core_concepts
    user_guide/conventions
    user_guide/high_level/index
+   user_guide/api
 
 .. toctree::
    :maxdepth: 1

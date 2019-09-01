@@ -13,3 +13,4 @@ EQTK offers three high-level interfaces for solving couple equilibria.
 
    eqtk.solve() <eqtk_solve> 
    eqtk.fixed_value_solve() <eqtk_fixed_value_solve> 
+   eqtk.volumetric_titration() <eqtk_volumetric_titration>
