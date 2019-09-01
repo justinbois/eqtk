@@ -34,8 +34,7 @@ def solve(
 
     Parameters
     ----------
-    c0 : array_like, dict, Series, or DataFrame,
-         shape (n_points, n_compounds) or (n_compounds, )
+    c0 : array_like, dict, Series, or DataFrame, shape (n_points, n_compounds) or (n_compounds, )
         Each row contains the total "initial" concentration of all
         possible chemical species in solution. The equilibrium
         concentration of all species is computed for each row in `c0`.
@@ -57,6 +56,7 @@ def solve(
         `'equilibrium constant'` contains the equilibrium constants for
         each reaction in units commensurate with those of `c0`. If `N`
         is given, `A` and `G` cannot be given.
+
     K : array_like, shape (n_reactions,), default `None`
         `K[r]` is the equilibrium constant for chemical reaction r in
         units commensurate with those of `c0`. If `N` is given as a
@@ -145,12 +145,13 @@ def solve(
 
     Notes
     -----
-    .. Uses an elliptical trust region optimization to find the
-       equilibrium concentrations. See [1]_ for algorithmic details,
-       as well as definitions of the parameters associated with the
-       trust region algorithm.
-    .. In practice, the trust region parameters should not be adjusted
-       from their default values.
+    Uses an elliptical trust region optimization to find the
+    equilibrium concentrations. See [1]_ for algorithmic details,
+    as well as definitions of the parameters associated with the
+    trust region algorithm.
+
+    In practice, the trust region parameters should not be adjusted
+    from their default values.
 
     References
     ----------
@@ -160,14 +161,18 @@ def solve(
     Examples
     --------
     1) Find the equilibrium concentrations of a solution containing
-       species A, B, C, AB, BB, and BC that can undergo chemical
-       reactions
+    species A, B, C, AB, BB, and BC that can undergo chemical
+    reactions
 
-                A <=> C,      K = 50 (dimensionless)
-            A + C <=> AB      K = 10 (1/mM)
-            B + B <=> BB      K = 40 (1/mM)
-            B + C <=> BC      K = 100 (1/mM)
-       with initial concentrations of [A]_0 = 1.0 mM, [B]_0 = 3.0 mM.
+    A ⇌ C,          K = 50 (dimensionless)
+
+    A + C ⇌ AB      K = 10 (1/mM)
+
+    B + B ⇌ BB      K = 40 (1/mM)
+
+    B + C ⇌ BC      K = 100 (1/mM)
+
+    with initial concentrations of [A]₀ = 1.0 mM, [B]₀ = 3.0 mM.
 
     >>> N = np.array([[-1,  0,  1,  0,  0,  0],
     ...               [ 1,  1,  0, -1,  0,  0],
@@ -179,10 +184,11 @@ def solve(
     array([0.00121271, 0.15441164, 0.06063529, 0.00187256, 0.95371818,
            0.93627945])
 
+
     2) Compute a titration curve for the same reaction system as in
-       example (1) with [A]_0 = 1.0 mM. Consider B being titrated from
-       [B]_0 = 0.0 to 3.0 and only use four titration points for
-       display purposes.
+    example (1) with [A]₀ = 1.0 mM. Consider B being titrated from
+    [B]₀ = 0.0 to 3.0 and only use four titration points for display
+    purposes.
 
     >>> names = ['A', 'B', 'C', 'AB', 'BB', 'BC']
     >>> df_N = pd.DataFrame(
@@ -204,17 +210,23 @@ def solve(
     2  0.001656  0.110347  0.082804  0.001827  0.487057  0.913713
     3  0.001213  0.154412  0.060635  0.001873  0.953718  0.936279
 
-    3) Find the equilibrium concentrations of a solution containing
-       species A, B, C, AB, and AC that have free energies (in units of
-       kT):
-          A :   0.0
-          B :   1.0
-          C :  -2.0
-          AB : -3.0
-          AC : -7.0,
-       with initial mole fractions x0_A = 0.005, x0_B = 0.001, and
-       x0_C = 0.002.  The ordering of the compounds in the example is
-       A, B, C, AB, AC.
+
+    3) Find the equilibrium concentrations of a solution containing species
+    A, B, C, AB, and AC that have free energies (in units of kT).
+
+        A :   0.0
+
+        B :   1.0
+
+        C :  -2.0
+
+        AB : -3.0
+
+        AC : -7.0,
+
+    with initial mole fractions x0_A = 0.005, x0_B = 0.001, and
+    x0_C = 0.002.  The ordering of the compounds in the example is A, B,
+    C, AB, AC.
 
     >>> A = np.array([[ 1,  0,  0,  1,  1],
     ...               [ 0,  1,  0,  1,  0],
@@ -224,13 +236,17 @@ def solve(
     >>> eqtk.solve(c0, A=A, G=G)
     array([0.00406569, 0.00081834, 0.00124735, 0.00018166, 0.00075265])
 
+
     4) Competition assay.  Species A binds both B and C with specified
-       dissociation constants, Kd.
-           AB <=> A + B,      Kd = 50 nM
-           AC <=> A + C       Kd = 10 nM
-       Initial concentrations of [A]_0 = 2.0 uM, [B]_0 = 0.05 uM,
-       [C]_0 = 1.0 uM.  The ordering of the compounds in the example
-       is A, B, C, AB, AC.
+    dissociation constants, Kd.
+
+    AB ⇌ A + B,      Kd = 50 nM
+
+    AC ⇌ A + C       Kd = 10 nM
+
+    Initial concentrations of [A]_0 = 2.0 uM, [B]_0 = 0.05 uM,
+    [C]_0 = 1.0 uM.  The ordering of the compounds in the example is A,
+    B, C, AB, AC.
 
     >>> rxns = '''
     ... AB <=> A + B ; 0.05
@@ -249,6 +265,7 @@ def solve(
     AB       0.047531
     AC       0.989720
     dtype: float64
+
     """
     x0, N, K, A, G, names, solvent_density, single_point = parsers._parse_input(
         c0, N, K, A, G, names, units, solvent_density, T, G_units
@@ -477,10 +494,17 @@ def volumetric_titration(
 
 
     """
+    vol_titrant = np.array(vol_titrant)
+    if len(vol_titrant.shape) == 0:
+        vol_titrant = vol_titrant.reshape((1,))
+        single_point = True
+    else:
+        single_point = False
+
     if np.any(vol_titrant < 0):
         raise ValueError("`vol_titrant` must have non-negative volumes.")
 
-    x0, N, K, A, G, names, solvent_density, single_point = parsers._parse_input(
+    x0, N, K, A, G, names, solvent_density, _ = parsers._parse_input(
         c0, N, K, A, G, names, units, solvent_density, T, G_units
     )
 
@@ -537,11 +561,13 @@ def volumetric_titration(
         )
 
     c = parsers._parse_output(
-        x, new_x0 * solvent_density, names, solvent_density, False, units
+        x, new_x0 * solvent_density, names, solvent_density, single_point, units
     )
 
     if type(c) == pd.core.frame.DataFrame:
-        c["vol titrant / initial vol"] = vol_titrant
+        c["titrant volume / initial volume"] = vol_titrant
+    elif type(c) == pd.core.series.Series:
+        c["titrant volume / initial volume"] = vol_titrant[0]
 
     return c
 
@@ -566,20 +592,140 @@ def fixed_value_solve(
     max_trials=100,
     perturb_scale=100.0,
 ):
+    """Solve for equilibrium concentrations of all species in a dilute
+    solution where one or more species has a fixed concentration.
+
+    Parameters
+    ----------
+    c0 : array_like, dict, Series, or DataFrame,
+         shape (n_points, n_compounds) or (n_compounds, )
+        Each row contains the total "initial" concentration of all
+        possible chemical species in solution. The equilibrium
+        concentration of all species is computed for each row in `c0`.
+        `c0[i, j]` is the initial concentration of compound `j` for
+        calculation `i`. `c0` may also be passed as a Pandas Series
+        where the indices contain the name of the chemical species and
+        each value is the "initial concentration." `c0` may also be
+        passed as a Pandas DataFrame where each row contains the total
+        "initial" concentration of all possible compounds in solution
+        and the column names are the names of the chemical species. If
+        `c0` is passed as a dict, the dict must be convertible to a
+        Pandas Series or DataFrame as `pd.Series(c0)` or
+        `pd.DataFrame(c0)`.
+    fixed_c : array_like, dict, Series, or DataFrame,
+         shape (n_points, n_compounds) or (n_compounds, )
+        Inputted the same as `c0`. Any positive entry is interpreted to
+        mean the the concentration of that species is fixed to that
+        value. If an entry is negative of `np.nan`, then the
+        concentration of that species is not fixed. Zero entries are not
+        allowed.
+    N : array_like or DataFrame, default `None`
+        Stoichiometic matrix. `N[r, j]` = the stoichiometric coefficient
+        of compound `j` in chemical reaction `r`. All rows of `N` must
+        be linearly independent. If entered as a DataFrame, the name of
+        chemical species `j` is `N.columns[j]`. Optionally, column
+        `'equilibrium constant'` contains the equilibrium constants for
+        each reaction in units commensurate with those of `c0`. If `N`
+        is given, `A` and `G` cannot be given.
+    K : array_like, shape (n_reactions,), default `None`
+        `K[r]` is the equilibrium constant for chemical reaction r in
+        units commensurate with those of `c0`. If `N` is given as a
+        DataFrame with an `'equilibrium constant'` column, `K` should
+        not be supplied. If `K`is given, `A` and `G` cannot be given.
+    A : Not implemented.
+        Solving for equilibria with some concentrations fixed is only
+        implemented if the `N` and `K` are specified.
+    G : Not implemented.
+        Solving for equilibria with some concentrations fixed is only
+        implemented if the `N` and `K` are specified.
+    names : list or tuple of str, default `None`, optional
+        The names of the chemical species. Names are inferred if `N` or
+        `A` is given as a DataFrame, in which case `names` is
+        unnecessary.
+    units : string or `None`, default `None`
+        The units of the concentrations inputted as `c0`. The output is
+        also in these units. Allowable values are {`None`,
+        'mole fraction', 'molar', 'M', 'millimolar', 'mM', 'micromolar',
+        'uM', 'µM', 'nanomolar', 'nM', 'picomolar', 'pM'}. If `None`,
+        concentrations are considered to be dimensionless. The
+        equilibrium constants given by `K` must have corresponding
+        units.
+    G_units : string, default `None`
+        Units in which free energy is given. If `None` or `'kT'`, the
+        free  energies are specified in units of of the thermal energy
+        kT. Allowable values are {None, 'kT', kcal/mol', 'J', 'J/mol',
+        'kJ/mol', 'pN-nm'}.
+    solvent_density : float, default `None`
+        The density of the solvent in units commensurate with the
+        `units` keyword argument. Default (`None`) assumes the solvent
+        is water, and its density is computed at the temperature
+        specified by the `T` keyword argument.
+    T : float, default = 293.15
+        Temperature, in Kelvin, of the solution. When `N` and `K` are
+        given, `T` is ignored if `solvent_density` is given or if
+        `units` is `None`. If `A` and `G` are given, `T` is ignored when
+        `units` and `G_units` are both `None`.
+
+    Returns
+    -------
+    c : array or DataFrame, shape c0.shape
+        Equilibrium concentrations of all species. `c[i, j]` is the
+        equilibrium concentration of species `j` for initial
+        concentrations given by `c0[i, :]` in units given by `units`. If
+        `c0` is inputted as a DataFrame or `names` is not `None`, then
+        `c` is a DataFrame with columns given by `names` or with the
+        same columns (without `'equilibrium constant'`) as `c0`.
+        Otherwise, `c` is returned as a Numpy array with the same shape
+        as `c0` with
+
+    Other Parameters
+    ----------------
+    max_iters : int, default 1000
+        Maximum number of iterations allowed in trust region method.
+    tol : float, default 0.0000001
+        Tolerance for convergence. The absolute tolerance for the
+        constraints are `tol * A @ c0`.
+    delta_bar : float, default 1000.0
+        Maximum step size allowed in the trust region method.
+    eta : float, default 0.125
+        Value for eta in the trust region method. `eta` must satisfy
+        `0 < eta < 0.25`.
+    min_delta : float, default 1e-12
+        Minimal allowed radius of the trust region. When the trust
+        region radius gets below `min_delta`, the trust region
+        iterations stop, and a final set of Newton steps is attempted.
+    max_trials : int, default 100
+        In the event that an attempt to solve does not converge, the
+        solver tries again with different initial guesses.
+        This continues until `max_trials` failures.
+    perturb_scale : float, default 100.0
+        Multiplier on random perturbations to the initial guesses
+        as new ones are generated.
+
+    Raises
+    ------
+    ValueError
+        If input is in any way invalid
+    RuntimeError
+        If the trust region algorithm failed to converge
+
+    Notes
+    -----
+    .. Uses an elliptical trust region optimization to find the
+       equilibrium concentrations. See [1]_ for algorithmic details,
+       as well as definitions of the parameters associated with the
+       trust region algorithm.
+    .. In practice, the trust region parameters should not be adjusted
+       from their default values.
+
+    References
+    ----------
+    .. [1] Nocedal and Wright, Numerical Optimization, Second Edition,
+       Springer, 2006, Chapter 4.
+
     """
-    """
-    x0, N, K, A, G, names, solvent_density, _ = parsers._parse_input(
-        c0, N, K, A, G, names, units, solvent_density, T, G_units
-    )
-
-    c0_from_df = type(c0) in [pd.core.frame.DataFrame, pd.core.series.Series]
-
-    fixed_x, x0, single_point = parsers._parse_fixed_c(
-        fixed_c, x0, c0_from_df, names, solvent_density
-    )
-
     # Convert the problem to N, K
-    if G is not None:
+    if G is not None or A is not None:
         # Strategy:
         # Prune the problem for the A, G formulation, and then convert it to N, K using
         #        N = linalg.nullspace_svd(A, tol=constants.nullspace_tol)
@@ -589,6 +735,16 @@ def fixed_value_solve(
         raise NotImplementedError(
             "Fixed value solving not yet implemented for the A, G formulation."
         )
+
+    x0, N, K, A, G, names, solvent_density, _ = parsers._parse_input(
+        c0, N, K, A, G, names, units, solvent_density, T, G_units
+    )
+
+    c0_from_df = type(c0) in [pd.core.frame.DataFrame, pd.core.series.Series]
+
+    fixed_x, x0, single_point = parsers._parse_fixed_c(
+        fixed_c, x0, c0_from_df, names, solvent_density
+    )
 
     x = np.empty_like(x0)
     for i, (fixed_x_row, x0_row) in enumerate(zip(fixed_x, x0)):
@@ -611,22 +767,23 @@ def fixed_value_solve(
         x, x0 * solvent_density, names, solvent_density, single_point, units
     )
 
+    units_str = " (" + units + ")" if units is not None else ""
     if type(c) == pd.core.series.Series:
         for j in np.nonzero(~np.isnan(fixed_x))[0]:
-            c[f"[{names[j]}]__0 ({units})"] = np.nan
-            c[f"[{names[j]}]__fixed ({units})"] = fixed_x[0, j] * solvent_density
+            c[f"[{names[j]}]__0{units_str}"] = np.nan
+            c[f"[{names[j]}]__fixed{units_str}"] = fixed_x[0, j] * solvent_density
+        c = c.dropna()
 
     if type(c) == pd.core.frame.DataFrame:
-        cols = [f"[{names[j]}]__fixed ({units})" for name in names]
-        data = np.empty((len(c), len(names)))
-        data = np.fill(np.nan)
+        cols = [f"[{name}]__fixed{units_str}" for name in names]
+        data = np.empty((len(c), len(names))).fill(np.nan)
         c = pd.concat(
-            (c, pd.DataFrame(data=data, columns=cols)), axis=1, ignore_index=True
-        )
+            (c, pd.DataFrame(data=data, columns=cols)), axis=1)
+
         for i in range(len(c)):
-            for j in np.nonzero(~np.isnan(fixed_x))[0]:
-                c.loc[f"[{names[j]}]__0 ({units})"] = np.nan
-                c.loc[i, f"[{names[j]}]__fixed ({units})"] = (
+            for j in np.nonzero(~np.isnan(fixed_x[i]))[0]:
+                c.loc[i, f"[{names[j]}]__0{units_str}"] = np.nan
+                c.loc[i, f"[{names[j]}]__fixed{units_str}"] = (
                     fixed_x[i, j] * solvent_density
                 )
         c = c.dropna(axis=1, how="all")
@@ -650,12 +807,12 @@ def _new_NK_fixed_x(fixed_x, N, K):
 
     if N_new.shape[0] > N_new.shape[1]:
         raise ValueError(
-            "Cannot fix concentration as specified: Results in an over-constrained problem."
+            "Cannot fix concentrations as specified: Results in an over-constrained problem."
         )
 
     if np.linalg.matrix_rank(N_new) != N_new.shape[0]:
         raise ValueError(
-            "Cannot fix concentration as specified: Results in a rank-deficient stoichiometic matrix."
+            "Cannot fix concentrations as specified: Results in a rank-deficient stoichiometic matrix."
         )
 
     return np.ascontiguousarray(N_new), np.ascontiguousarray(K_new)

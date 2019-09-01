@@ -146,11 +146,11 @@ def _parse_output(x, x0, names, solvent_density, single_point, units):
     if names is None:
         return c
 
-    units_str = "(" + units + ")" if units is not None else ""
+    units_str = " (" + units + ")" if units is not None else ""
 
     # Names of columns for outputted data frames
-    cols = [f"[{name}]__0 {units_str}" for name in names]
-    cols += [f"[{name}] {units_str}" for name in names]
+    cols = [f"[{name}]__0{units_str}" for name in names]
+    cols += [f"[{name}]{units_str}" for name in names]
 
     if single_point:
         return pd.Series(data=np.concatenate((c0, c)), index=cols)
@@ -167,7 +167,7 @@ def _parse_fixed_c(fixed_c, x0, c0_from_df, names, solvent_density):
     if type(fixed_c) == np.ndarray:
         if c0_from_df:
             raise ValueError(
-                "If `c0` is entered as a Series or DataFrame, so must `fixed_c`."
+                "If `c0` is entered as a dict, Series or DataFrame, so must `fixed_c`."
             )
 
         if len(fixed_c.shape) == 1:
@@ -180,6 +180,9 @@ def _parse_fixed_c(fixed_c, x0, c0_from_df, names, solvent_density):
 
         fixed_c = fixed_c.astype(float)
     else:
+        if type(fixed_c) == dict:
+            fixed_c = _dict_to_df(fixed_c)
+
         if type(fixed_c) == pd.core.frame.DataFrame:
             names = _check_names_df(names, list(fixed_c.columns))
         elif type(fixed_c) == pd.core.series.Series:
@@ -208,7 +211,7 @@ def _parse_fixed_c(fixed_c, x0, c0_from_df, names, solvent_density):
     # Expand the shapes, as necessary
     if x0.shape[0] == 1 and fixed_c.shape[0] > 1:
         x0 = np.repeat(x0, fixed_c.shape[0], axis=0)
-    if x0.shape[0] > 0 and fixed_c.shape[0] == 1:
+    if x0.shape[0] > 1 and fixed_c.shape[0] == 1:
         fixed_c = np.repeat(fixed_c, x0.shape[0], axis=0)
 
     return (
@@ -490,38 +493,8 @@ def _parse_c0(c0, names):
                 )
     else:
         if type(c0) == dict:
-            err_str = "All values in the inputted `c0` dictionary must be of the same type, one of {int, float, list, tuple, numpy.ndarray}."
-            dict_types = set(
-                [
-                    float
-                    if type(value)
-                    in [
-                        float,
-                        int,
-                        np.float64,
-                        np.float32,
-                        np.float128,
-                        np.float,
-                        np.float16,
-                    ]
-                    else type(value)
-                    for _, value in c0.items()
-                ]
-            )
-            if len(dict_types) > 1:
-                raise ValueError(err_str)
-            dtype = dict_types.pop()
-            if dtype == float:
-                c0 = pd.Series(data=c0)
-            else:
-                err_str = "All inputted arrays in `c0` must be one-dimensional and of the same length."
-                array_shapes = [np.array(value).shape for _, value in c0.items()]
-                for ashape in array_shapes:
-                    if len(ashape) != 1:
-                        raise ValueError(err_str)
-                if not np.all(array_shapes == array_shapes[0]):
-                    raise ValueError(err_str)
-                c0 = pd.DataFrame(data=c0)
+            c0 = _dict_to_df(c0)
+
         if type(c0) == pd.core.frame.DataFrame:
             names = _check_names_df(names, list(c0.columns))
         elif type(c0) == pd.core.series.Series:
@@ -539,6 +512,42 @@ def _parse_c0(c0, names):
     single_point = len(c0) == 1
 
     return np.ascontiguousarray(c0), n_compounds, names, c0_from_df, single_point
+
+def _dict_to_df(c):
+    err_str = "All values in the inputted in a dictionary must be of the same type, one of {int, float, list, tuple, numpy.ndarray}."
+    dict_types = set(
+        [
+            float
+            if type(value)
+            in [
+                float,
+                int,
+                np.float64,
+                np.float32,
+                np.float128,
+                np.float,
+                np.float16,
+            ]
+            else type(value)
+            for _, value in c.items()
+        ]
+    )
+    if len(dict_types) > 1:
+        raise ValueError(err_str)
+    dtype = dict_types.pop()
+    if dtype == float:
+        c = pd.Series(data=c)
+    else:
+        err_str = "All inputted arrays in a dictionary must be one-dimensional and of the same length."
+        array_shapes = [np.array(value).shape for _, value in c.items()]
+        for ashape in array_shapes:
+            if len(ashape) != 1:
+                raise ValueError(err_str)
+        if not np.all(array_shapes == array_shapes[0]):
+            raise ValueError(err_str)
+        c = pd.DataFrame(data=c)
+
+    return c
 
 
 def _check_c0(c0):
@@ -669,28 +678,7 @@ def _parse_G(G, names, c0_from_df):
             G = np.array(G, order="C", dtype=float)
 
         if type(G) == dict:
-            err_str = "All values in the inputted `G` dictionary must be of float or int type."
-            dict_types = set(
-                [
-                    float
-                    if type(value)
-                    in [
-                        float,
-                        int,
-                        np.float64,
-                        np.float32,
-                        np.float128,
-                        np.float,
-                        np.float16,
-                    ]
-                    else type(value)
-                    for _, value in G.items()
-                ]
-            )
-            if len(dict_types) > 1:
-                raise ValueError(err_str)
-
-            G = pd.Series(G)
+            G = _dict_to_df(G)
 
         if type(G) == np.ndarray:
             if len(np.shape(G)) == 2 and (np.shape(G)[1] == 1 or np.shape(G)[0] == 1):
@@ -701,6 +689,8 @@ def _parse_G(G, names, c0_from_df):
                 G = np.ascontiguousarray(G, dtype=float)
             names_from_df = None
         elif type(G) == pd.core.frame.DataFrame:
+            if len(G) > 1:
+                raise ValueError("`G` may only have one entry for each species.")
             if not c0_from_df:
                 raise ValueError(
                     "If `G` is given as a data frame, `c0` must be given as a Series or DataFrame."
@@ -869,11 +859,15 @@ def _parse_rxn(rxn):
     else:
         K = None
 
-    # Ensure there is exactly one <=> operator and put spaces around it
-    if rxn.count("<=>") != 1:
-        raise ValueError("A reaction must have exactly one '<=>' operator.")
+    # Ensure there is exactly one <=> or ⇌ operator and put spaces around it
+    if rxn.count("<=>") + rxn.count("⇌") != 1:
+        raise ValueError("A reaction must have exactly one '<=>' or '⇌' operator.")
 
-    op_index = rxn.find("<=>")
+    if "<=>" in rxn:
+        op_index = rxn.find("<=>")
+    else:
+        op_index = rxn.find("⇌")
+
     lhs_str = rxn[:op_index]
     rhs_str = rxn[op_index + 3 :]
 
