@@ -12,7 +12,7 @@ In what follows, we will assume that Numpy, Pandas, and EQTK have been imported 
 Example problem
 ---------------
 
-To demonstrate the use of `eqtk.fixed_value_solve()`, we will consider titration of a solution of `oxalic acid <https://en.wikipedia.org/wiki/Oxalic_acid>`_ with a 1 M solution of sodium hydroxide. Oxalic acid is diprotic with the following deprotonation reactions and associated equilibrium constants.
+To demonstrate the use of ``eqtk.fixed_value_solve()``, we will consider titration of a solution of `oxalic acid <https://en.wikipedia.org/wiki/Oxalic_acid>`_ with a 1 M solution of sodium hydroxide. Oxalic acid is diprotic with the following deprotonation reactions and associated equilibrium constants.
 
 C₂O₄H₂ ⇌ C₂O₄H⁻ + H⁺ ; *K* = 0.0537 M⁻¹
 
@@ -40,18 +40,11 @@ We can conveniently specify the chemical reactions and species using EQTK's pars
 Initial concentrations of solution and titrant
 ----------------------------------------------
 
-The initial concentrations of all species, $\mathbf{c}^0$, is specified in the same way as for ``eqtk.solve()``. For this calculation, we will begin with 0.1 M H₂D.
+The initial concentrations of all species, :math:`\mathbf{c}^0`, is specified in the same way as for ``eqtk.solve()``. For this calculation, we will begin with 0.1 M H₂D.
 
 .. code-block:: python
 
-    c0 = {
-        "H⁺":   0,
-        "OH⁻":  0,
-        "H₃D⁺": 0,
-        "H₂D":  0.1,
-        "HD⁻":  0,
-        "D²⁻":  0,
-    }
+    c0 = {"C₂O₄H₂": 0.1, "OH⁻": 0, "H⁺": 0, "C₂O₄H⁻": 0, "C₂O₄²⁻": 0}
 
 While it is convenient to specify the concentrations of the species as a dictionary, we could also use a Pandas Series or DataFrame. (We could also specify ``N``, ``K``, and ``c0`` as Numpy arrays.) The specification of inputs is the same as for ``eqtk.solve()``.
 
@@ -59,22 +52,14 @@ We will then titrate in a 1 M NaOH solution. NaOH is effectively completely diss
 
 .. code-block:: python
 
-    c0_titrant = {
-        "H⁺":   0,
-        "OH⁻":  1.0,
-        "H₃D⁺": 0,
-        "H₂D":  0,
-        "HD⁻":  0,
-        "D²⁻":  0,
-    }
-
+    c0_titrant = {"C₂O₄H₂": 0, "OH⁻": 1, "H⁺": 0, "C₂O₄H⁻": 0, "C₂O₄²⁻": 0}
 
 Volume of titrant
 -----------------
 
 Finally, we need to specify the volume of titrant we wish to add. This is specified as a Numpy array, where each entry is the volume of the titrant that has been added to the solution *as a fraction of the initial solution volume*. This means that the volume of added titrant is dimensionless.
 
-..code-block:: python
+.. code-block:: python
 
     vol_titrant = np.linspace(0, 0.5, 400)
 
