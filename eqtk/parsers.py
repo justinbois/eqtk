@@ -8,6 +8,59 @@ from . import constants
 
 
 def parse_rxns(rxns):
+    """
+    Parse reactions inputted as multiline strings to a stoichiometric
+    matrix.
+
+    Parameters
+    ----------
+    rxns : str
+        String expressing chemical reactions. The syntax is similar to
+        that of Cantera (http://cantera.org). Specifically:
+        - The chemical equality operator is defined by ``<=>`` or ``⇌``
+        and must be preceded and followed by whitespace.
+        - The chemical ``+`` operator must be preceded and followed by
+        whitespace.
+        - Stoichiometric coefficients are followed by a space.
+        - Each chemical reaction appears on its own line.
+
+    Returns
+    -------
+    output : Pandas DataFrame
+        DataFrame with column names given by the chemical species.
+        Each row of the data frame represents the stoichiometric
+        coefficients of a reaction. If equilibrium constants are given
+        in the input, a column `"equilibrium constant"` is also included
+        in the output, giving the equilibrium constant for the
+        respective reaction.
+
+    Examples
+    --------
+    >>> import eqtk
+    >>> rxns = '''
+    ... L + A <=> LA ; 1.2
+    ... L + B <=> LB ; 3e-7
+    ... A + B <=> AB ; 0.005
+    ... LB + A <=> LAB ; 2'''
+    >>> eqtk.parse_rxns(rxns)
+         L    A   LA    B   LB   AB  LAB  equilibrium constant
+    0 -1.0 -1.0  1.0  0.0  0.0  0.0  0.0          1.200000e+00
+    1 -1.0  0.0  0.0 -1.0  1.0  0.0  0.0          3.000000e-07
+    2  0.0 -1.0  0.0 -1.0  0.0  1.0  0.0          5.000000e-03
+    3  0.0 -1.0  0.0  0.0 -1.0  0.0  1.0          2.000000e+00
+
+
+    >>> import eqtk
+    >>> rxns = '''
+    ... AB <=> A + B ; 0.015
+    ... AC <=> A + C ; 0.003
+    ... AA <=> 2 A   ; 0.02'''
+    >>> eqtk.parse_rxns(rxns)
+        AB    A    B   AC    C   AA  equilibrium constant
+    0 -1.0  1.0  1.0  0.0  0.0  0.0                 0.015
+    1  0.0  1.0  0.0 -1.0  1.0  0.0                 0.003
+    2  0.0  2.0  0.0  0.0  0.0 -1.0                 0.020
+    """
     rxn_list = rxns.splitlines()
     N_dict_list = []
     K_list = []
@@ -44,8 +97,114 @@ def parse_rxns(rxns):
     return N
 
 
-def _parse_input(c0, N, K, A, G, names, units, solvent_density, T, G_units):
-    """
+def parse_input(
+    c0,
+    N=None,
+    K=None,
+    A=None,
+    G=None,
+    names=None,
+    units=None,
+    solvent_density=None,
+    T=293.15,
+    G_units=None,
+):
+    """Prepare input for use in low-level interface.
+
+    Parameters
+    ----------
+    c0 : array_like, dict, Series, or DataFrame, shape (n_points, n_compounds) or (n_compounds, )
+        Each row contains the total "initial" concentration of all
+        possible chemical species in solution. The equilibrium
+        concentration of all species is computed for each row in `c0`.
+        `c0[i, j]` is the initial concentration of compound `j` for
+        calculation `i`. `c0` may also be passed as a Pandas Series
+        where the indices contain the name of the chemical species and
+        each value is the "initial concentration." `c0` may also be
+        passed as a Pandas DataFrame where each row contains the total
+        "initial" concentration of all possible compounds in solution
+        and the column names are the names of the chemical species. If
+        `c0` is passed as a dict, the dict must be convertible to a
+        Pandas Series or DataFrame as `pd.Series(c0)` or
+        `pd.DataFrame(c0)`.
+    N : array_like or DataFrame, default `None`
+        Stoichiometic matrix. `N[r, j]` = the stoichiometric coefficient
+        of compound `j` in chemical reaction `r`. All rows of `N` must
+        be linearly independent. If entered as a DataFrame, the name of
+        chemical species `j` is `N.columns[j]`. Optionally, column
+        `'equilibrium constant'` contains the equilibrium constants for
+        each reaction in units commensurate with those of `c0`. If `N`
+        is given, `A` and `G` cannot be given.
+    K : array_like, shape (n_reactions,), default `None`
+        `K[r]` is the equilibrium constant for chemical reaction r in
+        units commensurate with those of `c0`. If `N` is given as a
+        DataFrame with an `'equilibrium constant'` column, `K` should
+        not be supplied. If `K`is given, `A` and `G` cannot be given.
+    A : array_like or DataFrame, n_compounds columns
+        Constraint matrix. If `c` is the output, then `A @ c0 = A @ c`.
+        All entries must be nonnegative and the rows of `A` must be
+        linearly independent. If entered as a DataFrame, the name of
+        chemical species `j` is `A.columns[j]`. If `A` is given, `G`
+        must be given, and `N` and `K` cannot be given.
+    G : array_like, shape (n_compounds, ), default `None`
+        `G[j]` is the free energy of chemical species `j` in units
+        specified by `G_units`. If `G` is given, `A` must be given, and
+        `N` and `K` cannot be given.
+    names : list or tuple of str, default `None`, optional
+        The names of the chemical species. Names are inferred if `N` or
+        `A` is given as a DataFrame, in which case `names` is
+        unnecessary.
+    units : string or `None`, default `None`
+        The units of the concentrations inputted as `c0`. The output is
+        also in these units. Allowable values are {`None`,
+        'mole fraction', 'molar', 'M', 'millimolar', 'mM', 'micromolar',
+        'uM', 'µM', 'nanomolar', 'nM', 'picomolar', 'pM'}. If `None`,
+        concentrations are considered to be dimensionless. The
+        equilibrium constants given by `K` must have corresponding
+        units.
+    G_units : string, default `None`
+        Units in which free energy is given. If `None` or `'kT'`, the
+        free  energies are specified in units of of the thermal energy
+        kT. Allowable values are {None, 'kT', kcal/mol', 'J', 'J/mol',
+        'kJ/mol', 'pN-nm'}.
+    solvent_density : float, default `None`
+        The density of the solvent in units commensurate with the
+        `units` keyword argument. Default (`None`) assumes the solvent
+        is water, and its density is computed at the temperature
+        specified by the `T` keyword argument.
+    T : float, default = 293.15
+        Temperature, in Kelvin, of the solution. When `N` and `K` are
+        given, `T` is ignored if `solvent_density` is given or if
+        `units` is `None`. If `A` and `G` are given, `T` is ignored when
+        `units` and `G_units` are both `None`.
+
+    Returns
+    -------
+    x0 : Numpy array, dtype float, shape (n_points, n_compounds)
+        Initial concentrations in dimensionless units. If `units` is
+        not `None`, then the `x0` is a mole fraction.
+    N : Numpy array, dtype float, shape (n_reactions, n_compounds)
+        The stoichiometric matrix. Returned as `None` if inputted `N` is
+        `None`.
+    K : Numpy array, dtype float, shape (n_reactions,)
+        The equilibrium constants in dimensionless units. Returned as
+        `None` if inputted `G` is `None`.
+    A : Numpy array, dtype float, shape (n_conserv_laws, n_compounds)
+        The conservation matrix. Returned as `None` if inputted `A` is
+        `None`.
+    G : Numpy array, dtype float, shape (n_compounds,)
+        The free energies of the chemical species. Returned as `None` if
+        inputted `G` is `None`.
+    names : list of strings, len n_compounds
+        Names of chemical species. If inputted `names` is `None` or if
+        the names of the species cannot be inferred from any other
+        input, returned as `None`.
+    solvent_density : float
+        The density of the solvent.
+    single_point : bool
+        True if only one calculation is to be compute (n_points == 1).
+        False otherwise.
+
     """
     if type(N) == str:
         N = parse_rxns(N)
@@ -296,8 +455,7 @@ def water_density(T, units="M"):
     # Valid units
     allowed_units = (
         None,
-        "mole fraction"
-        "M",
+        "mole fraction" "M",
         "molar",
         "mM",
         "millimolar",
@@ -513,21 +671,14 @@ def _parse_c0(c0, names):
 
     return np.ascontiguousarray(c0), n_compounds, names, c0_from_df, single_point
 
+
 def _dict_to_df(c):
     err_str = "All values in the inputted in a dictionary must be of the same type, one of {int, float, list, tuple, numpy.ndarray}."
     dict_types = set(
         [
             float
             if type(value)
-            in [
-                float,
-                int,
-                np.float64,
-                np.float32,
-                np.float128,
-                np.float,
-                np.float16,
-            ]
+            in [float, int, np.float64, np.float32, np.float128, np.float, np.float16]
             else type(value)
             for _, value in c.items()
         ]

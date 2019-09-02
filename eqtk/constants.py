@@ -1,6 +1,3 @@
-import sys
-
-# float_eps = 1.1 * sys.float_info.epsilon
 float_eps = 1.0e-14
 max_logx = 250.0
 

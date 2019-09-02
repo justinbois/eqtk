@@ -267,7 +267,7 @@ def solve(
     dtype: float64
 
     """
-    x0, N, K, A, G, names, solvent_density, single_point = parsers._parse_input(
+    x0, N, K, A, G, names, solvent_density, single_point = parsers.parse_input(
         c0, N, K, A, G, names, units, solvent_density, T, G_units
     )
 
@@ -504,14 +504,14 @@ def volumetric_titration(
     if np.any(vol_titrant < 0):
         raise ValueError("`vol_titrant` must have non-negative volumes.")
 
-    x0, N, K, A, G, names, solvent_density, _ = parsers._parse_input(
+    x0, N, K, A, G, names, solvent_density, _ = parsers.parse_input(
         c0, N, K, A, G, names, units, solvent_density, T, G_units
     )
 
     if x0.shape[0] != 1:
         raise ValueError("`c0` must be a one-dimensional array.")
 
-    x0_titrant, _, _, _, _, _, _, _ = parsers._parse_input(
+    x0_titrant, _, _, _, _, _, _, _ = parsers.parse_input(
         c0_titrant, N, K, A, G, names, units, solvent_density, T, G_units
     )
 
@@ -736,7 +736,7 @@ def fixed_value_solve(
             "Fixed value solving not yet implemented for the A, G formulation."
         )
 
-    x0, N, K, A, G, names, solvent_density, _ = parsers._parse_input(
+    x0, N, K, A, G, names, solvent_density, _ = parsers.parse_input(
         c0, N, K, A, G, names, units, solvent_density, T, G_units
     )
 
@@ -777,8 +777,7 @@ def fixed_value_solve(
     if type(c) == pd.core.frame.DataFrame:
         cols = [f"[{name}]__fixed{units_str}" for name in names]
         data = np.empty((len(c), len(names))).fill(np.nan)
-        c = pd.concat(
-            (c, pd.DataFrame(data=data, columns=cols)), axis=1)
+        c = pd.concat((c, pd.DataFrame(data=data, columns=cols)), axis=1)
 
         for i in range(len(c)):
             for j in np.nonzero(~np.isnan(fixed_x[i]))[0]:
