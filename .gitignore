@@ -65,3 +65,9 @@ target/
 .ipynb_checkpoints/
 
 .DS_Store
+
+# Mess-around directory
+notebooks/
+
+# All unsaved notebooks
+Untitled*.ipynb
