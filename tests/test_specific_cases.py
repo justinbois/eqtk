@@ -10,10 +10,7 @@ def test_binary_binding_3():
     x0 = np.array([3e-3, 5e-3, 0.0])
     x = eqtk.solve(c0=x0, N=N, K=K, units="M")
 
-    equilibrium_ok, cons_mass_ok = eqtk.checks.check_equilibrium_NK(x0, x, N=N, K=K)
-
-    assert equilibrium_ok.all(), "Equilibrium error"
-    assert cons_mass_ok.all(), "Conservation of mass error"
+    assert eqtk.eqcheck(x, x0, N, K, units="M")
 
 
 def test_binary_binding_5():
@@ -22,15 +19,12 @@ def test_binary_binding_5():
     x0_1 = np.array([3e-4, 5e-5, 0, 0, 0])
     x0_2 = np.array([0, 0, 1.5e-4, 0, 2.5e-5])
     x0_3 = np.array([7e-5, 1e-5, 1.0e-4, 3e-5, 5e-6])
+    x0 = np.vstack((x0_1, x0_2, x0_3))
     A = np.array([[1, 0, 2, 1, 0], [0, 1, 0, 1, 2]])
 
-    for x0 in (x0_1, x0_2, x0_3):
-        x = eqtk.solve(c0=x0, N=N, K=K, units="M")
+    x = eqtk.solve(c0=x0, N=N, K=K, units="M")
 
-        equilibrium_ok, cons_mass_ok = eqtk.checks.check_equilibrium_NK(x0, x, N=N, K=K)
-
-        assert equilibrium_ok.all(), "Equilibrium error"
-        assert cons_mass_ok.all(), "Conservation of mass error"
+    assert eqtk.eqcheck(x, x0, N=N, K=K, units="M")
 
 
 def test_competition():
@@ -40,10 +34,7 @@ def test_competition():
 
     x = eqtk.solve(c0=x0, N=N, K=K, units="µM")
 
-    equilibrium_ok, cons_mass_ok = eqtk.checks.check_equilibrium_NK(x0, x, N=N, K=K)
-
-    assert equilibrium_ok.all(), "Equilibrium error"
-    assert cons_mass_ok.all(), "Conservation of mass error"
+    assert eqtk.eqcheck(x, x0, N, K)
 
 
 def test_sequential_binding():
@@ -58,9 +49,7 @@ def test_sequential_binding():
 
     c = eqtk.solve(c0, N=N, K=K, units="M")
 
-    equilibrium_ok, cons_mass_ok = eqtk.checks.check_equilibrium_NK(c0, c, N=N, K=K)
-    assert equilibrium_ok.all(), "Equilibrium error"
-    assert cons_mass_ok.all(), "Conservation of mass error"
+    assert eqtk.eqcheck(c, c0, N=N, K=K)
 
 
 def test_aspartic_acid_titration():
@@ -75,15 +64,14 @@ def test_aspartic_acid_titration():
     K = np.array([10 ** (-1.99), 10 ** (-3.9), 10 ** (-10.002), 1e-14])
     c0 = np.array([0.0, 0.0, 0.001, 0.0, 0.0, 0.0])
     c0_titrant = np.array([0.0, 0.001, 0.0, 0.0, 0.0, 0.0])
-    vol_titrant = np.linspace(0.0, 4.0, 500)
+    vol_titrant = np.linspace(0.0, 4.0, 100)
     c = eqtk.volumetric_titration(
         c0, c0_titrant, vol_titrant, N=N, K=K, units="M"
     )
 
     new_c0 = eqtk.eqtk._volumetric_to_c0(c0, c0_titrant, vol_titrant)
-    equilibrium_ok, cons_mass_ok = eqtk.checks.check_equilibrium_NK(new_c0, c, N=N, K=K)
-    assert equilibrium_ok.all(), "Equilibrium error"
-    assert cons_mass_ok.all(), "Conservation of mass error"
+
+    assert eqtk.eqcheck(c, new_c0, N=N, K=K, units="M")
 
 
 def test_phosphoric_acid_titration():
@@ -96,13 +84,16 @@ def test_phosphoric_acid_titration():
         ]
     )
     K = np.array([10 ** (-2.15), 10 ** (-7.2), 10 ** (-12.15), 1e-14])
-    x0 = np.array([0.0, 0.0, 0.001, 0.0, 0.0, 0.0])
-    titrated_species = 1
-    x0_titrated = np.linspace(0.0, 0.004, 500)
-    x0_titrated = np.linspace(0.0, 0.004, 500)
-    vol_titrated = np.linspace(0.0, 4.0, 500)
-    initial_volume = 1.0
-    x_titrant = 0.001
+    c0 = np.array([0.0, 0.0, 0.001, 0.0, 0.0, 0.0])
+    c0_titrant = np.array([0.0, 0.001, 0.0, 0.0, 0.0, 0.0])
+    vol_titrant = np.linspace(0.0, 4.0, 100)
+    c = eqtk.volumetric_titration(
+        c0, c0_titrant, vol_titrant, N=N, K=K, units="M"
+    )
+
+    new_c0 = eqtk.eqtk._volumetric_to_c0(c0, c0_titrant, vol_titrant)
+
+    assert eqtk.eqcheck(c, new_c0, N=N, K=K, units="M")
 
 
 def test_exponential_chain():
@@ -117,9 +108,7 @@ def test_exponential_chain():
 
     c = eqtk.solve(c0, N=N, K=K, units="M")
 
-    equilibrium_ok, cons_mass_ok = eqtk.checks.check_equilibrium_NK(c0, c, N=N, K=K)
-    assert equilibrium_ok.all(), "Equilibrium error"
-    assert cons_mass_ok.all(), "Conservation of mass error"
+    assert eqtk.eqcheck(c, c0, N=N, K=K, units="M")
 
 
 def test_example_1():
@@ -132,16 +121,12 @@ def test_example_1():
         ]
     )
     K = np.array([50.0, 10.0, 40.0, 100.0])
-    x0_1 = np.array([0.001, 0.003, 0.0, 0.0, 0.0, 0.0])
-    x0_2 = np.array([0.001, 0.0, 0.0, 0.0, 0.0, 0.0])
+    x0 = np.array([[0.001, 0.003, 0.0, 0.0, 0.0, 0.0],
+                   [0.001, 0.0,   0.0, 0.0, 0.0, 0.0]])
 
-    for x0 in (x0_1, x0_2):
-        x = eqtk.solve(c0=x0, N=N, K=K, units="M")
+    x = eqtk.solve(c0=x0, N=N, K=K, units="M")
 
-        equilibrium_ok, cons_mass_ok = eqtk.checks.check_equilibrium_NK(x0, x, N=N, K=K)
-
-        assert equilibrium_ok.all(), "Equilibrium error"
-        assert cons_mass_ok.all(), "Conservation of mass error"
+    assert eqtk.eqcheck(x, x0, N, K, units="M")
 
 
 def test_example_2():
@@ -157,10 +142,7 @@ def test_example_2():
     x0 = np.array([1.0, 2.0, 3.0, 5.0, 7.0, 11.0, 13.0])
     x = eqtk.solve(c0=x0, N=N, K=K, units="M")
 
-    equilibrium_ok, cons_mass_ok = eqtk.checks.check_equilibrium_NK(x0, x, N=N, K=K)
-
-    assert equilibrium_ok.all(), "Equilibrium error"
-    assert cons_mass_ok.all(), "Conservation of mass error"
+    assert eqtk.eqcheck(x, x0, N, K, units="M")
 
 
 def test_example_3():
@@ -176,10 +158,7 @@ def test_example_3():
     x0 = np.array([1.0, 2.0, 3.0, 5.0, 7.0, 11.0, 13.0])
     x = eqtk.solve(c0=x0, N=N, K=K, units="M")
 
-    equilibrium_ok, cons_mass_ok = eqtk.checks.check_equilibrium_NK(x0, x, N=N, K=K)
-
-    assert equilibrium_ok.all(), "Equilibrium error"
-    assert cons_mass_ok.all(), "Conservation of mass error"
+    assert eqtk.eqcheck(x, x0, N, K, units="M")
 
 
 def test_example_4():
@@ -190,7 +169,5 @@ def test_example_4():
     N = eqtk.parse_rxns(rxns)
     c0 = {'A': 1.0, 'B': 0.5, 'C': 0.25, 'AB': 0, 'AC': 0}
     c = eqtk.solve(c0, N, units='mM')
-    equilibrium_ok, cons_mass_ok = eqtk.checks.check_equilibrium_NK(c0, c, N=N)
 
-    assert equilibrium_ok.all(), "Equilibrium error"
-    assert cons_mass_ok.all(), "Conservation of mass error"
+    assert eqtk.eqcheck(c, c0, N=N, units='mM')

@@ -8,27 +8,27 @@ def test_invalid_equal_operators():
     rxn = "A + B<-> AB"
     with pytest.raises(ValueError) as excinfo:
         N_dict, K = eqtk.parsers._parse_rxn(rxn)
-    excinfo.match("A reaction must have exactly one '<=>' operator.")
+    excinfo.match("A reaction must have exactly one '<=>' or '⇌' operator.")
 
     rxn = "A + B= AB"
     with pytest.raises(ValueError) as excinfo:
         N_dict, K = eqtk.parsers._parse_rxn(rxn)
-    excinfo.match("A reaction must have exactly one '<=>' operator.")
+    excinfo.match("A reaction must have exactly one '<=>' or '⇌' operator.")
 
     rxn = "A + B -> AB"
     with pytest.raises(ValueError) as excinfo:
         N_dict, K = eqtk.parsers._parse_rxn(rxn)
-    excinfo.match("A reaction must have exactly one '<=>' operator.")
+    excinfo.match("A reaction must have exactly one '<=>' or '⇌' operator.")
 
     rxn = "A + B <==> AB"
     with pytest.raises(ValueError) as excinfo:
         N_dict, K = eqtk.parsers._parse_rxn(rxn)
-    excinfo.match("A reaction must have exactly one '<=>' operator.")
+    excinfo.match("A reaction must have exactly one '<=>' or '⇌' operator.")
 
     rxn = "A + B => AB"
     with pytest.raises(ValueError) as excinfo:
         N_dict, K = eqtk.parsers._parse_rxn(rxn)
-    excinfo.match("A reaction must have exactly one '<=>' operator.")
+    excinfo.match("A reaction must have exactly one '<=>' or '⇌' operator.")
 
 
 def test_equals_in_chemical_formula():
