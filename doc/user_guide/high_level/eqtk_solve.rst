@@ -133,7 +133,7 @@ Alternatively, we can specify free energies of each species instead of the equil
 
 .. code-block:: python
 
-    water_density = eqtk.parsers._water_density(293.15, 'mM')
+    water_density = eqtk.water_density(293.15, 'mM')
 
     G_A = 0
     G_B = 0

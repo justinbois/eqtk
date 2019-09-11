@@ -17,8 +17,15 @@ High-level functions
    volumetric_titration
 
 
+Parsers and utilities
+----------------------
+.. currentmodule:: eqtk
+
+
 .. autosummary::
    :toctree: generated/parsers/
 
    parse_rxns
    parse_input
+   to_df
+   water_density

@@ -10,6 +10,6 @@ EQTK offers parsers for input and output as well as utilities for unit conversio
    Prepare input for use in low-level functions <eqtk_parse_input>
    Convert Numpy output to Pandas <eqtk_to_df>
    Compute the density of water <eqtk_water_density>
-   Check satisfactions of equilibrium conditions <eqtk_checks>
+   Check satisfaction of equilibrium conditions <eqtk_checks>
    Physical constants <eqtk_constants>
 
