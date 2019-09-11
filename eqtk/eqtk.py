@@ -937,7 +937,7 @@ def _boolean_index_2d(a, b_row, b_col, n_true_row, n_true_col):
 
 
 @jit("double[::1](double[::1], double[::1], double[:, ::1])", nopython=True)
-def _initial_guess(constraint_vector, G, A):
+def _initial_guess(conserv_vector, G, A):
     """
     Calculates an initial guess for lambda such that the maximum
     mole fraction calculated will not give an overflow error and
@@ -952,7 +952,7 @@ def _initial_guess(constraint_vector, G, A):
     """
     # OLD WAY
     # mu_guess = ((1.0 + G) / abs(A).sum(0)).min() \
-    #    * ones_like(constraint_vector)
+    #    * ones_like(conserv_vector)
 
     # Guess mu such that ln x = 1 for all x (x ~ 3).
     A_AT = np.dot(A, A.transpose())
@@ -968,7 +968,7 @@ def _initial_guess(constraint_vector, G, A):
     "double[::1](double[::1], double[::1], double[:, ::1], double[::1], double)",
     nopython=True,
 )
-def _perturb_initial_guess(constraint_vector, G, A, mu0, perturb_scale=100.0):
+def _perturb_initial_guess(conserv_vector, G, A, mu0, perturb_scale=100.0):
     """
     Calculates an initial guess for lambda such that the maximum
     mole fraction calculated will not give an overflow error and
@@ -983,9 +983,9 @@ def _perturb_initial_guess(constraint_vector, G, A, mu0, perturb_scale=100.0):
     """
     # OLD WAY
     # mu_guess = ((1.0 + G) / abs(A).sum(0)).min() \
-    #    * ones_like(constraint_vector)
+    #    * ones_like(conserv_vector)
 
-    new_mu = mu0 + perturb_scale * 2.0 * (np.random.rand(len(constraint_vector)) - 0.5)
+    new_mu = mu0 + perturb_scale * 2.0 * (np.random.rand(len(conserv_vector)) - 0.5)
     # Prevent overflow err
     while (-G + np.dot(new_mu, A)).max() > constants._max_logx:
         perturb_scale /= 2.0
@@ -1000,7 +1000,7 @@ def _perturb_initial_guess(constraint_vector, G, A, mu0, perturb_scale=100.0):
 def _solve_trust_region(
     A,
     G,
-    constraint_vector,
+    conserv_vector,
     max_iters=1000,
     tol=0.0000001,
     delta_bar=1000.0,
@@ -1017,12 +1017,12 @@ def _solve_trust_region(
     ----------
     A : array_like, shape (n_constraints, n_compounds)
         Each row represents a system constraint.
-        Namely, np.dot(A, x) = constraint_vector.
+        Namely, np.dot(A, x) = conserv_vector.
     G : array_like, shape (n_compounds,)
         G[j] is the free energy of compound j in units of kT.
-    constraint_vector : array_like, shape (n_constraints,)
+    conserv_vector : array_like, shape (n_constraints,)
         Right hand since of constraint equation,
-        np.dot(A, x) = constraint_vector.
+        np.dot(A, x) = conserv_vector.
 
     Returns
     -------
@@ -1042,21 +1042,21 @@ def _solve_trust_region(
     Raises
     ------
     ValueError
-        If A, G, and constraint_vector have a dimensional mismatch.
+        If A, G, and conserv_vector have a dimensional mismatch.
     """
     # Dimension of the problem
     n_constraints, n_compounds = A.shape
 
     # Build new problem with inactive ones cut out
-    params = (G, A, constraint_vector)
-    abs_tol = tol * np.abs(constraint_vector)
-    mu0 = _initial_guess(constraint_vector, G, A)
+    params = (G, A, conserv_vector)
+    abs_tol = tol * np.abs(conserv_vector)
+    mu0 = _initial_guess(conserv_vector, G, A)
 
     mu, converged, step_tally = trust_region.trust_region_convex_unconstrained(
         mu0,
         G,
         A,
-        constraint_vector,
+        conserv_vector,
         tol=abs_tol,
         max_iters=max_iters,
         delta_bar=delta_bar,
@@ -1067,12 +1067,12 @@ def _solve_trust_region(
     # Try other initial guesses if it did not converge
     n_trial = 1
     while not converged and n_trial < max_trials:
-        mu0 = _perturb_initial_guess(constraint_vector, G, A, mu0, perturb_scale)
+        mu0 = _perturb_initial_guess(conserv_vector, G, A, mu0, perturb_scale)
         mu, converged, step_tally = trust_region.trust_region_convex_unconstrained(
             mu0,
             G,
             A,
-            constraint_vector,
+            conserv_vector,
             tol=abs_tol,
             max_iters=max_iters,
             delta_bar=delta_bar,
@@ -1159,9 +1159,9 @@ def _prune_AG(A, G, x0):
     """Prune constraint matrix and free energy to ignore inert and
     missing species.
     """
-    constraint_vector = np.dot(A, x0)
+    conserv_vector = np.dot(A, x0)
 
-    active_constraints = constraint_vector > 0.0
+    active_constraints = conserv_vector > 0.0
     active_compounds = np.ones(len(x0), dtype=np.bool8)
 
     for i, act_const in enumerate(active_constraints):
@@ -1181,13 +1181,13 @@ def _prune_AG(A, G, x0):
         n_active_compounds,
     )
 
-    constraint_vector_new = _boolean_index(
-        constraint_vector, active_constraints, n_active_constraints
+    conserv_vector_new = _boolean_index(
+        conserv_vector, active_constraints, n_active_constraints
     )
 
     G_new = _boolean_index(G, active_compounds, np.sum(active_compounds))
 
-    return A_new, G_new, constraint_vector_new, active_compounds
+    return A_new, G_new, conserv_vector_new, active_compounds
 
 
 @jit(
@@ -1198,7 +1198,7 @@ def _print_runstats(
     A,
     G,
     x0,
-    constraint_vector,
+    conserv_vector,
     n_trial,
     max_trials,
     tol,
@@ -1214,8 +1214,8 @@ def _print_runstats(
     print("  constraint matrix A:", A)
     print("  compound free energies G:", G)
     print("  x0:", x0)
-    print("  number of constraints:", len(constraint_vector))
-    print("  constraint vector np.dot(A, x0):", constraint_vector)
+    print("  number of constraints:", len(conserv_vector))
+    print("  constraint vector np.dot(A, x0):", conserv_vector)
     print("  number of attempts:", n_trial)
     print("  maximum allowed number of attempts:", max_trials)
     print("  tolerance:", tol)
@@ -1330,12 +1330,12 @@ def solveNK(
                 b = np.concatenate((np.zeros(n_constraints_new), minus_log_K_new))
                 N_prime = np.vstack((A, N_new))
                 G = np.linalg.solve(N_prime, b)
-                constraint_vector = np.dot(A, x0_adjusted)
+                conserv_vector = np.dot(A, x0_adjusted)
 
                 logx_new, converged, n_trial, step_tally = _solve_trust_region(
                     A,
                     G,
-                    constraint_vector,
+                    conserv_vector,
                     max_iters=max_iters,
                     tol=tol,
                     delta_bar=1000.0,
@@ -1352,7 +1352,7 @@ def solveNK(
                         A,
                         G,
                         x0,
-                        constraint_vector,
+                        conserv_vector,
                         n_trial,
                         max_trials,
                         tol,
@@ -1458,12 +1458,12 @@ def solveNG(
                 # In case we have null <=> compds type reaction, adjust x0
                 x0_adjusted = _create_from_nothing(N_new, x0_new)
 
-                constraint_vector = np.dot(A, x0_adjusted)
+                conserv_vector = np.dot(A, x0_adjusted)
 
                 logx_new, converged, n_trial, step_tally = _solve_trust_region(
                     A,
                     G_new,
-                    constraint_vector,
+                    conserv_vector,
                     max_iters=max_iters,
                     tol=tol,
                     delta_bar=1000.0,
@@ -1480,7 +1480,7 @@ def solveNG(
                         A,
                         G,
                         x0,
-                        constraint_vector,
+                        conserv_vector,
                         n_trial,
                         max_trials,
                         tol,
@@ -1567,7 +1567,7 @@ def solveAG(
     logx = np.empty_like(x0)
 
     for i_point in range(x0.shape[0]):
-        A_new, G_new, constraint_vector, active_compounds = _prune_AG(A, G, x0[i_point])
+        A_new, G_new, conserv_vector, active_compounds = _prune_AG(A, G, x0[i_point])
 
         # Detect if A is empty (no constraints)
         A_empty = A_new.shape[0] + A_new.shape[1] == 1
@@ -1584,7 +1584,7 @@ def solveAG(
                 logx_new, converged, n_trial, step_tally = _solve_trust_region(
                     A_new,
                     G_new,
-                    constraint_vector,
+                    conserv_vector,
                     max_iters=max_iters,
                     tol=tol,
                     delta_bar=1000.0,
@@ -1601,7 +1601,7 @@ def solveAG(
                         A,
                         G,
                         x0,
-                        constraint_vector,
+                        conserv_vector,
                         n_trial,
                         max_trials,
                         tol,
