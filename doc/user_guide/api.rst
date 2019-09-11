@@ -29,3 +29,5 @@ Parsers and utilities
    parse_input
    to_df
    water_density
+   eqcheck
+   eqcheck_quant
