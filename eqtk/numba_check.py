@@ -14,6 +14,9 @@ def numba_check():
         a dummy function is returned. Otherwise, `numba.jit()` is
         returned.
     """
+    # # DEBUG
+    # return False, _dummy_jit
+
     try:
         import numba
 

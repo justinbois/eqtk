@@ -21,6 +21,7 @@ def solve(
     G_units=None,
     solvent_density=None,
     T=293.15,
+    return_log=False,
     max_iters=1000,
     tol=0.0000001,
     delta_bar=1000.0,
@@ -56,18 +57,17 @@ def solve(
         `'equilibrium constant'` contains the equilibrium constants for
         each reaction in units commensurate with those of `c0`. If `N`
         is given, `A` and `G` cannot be given.
-
     K : array_like, shape (n_reactions,), default `None`
         `K[r]` is the equilibrium constant for chemical reaction r in
         units commensurate with those of `c0`. If `N` is given as a
         DataFrame with an `'equilibrium constant'` column, `K` should
         not be supplied. If `K`is given, `A` and `G` cannot be given.
     A : array_like or DataFrame, n_compounds columns
-        Constraint matrix. If `c` is the output, then `A @ c0 = A @ c`.
-        All entries must be nonnegative and the rows of `A` must be
-        linearly independent. If entered as a DataFrame, the name of
-        chemical species `j` is `A.columns[j]`. If `A` is given, `G`
-        must be given, and `N` and `K` cannot be given.
+        Conservation matrix. If `c` is the output, then
+        `A @ c0 = A @ c`. All entries must be nonnegative and the rows
+        of `A` must be linearly independent. If entered as a DataFrame,
+        the name of chemical species `j` is `A.columns[j]`. If `A` is
+        given, `G` must be given, and `N` and `K` cannot be given.
     G : array_like, shape (n_compounds, ), default `None`
         `G[j]` is the free energy of chemical species `j` in units
         specified by `G_units`. If `G` is given, `A` must be given, and
@@ -99,6 +99,8 @@ def solve(
         given, `T` is ignored if `solvent_density` is given or if
         `units` is `None`. If `A` and `G` are given, `T` is ignored when
         `units` and `G_units` are both `None`.
+    return_log : bool, default False
+        If True, return the natural logarithm of the concentrations.
 
     Returns
     -------
@@ -110,7 +112,7 @@ def solve(
         `c` is a DataFrame with columns given by `names` or with the
         same columns (without `'equilibrium constant'`) as `c0`.
         Otherwise, `c` is returned as a Numpy array with the same shape
-        as `c0` with
+        as `c0`.
 
     Other Parameters
     ----------------
@@ -267,13 +269,20 @@ def solve(
     dtype: float64
 
     """
+    if (
+        return_log
+        and units not in ["mole fraction", "", None]
+        and solvent_density is not None
+    ):
+        raise ValueError("If `return_log` is True, you must use dimensionless units.")
+
     x0, N, K, A, G, names, solvent_density, single_point = parsers.parse_input(
         c0, N, K, A, G, names, units, solvent_density, T, G_units
     )
 
     # Solve for mole fractions
     if N is None:
-        x = solveAG(
+        logx = solveAG(
             x0,
             A,
             G,
@@ -286,10 +295,10 @@ def solve(
             perturb_scale=perturb_scale,
         )
     elif G is None:
-        x = solveNK(
+        logx = solveNK(
             x0,
             N,
-            K,
+            np.log(K),
             max_iters=max_iters,
             tol=tol,
             delta_bar=delta_bar,
@@ -299,7 +308,7 @@ def solve(
             perturb_scale=perturb_scale,
         )
     else:
-        x = solveNG(
+        logx = solveNG(
             x0,
             N,
             G,
@@ -312,7 +321,9 @@ def solve(
             perturb_scale=perturb_scale,
         )
 
-    return parsers._parse_output(x, x0, names, solvent_density, single_point, units)
+    return parsers._parse_output(
+        logx, x0, names, solvent_density, single_point, units, return_log
+    )
 
 
 def volumetric_titration(
@@ -328,6 +339,7 @@ def volumetric_titration(
     G_units=None,
     solvent_density=None,
     T=293.15,
+    return_log=False,
     max_iters=1000,
     tol=0.0000001,
     delta_bar=1000.0,
@@ -376,11 +388,11 @@ def volumetric_titration(
         DataFrame with an `'equilibrium constant'` column, `K` should
         not be supplied. If `K`is given, `A` and `G` cannot be given.
     A : array_like or DataFrame, n_compounds columns
-        Constraint matrix. If `c` is the output, then `A @ c0 = A @ c`.
-        All entries must be nonnegative and the rows of `A` must be
-        linearly independent. If entered as a DataFrame, the name of
-        chemical species `j` is `A.columns[j]`. If `A` is given, `G`
-        must be given, and `N` and `K` cannot be given.
+        Conservation matrix. If `c` is the output, then
+        `A @ c0 = A @ c`. All entries must be nonnegative and the rows
+        of `A` must be linearly independent. If entered as a DataFrame,
+        the name of chemical species `j` is `A.columns[j]`. If `A` is
+        given, `G` must be given, and `N` and `K` cannot be given.
     G : array_like, shape (n_compounds, ), default `None`
         `G[j]` is the free energy of chemical species `j` in units
         specified by `G_units`. If `G` is given, `A` must be given, and
@@ -412,6 +424,8 @@ def volumetric_titration(
         given, `T` is ignored if `solvent_density` is given or if
         `units` is `None`. If `A` and `G` are given, `T` is ignored when
         `units` and `G_units` are both `None`.
+    return_log : bool, default False
+        If True, return the natural logarithm of the concentrations.
 
     Returns
     -------
@@ -494,6 +508,13 @@ def volumetric_titration(
 
 
     """
+    if (
+        return_log
+        and units not in ["mole fraction", "", None]
+        and solvent_density is not None
+    ):
+        raise ValueError("If `return_log` is True, you must use dimensionless units.")
+
     vol_titrant = np.array(vol_titrant)
     if len(vol_titrant.shape) == 0:
         vol_titrant = vol_titrant.reshape((1,))
@@ -521,7 +542,7 @@ def volumetric_titration(
     new_x0 = _volumetric_to_c0(x0.flatten(), x0_titrant.flatten(), vol_titrant)
 
     if N is None:
-        x = solveAG(
+        logx = solveAG(
             new_x0,
             A,
             G,
@@ -534,10 +555,10 @@ def volumetric_titration(
             perturb_scale=perturb_scale,
         )
     elif G is None:
-        x = solveNK(
+        logx = solveNK(
             new_x0,
             N,
-            K,
+            np.log(K),
             max_iters=max_iters,
             tol=tol,
             delta_bar=delta_bar,
@@ -547,7 +568,7 @@ def volumetric_titration(
             perturb_scale=perturb_scale,
         )
     else:
-        x = solveNG(
+        logx = solveNG(
             new_x0,
             N,
             G,
@@ -561,7 +582,13 @@ def volumetric_titration(
         )
 
     c = parsers._parse_output(
-        x, new_x0 * solvent_density, names, solvent_density, single_point, units
+        logx,
+        new_x0 * solvent_density,
+        names,
+        solvent_density,
+        single_point,
+        units,
+        return_log,
     )
 
     if type(c) == pd.core.frame.DataFrame:
@@ -584,6 +611,7 @@ def fixed_value_solve(
     G_units=None,
     solvent_density=None,
     T=293.15,
+    return_log=False,
     max_iters=1000,
     tol=0.0000001,
     delta_bar=1000.0,
@@ -665,6 +693,8 @@ def fixed_value_solve(
         given, `T` is ignored if `solvent_density` is given or if
         `units` is `None`. If `A` and `G` are given, `T` is ignored when
         `units` and `G_units` are both `None`.
+    return_log : bool, default False
+        If True, return the natural logarithm of the concentrations.
 
     Returns
     -------
@@ -724,11 +754,18 @@ def fixed_value_solve(
        Springer, 2006, Chapter 4.
 
     """
+    if (
+        return_log
+        and units not in ["mole fraction", "", None]
+        and solvent_density is not None
+    ):
+        raise ValueError("If `return_log` is True, you must use dimensionless units.")
+
     # Convert the problem to N, K
     if G is not None or A is not None:
         # Strategy:
         # Prune the problem for the A, G formulation, and then convert it to N, K using
-        #        N = linalg.nullspace_svd(A, tol=constants.nullspace_tol)
+        #        N = linalg.nullspace_svd(A, tol=constants._nullspace_tol)
         #        K = np.exp(-np.dot(N, G))
         # and then do NOT prune the N, K problem, and solve.
 
@@ -746,13 +783,13 @@ def fixed_value_solve(
         fixed_c, x0, c0_from_df, names, solvent_density
     )
 
-    x = np.empty_like(x0)
+    logx = np.empty_like(x0)
     for i, (fixed_x_row, x0_row) in enumerate(zip(fixed_x, x0)):
         N_new, K_new = _new_NK_fixed_x(fixed_x_row, N, K)
-        x_res = solveNK(
+        logx_res = solveNK(
             np.ascontiguousarray(np.expand_dims(x0_row, axis=0)),
             N_new,
-            K_new,
+            np.log(K_new),
             max_iters=max_iters,
             tol=tol,
             delta_bar=delta_bar,
@@ -761,10 +798,16 @@ def fixed_value_solve(
             max_trials=max_trials,
             perturb_scale=perturb_scale,
         )
-        x[i] = x_res[0]
+        logx[i] = logx_res[0]
 
     c = parsers._parse_output(
-        x, x0 * solvent_density, names, solvent_density, single_point, units
+        logx,
+        x0 * solvent_density,
+        names,
+        solvent_density,
+        single_point,
+        units,
+        return_log,
     )
 
     units_str = " (" + units + ")" if units is not None else ""
@@ -944,7 +987,7 @@ def _perturb_initial_guess(constraint_vector, G, A, mu0, perturb_scale=100.0):
 
     new_mu = mu0 + perturb_scale * 2.0 * (np.random.rand(len(constraint_vector)) - 0.5)
     # Prevent overflow err
-    while (-G + np.dot(new_mu, A)).max() > constants.max_logx:
+    while (-G + np.dot(new_mu, A)).max() > constants._max_logx:
         perturb_scale /= 2.0
 
     return new_mu
@@ -1038,9 +1081,7 @@ def _solve_trust_region(
         )
         n_trial += 1
 
-    x = np.exp(trust_region.compute_logx(mu, G, A))
-
-    return x, converged, n_trial, step_tally
+    return trust_region.compute_logx(mu, G, A), converged, n_trial, step_tally
 
 
 @jit(
@@ -1209,7 +1250,7 @@ def _create_from_nothing(N, x0):
 def solveNK(
     x0,
     N,
-    K,
+    logK,
     max_iters=1000,
     tol=0.0000001,
     delta_bar=1000.0,
@@ -1258,9 +1299,9 @@ def solveNK(
     # Get number of particles and compounds
     n_reactions, n_compounds = N.shape
 
-    x = np.empty_like(x0)
+    logx = np.empty_like(x0)
 
-    minus_log_K = -np.log(K)
+    minus_log_K = -logK
 
     for i_point in range(x0.shape[0]):
         N_new, minus_log_K_new, x0_new, active_compounds, _ = _prune_NK(
@@ -1271,13 +1312,16 @@ def solveNK(
             n_reactions_new, n_compounds_new = N_new.shape
             n_constraints_new = n_compounds_new - n_reactions_new
 
-            # Compute and check constraint matrix
-            A = linalg.nullspace_svd(N_new, tol=constants.nullspace_tol)
+            # Compute conservation matrix
+            A = linalg.nullspace_svd(N_new, tol=constants._nullspace_tol)
+
+            # Scale it so each row has mean abs nonzero value of 1
+            for i in range(len(A)):
+                A[i] /= np.abs(A[i]).sum() / len(np.nonzero(A[i])[0])
 
             # If completely constrained (N square), solve directly
             if n_constraints_new == 0:
-                ln_x = np.linalg.solve(N_new, -minus_log_K_new)
-                x_new = np.exp(ln_x)
+                logx_new = np.linalg.solve(N_new, -minus_log_K_new)
             else:
                 # In case we have null <=> compds type reaction, adjust x0
                 x0_adjusted = _create_from_nothing(N_new, x0_new)
@@ -1288,7 +1332,7 @@ def solveNK(
                 G = np.linalg.solve(N_prime, b)
                 constraint_vector = np.dot(A, x0_adjusted)
 
-                x_new, converged, n_trial, step_tally = _solve_trust_region(
+                logx_new, converged, n_trial, step_tally = _solve_trust_region(
                     A,
                     G,
                     constraint_vector,
@@ -1326,12 +1370,15 @@ def solveNK(
         j = 0
         for i in range(n_compounds):
             if active_compounds[i]:
-                x[i_point, i] = x_new[j]
+                logx[i_point, i] = logx_new[j]
                 j += 1
             else:
-                x[i_point, i] = x0[i_point, i]
+                if x0[i_point, i] > 0:
+                    logx[i_point, i] = np.log(x0[i_point, i])
+                else:
+                    logx[i_point, i] = -np.inf
 
-    return x
+    return logx
 
 
 @jit(nopython=True)
@@ -1387,7 +1434,7 @@ def solveNG(
     # Get number of particles and compounds
     n_reactions, n_compounds = N.shape
 
-    x = np.empty_like(x0)
+    logx = np.empty_like(x0)
 
     dummy_minus_log_K = np.ones(N.shape[0], dtype=float)
 
@@ -1402,18 +1449,18 @@ def solveNG(
             n_constraints_new = n_compounds_new - n_reactions_new
 
             # Compute and check constraint matrix
-            A = linalg.nullspace_svd(N_new, tol=constants.nullspace_tol)
+            A = linalg.nullspace_svd(N_new, tol=constants._nullspace_tol)
 
             # If completely constrained (N square), solve directly
             if n_constraints_new == 0:
-                x_new = np.exp(-G_new)
+                logx_new = -G_new
             else:
                 # In case we have null <=> compds type reaction, adjust x0
                 x0_adjusted = _create_from_nothing(N_new, x0_new)
 
                 constraint_vector = np.dot(A, x0_adjusted)
 
-                x_new, converged, n_trial, step_tally = _solve_trust_region(
+                logx_new, converged, n_trial, step_tally = _solve_trust_region(
                     A,
                     G_new,
                     constraint_vector,
@@ -1451,12 +1498,15 @@ def solveNG(
         j = 0
         for i in range(n_compounds):
             if active_compounds[i]:
-                x[i_point, i] = x_new[j]
+                logx[i_point, i] = logx_new[j]
                 j += 1
             else:
-                x[i_point, i] = x0[i_point, i]
+                if x0[i_point, i] > 0:
+                    logx[i_point, i] = np.log(x0[i_point, i])
+                else:
+                    logx[i_point, i] = -np.inf
 
-    return x
+    return logx
 
 
 @jit(nopython=True)
@@ -1514,7 +1564,7 @@ def solveAG(
     """
     n_particles, n_compounds = A.shape
 
-    x = np.empty_like(x0)
+    logx = np.empty_like(x0)
 
     for i_point in range(x0.shape[0]):
         A_new, G_new, constraint_vector, active_compounds = _prune_AG(A, G, x0[i_point])
@@ -1522,20 +1572,16 @@ def solveAG(
         # Detect if A is empty (no constraints)
         A_empty = A_new.shape[0] + A_new.shape[1] == 1
 
-        # Problem is entirely constrained, must have x = x0.
-        if (not A_empty) and A_new.shape[0] >= A.shape[1]:
-            x[i_point, :] = x0
-            converged = True
-            run_stats = None
-        else:
+        if A_empty:
+            logx_new = -G_new
+        # If problem is entirely constrained, must have x = x0.
+        elif A_new.shape[0] <= A.shape[1]:
             # No constraints, directly use analytical solution to primal problem
             if A_empty:
-                x_new = np.exp(-G_new)
-                converged = True
-                run_stats = None
+                logx_new = -G_new
             # Go ahead and solve
             else:
-                x_new, converged, n_trial, step_tally = _solve_trust_region(
+                logx_new, converged, n_trial, step_tally = _solve_trust_region(
                     A_new,
                     G_new,
                     constraint_vector,
@@ -1569,13 +1615,16 @@ def solveAG(
                     )
                     raise RuntimeError("Calculation did not converge")
 
-            # Put in concentrations that were cut out
-            j = 0
-            for i in range(n_compounds):
-                if active_compounds[i]:
-                    x[i_point, i] = x_new[j]
-                    j += 1
+        # Put in concentrations that were cut out
+        j = 0
+        for i in range(n_compounds):
+            if active_compounds[i]:
+                logx[i_point, i] = logx_new[j]
+                j += 1
+            else:
+                if x0[i_point, i] > 0:
+                    logx[i_point, i] = np.log(x0[i_point, i])
                 else:
-                    x[i_point, i] = x0[i_point, i]
+                    logx[i_point, i] = -np.inf
 
-    return x
+    return logx

@@ -44,7 +44,7 @@ def lower_tri_solve(L, b):
     # Solve Lx = b.
     x = np.copy(b)
     for j in range(n - 1):
-        if abs(L[j, j]) > constants.float_eps:
+        if abs(L[j, j]) > constants._float_eps:
             x[j] /= L[j, j]
             for i in range(j + 1, n):
                 x[i] -= x[j] * L[i, j]
@@ -52,7 +52,7 @@ def lower_tri_solve(L, b):
             x[j] = 0.0
 
     if n > 0:
-        if abs(L[n - 1, n - 1]) > constants.float_eps:
+        if abs(L[n - 1, n - 1]) > constants._float_eps:
             x[n - 1] /= L[n - 1, n - 1]
         else:
             x[n - 1] = 0.0
@@ -82,7 +82,7 @@ def upper_tri_solve(U, b):
     # Solve Ux = b by back substitution.
     x = np.copy(b)
     for j in range(n - 1, 0, -1):
-        if abs(U[j, j]) > constants.float_eps:
+        if abs(U[j, j]) > constants._float_eps:
             x[j] /= U[j, j]
             for i in range(0, j):
                 x[i] -= x[j] * U[i, j]
@@ -90,7 +90,7 @@ def upper_tri_solve(U, b):
             x[j] = 0.0
 
     if n > 0:
-        if abs(U[0, 0]) > constants.float_eps:
+        if abs(U[0, 0]) > constants._float_eps:
             x[0] /= U[0, 0]
         else:
             x[0] = 0.0
@@ -151,7 +151,7 @@ def modified_cholesky(A):
         beta = np.sqrt(max(eta, xi / np.sqrt(n * n - 1)))
     else:
         beta = np.sqrt(eta)
-    beta = max(beta, constants.float_eps)
+    beta = max(beta, constants._float_eps)
 
     for k in range(n):
         # Pick a pivot.
@@ -199,7 +199,7 @@ def modified_cholesky(A):
             success = False
 
         temp = abs(L[k, k])
-        temp = max(temp, constants.float_eps * eta)
+        temp = max(temp, constants._float_eps * eta)
         temp = max(temp, c_sum)
         L[k, k] = np.sqrt(temp)
 

@@ -158,7 +158,7 @@ def search_direction_dogleg(g, B, delta):
 
     # Choose correct (positive) root (don't have to worry about a = 0 because
     # if pU \approx pB, we would have already taken Newton step)
-    if abs(b) < constants.float_eps:
+    if abs(b) < constants._float_eps:
         beta = np.sqrt(-c / a)
     elif b < 0.0:
         beta = q / a
@@ -271,7 +271,7 @@ def trust_region_convex_unconstrained(
         # Adjust delta
         if rho < 0.25:
             delta /= 4.0
-        elif rho > 0.75 and abs(np.linalg.norm(p) - delta) < constants.float_eps:
+        elif rho > 0.75 and abs(np.linalg.norm(p) - delta) < constants._float_eps:
             delta = min(2.0 * delta, delta_bar)
 
         # Make step based on rho

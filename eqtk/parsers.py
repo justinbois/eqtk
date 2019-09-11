@@ -1,4 +1,3 @@
-import collections
 import warnings
 
 import numpy as np
@@ -202,7 +201,7 @@ def parse_input(
     solvent_density : float
         The density of the solvent.
     single_point : bool
-        True if only one calculation is to be compute (n_points == 1).
+        True if only one calculation is to be computed (n_points == 1).
         False otherwise.
 
     """
@@ -243,44 +242,73 @@ def parse_input(
     return x0, N, K, A, G, names, solvent_density, single_point
 
 
-def to_df(c, c0=None, units=None, names=None):
+def to_df(c, c0=None, names=None, units=None):
+    """Convert output to a Pandas DataFrame.
+
+    It is preferred to use the `names` keyword argument when calling
+    `eqtk.solve()` that this function.
+
+    Parameters
+    ----------
+    c : Numpy array
+        Equilibrium concentrations of all species. `c[i, j]` is the
+        equilibrium concentration of species `j` for initial
+        concentrations given by `c0[i, :]` in units given by `units`.
+    c0 : Numpy array, Pandas Series, or Pandas DataFrame; or `None`
+        The value of `c0` that was used in a call to `eqtk.solve()`,
+        `eqtk.solveNK()`, `eqtk.solveNG()`, or `eqtk.solveAG()`. If
+        `None`, then no information about initial concentrations will be
+        added to the outputted data frame.
+    names : list of strings
+        Names of the chemical species. If `None`, the names are assumed
+        to be 'species_1', 'species_2', etc.
+    units : str
+        The units of concentration. The column headings in the outputted
+        data frame have `f' ({units})'` appended to them.
+
+    Returns
+    -------
+    output : Pandas DataFrame or Pandas Series
+        If a single calculation was done, the output is a Pandas Series,
+        otherwise a Pandas DataFrame. The column headings are
+        descriptive, e.g., for chemical species HA, with `units = 'mM'`,
+        the heading is '[HA] (mM)'.
+
+    Raises
+    ------
+    ValueError
+        If the inputted `c` is not a Numpy array.
     """
-    Return output as a Pandas DataFrame.
-    """
-    units_str = " (" + units + ")" if units is not None else ""
+    if type(c) in [pd.core.series.Series, pd.core.frame.DataFrame]:
+        raise ValueError("Inputted `c` is already a DataFrame or Series.")
 
-    if c0 is None:
-        if names is None:
-            names = ["species_" + str(i) for i in range(c.shape[1])]
-        cols = [name + units_str for name in names]
+    if type(c) != np.ndarray:
+        raise ValueError("Inputted `c` must be a Numpy array.")
 
-        return pd.DataFrame(data=c, columns=cols)
+    if len(c.shape) == 1:
+        c = c.reshape((1, len(c)))
 
-    if type(c) == pd.core.series.Series:
-        if len(c.index) == 2 * len(c0.index) and np.sum(
-            c.index.str.contains("__0")
-        ) == len(c0.index):
-            return c.copy().rename(index=lambda x: x + units_str)
-    elif type(c) == pd.core.frame.DataFrame:
-        if len(c.columns) == 2 * len(c0.columns) and np.sum(
-            c.columns.str.contains("__0")
-        ) == len(c0.columns):
-            return c.copy().rename(columns=[col + units_str for col in c.columns])
-
-    parsers._check_names_type(names)
-
-    c0, n_compounds, names, _, single_point = parsers._parse_c0(c0, names)
+    units_str = _units_str(units)
 
     if names is None:
-        names = ["species_" + str(i) for i in range(n_compounds)]
+        names = ["species_" + str(i + 1) for i in range(c.shape[1])]
+    else:
+        _check_names_type(names)
 
-    c, _, _, _, _ = parsers._parse_c0(c, names)
+    if c0 is None:
+        cols = [name + units_str for name in names]
+        if len(c) == 1:
+            return pd.Series(data=c.flatten(), index=cols)
+        else:
+            return pd.DataFrame(data=c, columns=cols)
+
+    c0, n_compounds, names, _, single_point = _parse_c0(c0, names)
 
     if c0.shape != c.shape:
         raise ValueError("`c0` and `c` have mismatched shapes.")
 
-    cols = [name + "__0" + units_str for name in names]
-    cols += [name + units_str for name in names]
+    cols = ['[' + name + ']' + "__0" + units_str for name in names]
+    cols += ['[' + name + ']' + units_str for name in names]
 
     if single_point:
         return pd.Series(index=cols, data=np.concatenate((c0.flatten(), c.flatten())))
@@ -288,14 +316,29 @@ def to_df(c, c0=None, units=None, names=None):
     return pd.DataFrame(columns=cols, data=np.concatenate((c0, c), axis=1))
 
 
-def _parse_output(x, x0, names, solvent_density, single_point, units):
+def _units_str(units):
+    return " (" + units + ")" if units is not None else ""
+
+
+def _parse_output(logx, x0, names, solvent_density, single_point, units, return_log):
     """
     """
-    if solvent_density is None:
-        c = x
+    if (
+        not return_log
+        and np.logical_and(~np.isinf(logx), logx < constants._min_logx).any()
+    ):
+        warnings.warn(
+            f"One or more natural log concentrations are less then {constants._min_logx}. You may want to run the calculation with the `return_log=True` keyword argument. If you do that, you must work in dimensionless units."
+        )
+
+    if return_log:
+        c = logx
+        c0 = x0
+    elif solvent_density is None:
+        c = np.exp(logx)
         c0 = x0
     else:
-        c = x * solvent_density
+        c = np.exp(logx) * solvent_density
         c0 = x0 * solvent_density
 
     if single_point:
@@ -305,11 +348,16 @@ def _parse_output(x, x0, names, solvent_density, single_point, units):
     if names is None:
         return c
 
-    units_str = " (" + units + ")" if units is not None else ""
+    if return_log:
+        units_str = ""
+        pre_str = "ln "
+    else:
+        pre_str = ""
+        units_str = _units_str(units)
 
     # Names of columns for outputted data frames
     cols = [f"[{name}]__0{units_str}" for name in names]
-    cols += [f"[{name}]{units_str}" for name in names]
+    cols += [f"{pre_str}[{name}]{units_str}" for name in names]
 
     if single_point:
         return pd.Series(data=np.concatenate((c0, c)), index=cols)
@@ -415,12 +463,15 @@ def _parse_solvent_density(solvent_density, T, units):
 
 def water_density(T, units="M"):
     """
-    Calculate the number density of water in specified units.
+    Calculate the number density of water at atmospheric pressure in
+    specified units.
 
     Parameters
     ----------
     T : float
-        Temperature in Kelvin.
+        Temperature in Kelvin. If `water_type == 'pure'`, then `T` must
+        be between 273.16 and 373.14 K. If `water_type == 'sea'`, then
+        `T` must be between 273.15 and 313.15.
     units : string, default = 'M'
         The units in which the density is to be calculated.
         Valid values are: 'M', 'mM', 'uM', 'µM', 'nM', 'pM'.
@@ -430,27 +481,39 @@ def water_density(T, units="M"):
     water_density : float
         Number density of water in `units`.
 
+    Notes
+    -----
+    .. Uses pre-calculated values of water density from the IAPWS-95
+    standards as calculated from the iapws Python package
+    (https://iapws.readthedocs.io/), as
+    T_array = np.linspace()
+    np.array([iapws.IAPWS95(T=T+273.15, P=0.101325).rho
+                for T in np.linspace(0.1, 99.9, 999)]) / 18.01528
+
+
     References
     ----------
-    Tanaka M., Girard, G., Davis, R., Peuto A.,
-    Bignell, N.   Recommended table for the density
-    of water..., Metrologia, 2001, 38, 301-309
+    - Wagner, W, Pruß, A, The IAPWS formulation 1995 for the
+    thermodynamic properties of ordinary water substance for general and
+    scientific use, J. Phys. Chem. Ref. Data, 31, 387-535, 2002.
+    https://doi.org/10.1063/1.1461829
+
     """
     # If dimensionless, take solvent density to be unity
     if units is None or units == "":
         return 1.0
 
-    a1 = -3.983035
-    a2 = 301.797
-    a3 = 522528.9
-    a4 = 69.34881
-    a5 = 999.974950
+    if T < 273.15 or T > 372.15:
+        raise ValueError("To compute water density, must have 273.16 < T < 373.14.")
 
-    # Convert temperature to celsius
-    T_C = T - constants.absolute_zero
+    i = int(T - 273.15)
 
-    # Compute water density in units of molar
-    dens = a5 * (1 - (T_C + a1) * (T_C + a1) * (T_C + a2) / a3 / (T_C + a4)) / 18.0152
+    if i == 99:
+        dens = constants._iapws_rho[-1]
+    else:
+        rho_1 = constants._iapws_rho[i]
+        rho_2 = constants._iapws_rho[i + 1]
+        dens = (rho_2 - rho_1) * (T - i - 273.15) + rho_1
 
     # Valid units
     allowed_units = (
@@ -509,15 +572,15 @@ def _thermal_energy(T, units):
     allowed_units = ["kcal/mol", "J", "J/mol", "kJ/mol", "pN-nm"]
 
     if units == "kcal/mol":
-        return constants.kB_kcal_per_mol * T
+        return constants.kB_kcal_per_mol_K * T
     elif units == "J":
-        return constants.kB_J * T
+        return constants.kB_J_K * T
     elif units == "J/mol":
         return constants.kB_J_per_mol * T
     elif units == "kJ/mol":
-        return constants.kB_kJ_per_mol * T
+        return constants.kB_kJ_per_mol_K * T
     elif units == "pN-nm":
-        return constants.kB_pN_nm * T
+        return constants.kB_pN_nm_per_K * T
     else:
         raise ValueError(
             f"Specified thermal energy units of {units} not in {allowed_units}."
@@ -615,13 +678,22 @@ def _check_solvent_density(solvent_density, units):
         )
 
 
+def is_hashable(x):
+    """Determing if `x` is hashable."""
+    try:
+        hash(x)
+    except:
+        return False
+    return True
+
+
 def _check_names_type(names):
     if names is not None:
         if type(names) not in [list, tuple, np.ndarray]:
             raise ValueError("`names` must be a list, tuple, or Numpy array.")
 
         for name in names:
-            if not isinstance(name, collections.Hashable):
+            if not is_hashable(name):
                 raise ValueError(
                     f"{name} is an invalid name because it is not hashable."
                 )
@@ -638,8 +710,10 @@ def _parse_c0(c0, names):
         if len(c0.shape) == 1:
             n_compounds = c0.shape[0]
             c0 = np.expand_dims(c0, axis=0)
+            single_point = True
         elif len(np.shape(c0)) == 2:
             n_compounds = c0.shape[1]
+            single_point = False
         else:
             raise ValueError("c0 is the wrong shape.")
         c0_from_df = False
@@ -667,7 +741,7 @@ def _parse_c0(c0, names):
         if len(c0.shape) == 1:
             c0 = np.expand_dims(c0, axis=0)
 
-    single_point = len(c0) == 1
+        single_point = len(c0) == 1
 
     return np.ascontiguousarray(c0), n_compounds, names, c0_from_df, single_point
 
@@ -749,10 +823,10 @@ def _check_N(N, n_compounds):
             )
         if len(N) > 0 and np.linalg.matrix_rank(N) != N.shape[0]:
             raise ValueError(
-                "Inputted `N` results in rank deficient stoichiometic matrix."
+                "Rank deficient stoichiometric matrix `N`."
             )
         if np.isinf(N).any():
-            raise ValueError("All entries in the stoichiometic matrix must be finite.")
+            raise ValueError("All entries in the stoichiometric matrix must be finite.")
         if np.isnan(N).any():
             raise ValueError("No NaN values are allowed in the stoichiometric matrix.")
 
