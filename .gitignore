@@ -71,3 +71,6 @@ notebooks/
 
 # All unsaved notebooks
 Untitled*.ipynb
+
+# Messaround notebook
+sandbox.ipynb
