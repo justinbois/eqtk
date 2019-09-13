@@ -53,7 +53,7 @@ Now we can solve the system.
 
 .. note:: 
 
-    Because the numerical routines of EQTK are `just-in-time compiled`_, importing EQTK may take a few seconds, as will the first call you make to ``eqtk.solve()``. Subsequent calculations will be fast.
+    Because the numerical routines of EQTK are `just in time compiled <http://en.wikipedia.org/wiki/Just-in-time_compilation>`_ (JITted), importing EQTK may take a few seconds, as will the first call you make to ``eqtk.solve()``. Subsequent calculations will be fast.
 
 .. code-block:: python
 
@@ -150,7 +150,7 @@ Here is a plot of the result.
 Rich input/output formats
 -------------------------
 
-Instead of using lists, tuples, and Numpy arrays for specifying inputs, and thereafter relying on integer-based indexing to retrieve results, the stoichiometry, equilibrium constants, and initial concentrations may be specified as Pandas_ series and data frames. This allows for chemical species to be referenced by name. Conveniently, EQTK includes a parser that converts chemical reactions written a strings to data frames using syntax similar to Cantera_. We can alternatively specify the problem as below, this time also considering dimerization of the ligand A, 
+Instead of using lists, tuples, and Numpy arrays for specifying inputs, and thereafter relying on integer-based indexing to retrieve results, the stoichiometry, equilibrium constants, and initial concentrations may be specified as `Pandas <http://pandas.pydata.org>`_ series and data frames. This allows for chemical species to be referenced by name. Conveniently, EQTK includes a parser that converts chemical reactions written a strings to data frames using syntax similar to `Cantera <http://cantera.org>`_. We can alternatively specify the problem as below, this time also considering dimerization of the ligand A, 
 
 AA ⇌ 2A ; K = 0.02 mM.
 
@@ -212,10 +212,3 @@ The :ref:`user guide <User guide>` has more details about
 - Lower level interfaces to the equilibrium solving algorithm.
 
 Finally, the :ref:`case studies <Case studies>` section of this guide provides examples of using EQTK to study chemical systems.
-
-
-
-.. _Pandas: http://pandas.pydata.org
-.. _Cantera: http://cantera.org
-.. _install EQTK: _installation
-.. _just-in-time compiled: http://en.wikipedia.org/wiki/Just-in-time_compilation
