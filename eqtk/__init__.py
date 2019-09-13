@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from .eqtk import *
+from .solvers import *
 from .parsers import *
 from .checks import *
 

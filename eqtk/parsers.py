@@ -185,9 +185,9 @@ def parse_input(
     N : Numpy array, dtype float, shape (n_reactions, n_compounds)
         The stoichiometric matrix. Returned as `None` if inputted `N` is
         `None`.
-    K : Numpy array, dtype float, shape (n_reactions,)
-        The equilibrium constants in dimensionless units. Returned as
-        `None` if inputted `G` is `None`.
+    logK : Numpy array, dtype float, shape (n_reactions,)
+        The natural logarithm of the dimensionless equilibrium
+        constants. Returned as `None` if inputted `G` is `None`.
     A : Numpy array, dtype float, shape (n_conserv_laws, n_compounds)
         The conservation matrix. Returned as `None` if inputted `A` is
         `None`.
@@ -239,7 +239,12 @@ def parse_input(
             c0, G, T, solvent_density, units, G_units
         )
 
-    return x0, N, K, A, G, names, solvent_density, single_point
+    if K is None:
+        logK = None
+    else:
+        logK = np.log(K)
+
+    return x0, N, logK, A, G, names, solvent_density, single_point
 
 
 def to_df(c, c0=None, names=None, units=None):
@@ -463,15 +468,14 @@ def _parse_solvent_density(solvent_density, T, units):
 
 def water_density(T, units="M"):
     """
-    Calculate the number density of water at atmospheric pressure in
-    specified units.
+    Calculate the number density of pure water at atmospheric pressure
+    in specified units.
 
     Parameters
     ----------
     T : float
-        Temperature in Kelvin. If `water_type == 'pure'`, then `T` must
-        be between 273.16 and 373.14 K. If `water_type == 'sea'`, then
-        `T` must be between 273.15 and 313.15.
+        Temperature in Kelvin.
+
     units : string, default = 'M'
         The units in which the density is to be calculated.
         Valid values are: 'M', 'mM', 'uM', 'µM', 'nM', 'pM'.
@@ -483,7 +487,7 @@ def water_density(T, units="M"):
 
     Notes
     -----
-    .. Uses pre-calculated values of water density from the IAPWS-95
+    Uses pre-calculated values of water density from the IAPWS-95
     standards as calculated from the iapws Python package
     (https://iapws.readthedocs.io/), as
     T_array = np.linspace()
@@ -497,6 +501,7 @@ def water_density(T, units="M"):
     thermodynamic properties of ordinary water substance for general and
     scientific use, J. Phys. Chem. Ref. Data, 31, 387-535, 2002.
     https://doi.org/10.1063/1.1461829
+
 
     """
     # If dimensionless, take solvent density to be unity

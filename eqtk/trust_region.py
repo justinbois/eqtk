@@ -169,7 +169,8 @@ def search_direction_dogleg(g, B, delta):
     if 0.0 <= beta <= 1.0:  # Should always be the case
         p = pU + beta * (pB - pU)
         return inv_d * p, 3
-    else:  # Something is messed up, take Cauchy step (should never get here)
+    else:  # Something is messed up, take Cauchy step. Only get here if
+           # precision issues with beta
         return inv_d * pU, 6
 
 

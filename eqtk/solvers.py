@@ -276,7 +276,7 @@ def solve(
     ):
         raise ValueError("If `return_log` is True, you must use dimensionless units.")
 
-    x0, N, K, A, G, names, solvent_density, single_point = parsers.parse_input(
+    x0, N, logK, A, G, names, solvent_density, single_point = parsers.parse_input(
         c0, N, K, A, G, names, units, solvent_density, T, G_units
     )
 
@@ -298,7 +298,7 @@ def solve(
         logx = solveNK(
             x0,
             N,
-            np.log(K),
+            logK,
             max_iters=max_iters,
             tol=tol,
             delta_bar=delta_bar,
@@ -525,19 +525,19 @@ def volumetric_titration(
     if np.any(vol_titrant < 0):
         raise ValueError("`vol_titrant` must have non-negative volumes.")
 
-    x0, N, K, A, G, names, solvent_density, _ = parsers.parse_input(
-        c0, N, K, A, G, names, units, solvent_density, T, G_units
-    )
-
-    if x0.shape[0] != 1:
-        raise ValueError("`c0` must be a one-dimensional array.")
-
     x0_titrant, _, _, _, _, _, _, _ = parsers.parse_input(
         c0_titrant, N, K, A, G, names, units, solvent_density, T, G_units
     )
 
     if x0_titrant.shape[0] != 1:
         raise ValueError("`c0_titrant` must be a one-dimensional array.")
+
+    x0, N, logK, A, G, names, solvent_density, _ = parsers.parse_input(
+        c0, N, K, A, G, names, units, solvent_density, T, G_units
+    )
+
+    if x0.shape[0] != 1:
+        raise ValueError("`c0` must be a one-dimensional array.")
 
     new_x0 = _volumetric_to_c0(x0.flatten(), x0_titrant.flatten(), vol_titrant)
 
@@ -558,7 +558,7 @@ def volumetric_titration(
         logx = solveNK(
             new_x0,
             N,
-            np.log(K),
+            logK,
             max_iters=max_iters,
             tol=tol,
             delta_bar=delta_bar,
@@ -773,7 +773,7 @@ def fixed_value_solve(
             "Fixed value solving not yet implemented for the A, G formulation."
         )
 
-    x0, N, K, A, G, names, solvent_density, _ = parsers.parse_input(
+    x0, N, logK, A, G, names, solvent_density, _ = parsers.parse_input(
         c0, N, K, A, G, names, units, solvent_density, T, G_units
     )
 
@@ -785,11 +785,11 @@ def fixed_value_solve(
 
     logx = np.empty_like(x0)
     for i, (fixed_x_row, x0_row) in enumerate(zip(fixed_x, x0)):
-        N_new, K_new = _new_NK_fixed_x(fixed_x_row, N, K)
+        N_new, logK_new = _new_NK_fixed_x(fixed_x_row, N, logK)
         logx_res = solveNK(
             np.ascontiguousarray(np.expand_dims(x0_row, axis=0)),
             N_new,
-            np.log(K_new),
+            logK_new,
             max_iters=max_iters,
             tol=tol,
             delta_bar=delta_bar,
@@ -833,19 +833,19 @@ def fixed_value_solve(
     return c
 
 
-def _new_NK_fixed_x(fixed_x, N, K):
+def _new_NK_fixed_x(fixed_x, N, logK):
     """Generate a new N and K for a fixed x.
 
     fixed_x is a 1D array.
     """
     N_new = N.copy()
-    K_new = K.copy()
+    logK_new = logK.copy()
 
     for j in np.nonzero(~np.isnan(fixed_x))[0]:
         N_new_row = np.zeros(N.shape[1])
         N_new_row[j] = 1.0
         N_new = np.vstack((N_new_row, N_new))
-        K_new = np.concatenate(((fixed_x[j],), K_new))
+        logK_new = np.concatenate(((np.log(fixed_x[j]),), logK_new))
 
     if N_new.shape[0] > N_new.shape[1]:
         raise ValueError(
@@ -857,7 +857,7 @@ def _new_NK_fixed_x(fixed_x, N, K):
             "Cannot fix concentrations as specified: Results in a rank-deficient stoichiometic matrix."
         )
 
-    return np.ascontiguousarray(N_new), np.ascontiguousarray(K_new)
+    return np.ascontiguousarray(N_new), np.ascontiguousarray(logK_new)
 
 
 def _volumetric_to_c0(c0, c0_titrant, vol_titrant):
@@ -1265,35 +1265,28 @@ def solveNK(
 
     Parameters
     ----------
-    x0 : array_like, shape (n_points, n_compounds)
-        array containing the total "initial" mole fraction of all
-        compounds in solution.  Internally, this is converted into
-        n_compounds-n_reactions conservation equations.
-    N : array_like, shape (n_reactions, n_compounds)
-        N[r][j] = the stoichiometric coefficient of compounds j
-        in chemical reaction r.
-    K : array_like, shape (n_reactions,)
-        K[r] is the equilibrium constant for chemical reaction r
+    x0 : Contiguous Numpy array in C order, shape (n_points, n_compounds)
+        Array containing the total "initial" dimensionless concentration
+        of all compounds in solution.
+    N : Contiguous Numpy array in C order, shape (n_reactions, n_compounds)
+        N[r, j] = the stoichiometric coefficient of compound j in
+        chemical reaction r.
+    logK : Contiguous Numpy array in C order, shape (n_reactions,)
+        logK[r] is the natural logarithm of the dimensionless
+        equilibrium constant for reaction `r`.
 
     Returns
     -------
-    x : array_like, shape (n_compounds)
-        x[j] = the equilibrium concentration of compound j.  Units are
-        given as specified in the units keyword argument.
-
-    Raises
-    ------
-    ValueError
-        If input is in any way invalid.
-    RuntimeError
-        If the trust region algorithm failed to converge.
+    logx : Numpy array, shape (n_points, n_compounds)
+        `logx[i, j]` = natural log of the dimensionless equilibrium
+        concentration of compound `j` for calculation `i`.
 
     Notes
     -----
-    .. N must have full row rank, i.e., all rows must be
-       linearly independent.
+    .. N must have full row rank, i.e., all rows must be linearly
+       independent.
 
-    .. All x0's must be non-negative and finite
+    .. All x0's must be non-negative and finite.
 
     """
     # Get number of particles and compounds
@@ -1400,35 +1393,27 @@ def solveNG(
 
     Parameters
     ----------
-    x0 : array_like, shape (n_points, n_compounds)
-        array containing the total "initial" mole fraction of all
-        compounds in solution.  Internally, this is converted into
-        n_compounds-n_reactions conservation equations.
-    N : array_like, shape (n_reactions, n_compounds)
-        N[r][j] = the stoichiometric coefficient of compounds j
-        in chemical reaction r.
-    G : array_like, shape (n_compounds,)
-        G[j] is the free energy of compound j in units of kT.
+    x0 : Contiguous Numpy array in C order, shape (n_points, n_compounds)
+        Array containing the total "initial" dimensionless concentration
+        of all compounds in solution.
+    N : Contiguous Numpy array in C order, shape (n_reactions, n_compounds)
+        `N[r, j]` = the stoichiometric coefficient of compound `j` in
+        chemical reaction `r`.
+    G : Contiguous Numpy array in C order, shape (n_compounds,)
+        `G[j]` is the free energy of compound `j` in units of kT.
 
     Returns
     -------
-    x : array_like, shape (n_compounds)
-        x[j] = the equilibrium concentration of compound j.  Units are
-        given as specified in the units keyword argument.
-
-    Raises
-    ------
-    ValueError
-        If input is in any way invalid.
-    RuntimeError
-        If the trust region algorithm failed to converge.
+    logx : Numpy array, shape (n_points, n_compounds)
+        `logx[i, j]` = natural log of the dimensionless equilibrium
+        concentration of compound `j` for calculation `i`.
 
     Notes
     -----
-    .. N must have full row rank, i.e., all rows must be
-       linearly independent.
+    .. N must have full row rank, i.e., all rows must be linearly
+       independent.
 
-    .. All x0's must be non-negative and finite
+    .. All x0's must be non-negative and finite.
 
     """
     # Get number of particles and compounds
@@ -1436,7 +1421,7 @@ def solveNG(
 
     logx = np.empty_like(x0)
 
-    dummy_minus_log_K = np.ones(N.shape[0], dtype=float)
+    dummy_minus_log_K = np.ones(N.shape[0], dtype=np.float64)
 
     for i_point in range(x0.shape[0]):
         N_new, dummy_throwaway, x0_new, active_compounds, _ = _prune_NK(
@@ -1524,43 +1509,32 @@ def solveAG(
 ):
     """
     Solve for equilibrium concentrations of all species in a dilute
-    solution given their free energies in units of kT.
+    solution.
 
     Parameters
     ----------
-    x0 : array_like, shape (n_points, n_compounds)
-        Array containing the total "initial" mole fraction of all
-        compounds in solution.
-    A : array_like, shape (n_particles, n_compounds)
-        A[i][j] = number of particles of type i in compound j.
-        Leftmost square matrix of A (n_particles by n_particles) must
-        be the identity matrix.  No column may be repeated.
-    G : array_like, shape (n_compounds,)
+    x0 : Contiguous Numpy array in C order, shape (n_points, n_compounds)
+        Array containing the total "initial" dimensionless concentration
+        of all compounds in solution.
+    A : Contiguous Numpy array in C order, shape (n_conserved_qtys, n_compounds)
+        A[i, j] = the stoichiometric coefficient of compound j in
+        chemical reaction r.
+    G : Contiguous Numpy array in C order, shape (n_compounds,)
         G[j] is the free energy of compound j in units of kT.
-    elemental : bool
-        If True, A is assumed to be an elemental conservation matrix.
-        This means entry A[i, j] is the number of particles of type i
-        in compound j.
 
     Returns
     -------
-    x : array_like, shape (n_compounds)
-        x[j] = the equilibrium mole fraction of compound j.
-    run_stats : a class with attributes:
-        Statistics of steps taken by the trust region algorithm.
-        n_newton_steps : # of Newton steps taken
-        n_cauchy_steps : # of Cauchy steps taken (hit trust region boundary)
-        n_dogleg_steps : # of dogleg steps taken
-        n_chol_fail_cauchy_steps : # of Cholesky failures forcing Cauchy step
-        n_irrel_chol_fail : # of steps with irrelovant Cholesky failures
-        n_dogleg_fail : # of failed dogleg calculations
+    logx : Numpy array, shape (n_points, n_compounds)
+        `logx[i, j]` = natural log of the dimxensionless equilibrium
+        concentration of compound `j` for calculation `i`.
 
-    Raises
-    ------
-    ValueError
-        If A, G, and x0 have a dimensional mismatch.
-    RuntimeError
-        If trust region algorithm failed to converge.
+    Notes
+    -----
+    .. N must have full row rank, i.e., all rows must be linearly
+       independent.
+
+    .. All x0's must be non-negative and finite.
+
     """
     n_particles, n_compounds = A.shape
 
