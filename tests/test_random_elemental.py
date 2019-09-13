@@ -1,7 +1,7 @@
 import random
 import numpy as np
 import eqtk
-import testcases
+import eqtk.testcases
 
 import hypothesis
 import hypothesis.strategies as hs
@@ -23,7 +23,7 @@ def test_random_cases(n_random_test_cases=200, max_particles=4, max_compound_siz
         n_parts = np.random.randint(1, max_particles)
         max_cmp_size = np.random.randint(1, max_compound_size + 1)
         random_test_cases.append(
-            testcases.random_elemental_test_case(n_parts, max_cmp_size)
+            eqtk.testcases.random_elemental_test_case(n_parts, max_cmp_size)
         )
 
     for tc in random_test_cases:

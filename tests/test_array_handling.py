@@ -8,7 +8,7 @@ def test_boolean_index_1d():
     a = np.array([1.0, 2.0, 3.0, 4.0])
     for t in itertools.product(*([True, False] for _ in range(len(a)))):
         b = np.array(t)
-        assert np.array_equal(eqtk.eqtk._boolean_index(a, b, np.sum(b)), a[b])
+        assert np.array_equal(eqtk.solvers._boolean_index(a, b, np.sum(b)), a[b])
 
 
 def test_boolean_index_2d():
@@ -31,5 +31,5 @@ def test_boolean_index_2d():
         target = target[:, b_col]
 
         assert np.array_equal(
-            eqtk.eqtk._boolean_index_2d(a, b_row, b_col, n_true_row, n_true_col), target
+            eqtk.solvers._boolean_index_2d(a, b_row, b_col, n_true_row, n_true_col), target
         )

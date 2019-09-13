@@ -4,7 +4,7 @@ import pytest
 
 import eqtk
 import eqtk.checks
-import testcases
+import eqtk.testcases
 
 import pandas.testing
 
@@ -125,7 +125,7 @@ def test_c_from_df():
 )
 def test_eqcheck_simple_binding(input_tuple):
     cA0, cB0, Kd = input_tuple
-    tc = testcases.simple_binding(cA0, cB0, Kd)
+    tc = eqtk.testcases.simple_binding(cA0, cB0, Kd)
 
     eq_check, cons_check, cons_zero = eqtk.eqcheck_quant(
         tc["c"], tc["c0"], tc["N"], tc["K"]
@@ -222,9 +222,9 @@ def test_eqcheck_simple_binding(input_tuple):
 def test_eqcheck_simple_binding_multiple_inputs(input_tuple):
     cA0_0, cB0_0, cA0_1, cB0_1, cA0_2, cB0_2, Kd = input_tuple
 
-    tc_0 = testcases.simple_binding(cA0_0, cB0_0, Kd)
-    tc_1 = testcases.simple_binding(cA0_0, cB0_0, Kd)
-    tc_2 = testcases.simple_binding(cA0_0, cB0_0, Kd)
+    tc_0 = eqtk.testcases.simple_binding(cA0_0, cB0_0, Kd)
+    tc_1 = eqtk.testcases.simple_binding(cA0_0, cB0_0, Kd)
+    tc_2 = eqtk.testcases.simple_binding(cA0_0, cB0_0, Kd)
 
     c_df = pd.concat(
         (

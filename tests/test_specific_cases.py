@@ -69,7 +69,7 @@ def test_aspartic_acid_titration():
         c0, c0_titrant, vol_titrant, N=N, K=K, units="M"
     )
 
-    new_c0 = eqtk.eqtk._volumetric_to_c0(c0, c0_titrant, vol_titrant)
+    new_c0 = eqtk.solvers._volumetric_to_c0(c0, c0_titrant, vol_titrant)
 
     assert eqtk.eqcheck(c, new_c0, N=N, K=K, units="M")
 
@@ -91,7 +91,7 @@ def test_phosphoric_acid_titration():
         c0, c0_titrant, vol_titrant, N=N, K=K, units="M"
     )
 
-    new_c0 = eqtk.eqtk._volumetric_to_c0(c0, c0_titrant, vol_titrant)
+    new_c0 = eqtk.solvers._volumetric_to_c0(c0, c0_titrant, vol_titrant)
 
     assert eqtk.eqcheck(c, new_c0, N=N, K=K, units="M")
 

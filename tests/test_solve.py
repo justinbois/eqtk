@@ -1,6 +1,5 @@
 import numpy as np
 import eqtk
-import testcases
 
 import hypothesis
 import hypothesis.strategies as hs
