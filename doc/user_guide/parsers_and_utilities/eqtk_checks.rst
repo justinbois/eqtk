@@ -3,7 +3,7 @@
 Check satisfaction of equilibrium conditions
 ============================================
 
-If EQTK's solve algorithm converges, equilibrium and conservation laws are guaranteed to be satisfied (see :ref:`algorithmic_details`). Nonetheless, it is sometimes useful to check if equilibrium conditions are met. To understand the discussion below, it may help to refresh yourself of the :ref:`core_concepts` behind the couple equilibrium problem.
+If EQTK's solve algorithm converges, equilibrium and conservation laws are guaranteed to be satisfied (see :ref:`algorithmic_details`). Nonetheless, it is sometimes useful to check if equilibrium conditions are met. To understand the discussion below, it may help to refresh yourself of the :ref:`core concepts <core_concepts>` behind the couple equilibrium problem.
 
 As a simple example, consider the chemical reactions
 

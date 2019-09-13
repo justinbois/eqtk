@@ -8,9 +8,9 @@ High-level functions
 --------------------
 .. currentmodule:: eqtk
 
-
 .. autosummary::
    :toctree: generated/highlevel/
+   :nosignatures:
 
    solve
    fixed_value_solve
@@ -18,12 +18,12 @@ High-level functions
 
 
 Parsers and utilities
-----------------------
+---------------------
 .. currentmodule:: eqtk
-
 
 .. autosummary::
    :toctree: generated/parsers/
+   :nosignatures:
 
    parse_rxns
    parse_input
@@ -31,3 +31,16 @@ Parsers and utilities
    water_density
    eqcheck
    eqcheck_quant
+
+
+Low-level functions
+-------------------
+.. currentmodule:: eqtk
+
+.. autosummary::
+   :toctree: generated/lowlevel/
+   :nosignatures:
+
+   solveNK
+   solveNG
+   solveAG

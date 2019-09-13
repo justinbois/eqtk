@@ -16,11 +16,12 @@ The high level interface functions (``eqtk.solve()``, ``eqtk.fixed_value_solve()
 - ``solvent_density``, number density of solvent
 - ``T``, temperature in units of Kelvin
 
-For use in low-level functions, ``c0``, ``K``, and ``G`` must be dimensionless. Additionally, the variables must have the following data types.
+The low-level functions take the natural logarithm of dimensionless ``K`` as an argument.
+Additionally, ``c0`` and ``G`` must be dimensionless. The variables must have the following data types.
 
 - ``x0``: Numpy array, dtype float, shape (n_points, n_compounds)
 - ``N``: Numpy array, dtype float, shape (n_reactions, n_compounds)
-- ``K``: Numpy array, dtype float, shape (n_reactions,)
+- ``logK``: Numpy array, dtype float, shape (n_reactions,)
 - ``A``: Numpy array, dtype float, shape (n_conserv_laws, n_compounds)
 - ``G``: Numpy array, dtype float, shape (n_compounds,)
 - ``names``: list of strings, len n_compounds
@@ -47,7 +48,7 @@ We show as an example the dissociation of oxalic acid in presence of hydroxide.
 	# We could first convert rxn's to N using eqtk.parse_rxns(rxns), 
 	# but don't have to.
 
-	x0, N, K, A, G, names, solvent_density, single_point = eqtk.parse_input(
+	x0, N, logK, A, G, names, solvent_density, single_point = eqtk.parse_input(
 	    c0=c0,
 	    N=rxns,
 	    K=None,
@@ -62,7 +63,7 @@ We show as an example the dissociation of oxalic acid in presence of hydroxide.
 
 	print('x0:\n', x0, '\n')
 	print('N:\n', N, '\n')
-	print('K:\n', K, '\n')
+	print('logK:\n', logK, '\n')
 	print('A:\n', A, '\n')
 	print('G:\n', G, '\n')
 	print('names:\n', names, '\n')
@@ -76,11 +77,11 @@ The result is ::
 
 	N:
 	 [[ 0.  1.  1.  0.  0.]
-	  [-1.  0.  1.  1.  0.]
-	  [ 0.  0.  1. -1.  1.]] 
+	 [-1.  0.  1.  1.  0.]
+	 [ 0.  0.  1. -1.  1.]] 
 
-	K:
-	 [3.25714562e-18 9.69154180e-04 9.69154180e-07] 
+	logK:
+	 [-40.26567237  -6.93908281 -13.84683809] 
 
 	A:
 	 None 
@@ -92,7 +93,7 @@ The result is ::
 	 ['C₂O₄H₂', 'OH⁻', 'H⁺', 'C₂O₄H⁻', 'C₂O₄²⁻'] 
 
 	solvent_density:
-	 55.4091403681123 
+	 55.408916789969595 
 
 	single_point:
 	 True

@@ -57,7 +57,7 @@ We will first solve the coupled equilibrium problem using ``eqtk.solve()`` with 
 
 Here, we have calculated the equilibrium concentrations for a single set of initial conditions, so calling ``eqtk.to_df()`` will return a Pandas Series.
 
-.. code_block:: python
+.. code-block:: python
 
 	names = ['A', 'B', 'C', 'AB', 'BB', 'BC']
 	c_series = eqtk.to_df(c=c, c0=c0, names=names, units='mM')
