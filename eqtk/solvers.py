@@ -1275,6 +1275,30 @@ def solveNK(
         logK[r] is the natural logarithm of the dimensionless
         equilibrium constant for reaction `r`.
 
+    Other Parameters
+    ----------------
+    max_iters : int, default 1000
+        Maximum number of iterations allowed in trust region method.
+    tol : float, default 0.0000001
+        Tolerance for convergence. The absolute tolerance for the
+        constraints are `tol * A @ c0`.
+    delta_bar : float, default 1000.0
+        Maximum step size allowed in the trust region method.
+    eta : float, default 0.125
+        Value for eta in the trust region method. `eta` must satisfy
+        `0 < eta < 0.25`.
+    min_delta : float, default 1e-12
+        Minimal allowed radius of the trust region. When the trust
+        region radius gets below `min_delta`, the trust region
+        iterations stop, and a final set of Newton steps is attempted.
+    max_trials : int, default 100
+        In the event that an attempt to solve does not converge, the
+        solver tries again with different initial guesses.
+        This continues until `max_trials` failures.
+    perturb_scale : float, default 100.0
+        Multiplier on random perturbations to the initial guesses
+        as new ones are generated.
+
     Returns
     -------
     logx : Numpy array, shape (n_points, n_compounds)
@@ -1283,10 +1307,10 @@ def solveNK(
 
     Notes
     -----
-    .. N must have full row rank, i.e., all rows must be linearly
-       independent.
+    `N` must have full row rank, i.e., all rows must be linearly
+    independent.
 
-    .. All x0's must be non-negative and finite.
+    All values in `x0` must be non-negative and finite.
 
     """
     # Get number of particles and compounds
@@ -1402,6 +1426,30 @@ def solveNG(
     G : Contiguous Numpy array in C order, shape (n_compounds,)
         `G[j]` is the free energy of compound `j` in units of kT.
 
+    Other Parameters
+    ----------------
+    max_iters : int, default 1000
+        Maximum number of iterations allowed in trust region method.
+    tol : float, default 0.0000001
+        Tolerance for convergence. The absolute tolerance for the
+        constraints are `tol * A @ c0`.
+    delta_bar : float, default 1000.0
+        Maximum step size allowed in the trust region method.
+    eta : float, default 0.125
+        Value for eta in the trust region method. `eta` must satisfy
+        `0 < eta < 0.25`.
+    min_delta : float, default 1e-12
+        Minimal allowed radius of the trust region. When the trust
+        region radius gets below `min_delta`, the trust region
+        iterations stop, and a final set of Newton steps is attempted.
+    max_trials : int, default 100
+        In the event that an attempt to solve does not converge, the
+        solver tries again with different initial guesses.
+        This continues until `max_trials` failures.
+    perturb_scale : float, default 100.0
+        Multiplier on random perturbations to the initial guesses
+        as new ones are generated.
+
     Returns
     -------
     logx : Numpy array, shape (n_points, n_compounds)
@@ -1410,10 +1458,10 @@ def solveNG(
 
     Notes
     -----
-    .. N must have full row rank, i.e., all rows must be linearly
-       independent.
+    `N` must have full row rank, i.e., all rows must be linearly
+    independent.
 
-    .. All x0's must be non-negative and finite.
+    All values in `x0` must be non-negative and finite.
 
     """
     # Get number of particles and compounds
@@ -1522,6 +1570,30 @@ def solveAG(
     G : Contiguous Numpy array in C order, shape (n_compounds,)
         G[j] is the free energy of compound j in units of kT.
 
+    Other Parameters
+    ----------------
+    max_iters : int, default 1000
+        Maximum number of iterations allowed in trust region method.
+    tol : float, default 0.0000001
+        Tolerance for convergence. The absolute tolerance for the
+        constraints are `tol * A @ c0`.
+    delta_bar : float, default 1000.0
+        Maximum step size allowed in the trust region method.
+    eta : float, default 0.125
+        Value for eta in the trust region method. `eta` must satisfy
+        `0 < eta < 0.25`.
+    min_delta : float, default 1e-12
+        Minimal allowed radius of the trust region. When the trust
+        region radius gets below `min_delta`, the trust region
+        iterations stop, and a final set of Newton steps is attempted.
+    max_trials : int, default 100
+        In the event that an attempt to solve does not converge, the
+        solver tries again with different initial guesses.
+        This continues until `max_trials` failures.
+    perturb_scale : float, default 100.0
+        Multiplier on random perturbations to the initial guesses
+        as new ones are generated.
+
     Returns
     -------
     logx : Numpy array, shape (n_points, n_compounds)
@@ -1530,10 +1602,10 @@ def solveAG(
 
     Notes
     -----
-    .. N must have full row rank, i.e., all rows must be linearly
-       independent.
+    `A` must have full row rank, i.e., all rows must be linearly
+    independent.
 
-    .. All x0's must be non-negative and finite.
+    All values in `x0` must be non-negative and finite.
 
     """
     n_particles, n_compounds = A.shape
