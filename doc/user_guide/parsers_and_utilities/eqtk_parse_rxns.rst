@@ -89,5 +89,7 @@ The result is ::
 
 Note that the equilibrium constants were added to a column ``"equilibrium constant"``. The units of the equilibrium constants are left unspecified in the ``rxns`` string and in the call to ``eqtk.parse_rxns()``, but must be consistent with each other and furthermore consistent with those given by ``c0`` in a call to ``eqtk.solve()`` or other high-level function.
 
+Alternatively, you can have a column ``"log equilibrium constant"``, which contains the natural logarithm of the equilibrium constants (which must be dimensionless if the log equilibrium constant is specified).
+
 .. _Pandas: http://pandas.pydata.org
 .. _Cantera: http://cantera.org

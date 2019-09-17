@@ -30,7 +30,6 @@ Parsers and utilities
    to_df
    water_density
    eqcheck
-   eqcheck_quant
 
 
 Low-level functions

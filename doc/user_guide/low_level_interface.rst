@@ -171,4 +171,4 @@ The result is the natural logarithm of the dimensionless concentrations, ::
 	array([[-12.76103925, -13.36384703, -13.45418643, -13.59295256,
     	    -13.50261316, -11.29036747]])
 
-``A`` and ``G`` are subject to restrictions. All entries must be finite, and ``A`` must have full row rank. In the low-level interface, **these are not checked.**
+``A`` and ``G`` are subject to restrictions. All entries must be nonnegative and finite, and ``A`` must have full row rank. In the low-level interface, **these are not checked.**

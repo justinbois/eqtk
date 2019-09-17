@@ -14,7 +14,7 @@ In what follows, we will assume that Numpy, Pandas, and EQTK have been imported 
 Example problem
 ---------------
 
-To demonstrate the use of `eqtk.fixed_value_solve()`, we will consider the protonation state of `aspartic acid <https://en.wikipedia.org/wiki/Aspartic_acid>`_. The reactions describing deprotonation are
+To demonstrate the use of ``eqtk.fixed_value_solve()``, we will consider the protonation state of `aspartic acid <https://en.wikipedia.org/wiki/Aspartic_acid>`_. The reactions describing deprotonation are
 
 H₃D⁺ ⇌ H₂D + H⁺
 

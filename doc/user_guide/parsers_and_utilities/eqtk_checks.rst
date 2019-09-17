@@ -7,9 +7,9 @@ If EQTK's solve algorithm converges, equilibrium and conservation laws are guara
 
 As a simple example, consider the chemical reactions
 
-AB ⇌ A + B ; *K* = *K* ₁
+AB ⇌ A + B ; *K* = *K₁*
 
-AC ⇌ A + C ; *K* = *K* ₂
+AC ⇌ A + C ; *K* = *K₂*
 
 The equilibrium conditions are
 
@@ -87,15 +87,13 @@ Similarly to check conservation conditions, it verifies that
 
 .. math::
 
-	\frac{\mathsf{A}\cdot\mathbf{c}}{\mathsf{A} \cdot \mathbf{c}^0} \approx \mathbf{1}.
+	\mathsf{A}\cdot\mathbf{c} - \mathsf{A} \cdot \mathbf{c}^0 \approx \mathbf{0}.
 
-This calculation has a wrinkle: if :math:`\mathsf{A} \cdot \mathbf{c}^0 \approx 0`, the above ratio is not properly defined. In that case, it checks that :math:`\mathsf{A}\cdot\mathbf{c} \approx 0` to within some tolerance.
 
 Let's use this function to verify that an equilibrium calculation was successful. To start with, we will use Numpy arrays as inputs. (In what follows, we assume EQTK, Numpy, and Pandas are all imported.)
 
 .. code-block:: python
 
-	# Set up problem
     c0 = [1, 0.5, 0.25, 0, 0]
 
     N = [[1,  1,  0, -1,  0],
@@ -109,13 +107,12 @@ Let's use this function to verify that an equilibrium calculation was successful
     # Verify calculation converged
     eqtk.eqcheck(c, c0=c0, N=N, K=K, units="mM")
 
-The function return ``True``.
+The last function call returns ``True``.
 
-If we instead ``N`` stored as a data frame and ``c0`` as a series or data frame, it is not necessary to supply ``K``, as it is already in the ``N`` data frame, nor is it necessary to supple ``c0`` or ``units``, as they can be inferred from ``c``.
+If we instead ``N`` stored as a data frame and ``c0`` as a series or data frame, it is not necessary to supply ``K``, as it is already in the ``N`` data frame, nor is it necessary to supply ``c0`` or ``units``, as they can be inferred from ``c``.
 
 .. code-block:: python
 
-	# Set up problem
     names = ["A", "B", "C", "AB", "AC"]
     c0 = pd.Series(data=[1, 0.5, 0.25, 0, 0], index=names)
 
@@ -130,7 +127,7 @@ If we instead ``N`` stored as a data frame and ``c0`` as a series or data frame,
     # Verify calculation converged
     eqtk.eqcheck(c, N=N)
 
-This calculation again return ``True``.
+This calculation again returns ``True``.
 
 
 Quantitative check in error in equilibrium and conservation conditions
@@ -142,27 +139,32 @@ To get more detailed information, specifically the value of the ratio
 
 	\frac{\prod_j c_j^{N_{ij}}}{K_i}
 
-and the ratio
+and the difference
 
 .. math::
 
-	\frac{\mathsf{A}\cdot\mathbf{c}}{\mathsf{A} \cdot \mathbf{c}^0},
+	\mathsf{A}\cdot\mathbf{c} - \mathsf{A} \cdot \mathbf{c}^0,
 
-or, if :math:`\mathsf{A} \cdot \mathbf{c}^0 \approx 0`, the value of
+you can use the ``return_detailed=True`` keyword argument of ``eqtk.eqcheck()``. With this keyword argument, it returns
 
-.. math::
+1. A Boolean as to whether all equilibrium and conservation conditions are met.
+2. An array of the ratios :math:`\prod_j c_j^{N_{ij}}/K_i`.
+3. An array of Booleans that are ``True`` if this ratio is close to unity.
+4. An array of differences :math:`\mathbf{A}_i\cdot\mathbf{c} - \mathbf{A}_i \cdot \mathbf{c}^0` for each row :math:`i` in :math:`\mathsf{A}`.
+5. An array of Booleans that are ``True`` if this difference is close to zero.
 
-	\mathsf{A} \cdot \mathbf{c},
-
-you can use ``eqtk.eqcheck_quant()``. In addition to returning arrays with these quantities, it returns a third array indicating whether :math:`\mathsf{A} \cdot \mathbf{c}^0 \approx 0` for each conservation law.
 
 Running
 
 .. code-block:: python
 
-	eqtk.eqcheck_quant(c, N=N)
+	eqtk.eqcheck(c, N=N, return_detailed=True)
 
 returns ::
 
-	(array([1., 1.]), array([1., 1., 1.]), array([False, False, False]))
+	(True,
+    array([1., 1.]),
+    array([ True,  True]),
+    array([6.17794068e-17, 3.43217750e-17, 1.57451566e-16]),
+    array([ True,  True,  True]))
 

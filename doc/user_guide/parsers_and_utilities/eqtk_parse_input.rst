@@ -8,6 +8,7 @@ The high level interface functions (``eqtk.solve()``, ``eqtk.fixed_value_solve()
 - ``c0``, initial concentrations
 - ``N``, stoichiometric matrix
 - ``K``, equilibrium constants
+- ``logK``, natural logarithm of dimensionless equilibrium constants
 - ``A``, conservation matrix
 - ``G``, free energies of chemical species
 - ``names``, names of chemical species
@@ -52,6 +53,7 @@ We show as an example the dissociation of oxalic acid in presence of hydroxide.
 	    c0=c0,
 	    N=rxns,
 	    K=None,
+	    logK=None,
 	    A=None,
 	    G=None,
 	    names=None,

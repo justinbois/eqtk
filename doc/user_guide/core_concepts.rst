@@ -315,7 +315,7 @@ where :math:`\nu_{ij}` is entry :math:`i, j` in :math:`\mathsf{N}`. So, we may a
 - The :math:`n` free energies, :math:`\mathbf{G}` (finite).
 - The :math:`n` initial concentrations, :math:`\mathbf{c}^0` (nonnegative and finite).
 
-We have stipulated that the constraint matrix is nonnegative. While not strictly a requirement to formulate the problem, the nonnegativity of user-supplied :math:`\mathsf{A}` is necessary to allow treatment of cases where some of the initial concentrations are zero; :math:`c_j^0 = 0`. (For details on this requirement, see the paper accompanying this software.) In practice, users will almost always supply elemental conservation matrices.
+We have stipulated that the constraint matrix is nonnegative. While not strictly a requirement to formulate the problem, the nonnegativity of user-supplied :math:`\mathsf{A}` is necessary to allow treatment of cases where some of the initial concentrations are zero; :math:`c_j^0 = 0`. (For details on this requirement, see algorithmic details.) In practice, users will almost always supply elemental conservation matrices.
 
 
 .. _law of mass action: http://en.wikipedia.org/wiki/Law_of_mass_action
