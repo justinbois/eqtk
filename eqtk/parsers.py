@@ -489,18 +489,15 @@ def water_density(T, units="M"):
     Uses pre-calculated values of water density from the IAPWS-95
     standards as calculated from the iapws Python package
     (https://iapws.readthedocs.io/), as
-    T_array = np.linspace()
     np.array([iapws.IAPWS95(T=T+273.15, P=0.101325).rho
                 for T in np.linspace(0.1, 99.9, 999)]) / 18.01528
 
-
     References
     ----------
-    - Wagner, W, Pruß, A, The IAPWS formulation 1995 for the
+    Wagner, W, Pruß, A, The IAPWS formulation 1995 for the
     thermodynamic properties of ordinary water substance for general and
     scientific use, J. Phys. Chem. Ref. Data, 31, 387-535, 2002.
     https://doi.org/10.1063/1.1461829
-
 
     """
     # If dimensionless, take solvent density to be unity
