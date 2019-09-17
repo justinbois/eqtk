@@ -1428,18 +1428,13 @@ def solveNK(
             if n_constraints_new == 0:
                 logx_new = np.linalg.solve(N_new, -minus_log_K_new)
             else:
-                # In case we have null <=> compds type reaction, adjust x0
-                # DEBUG
-#                x0_adjusted = _create_from_nothing(N_new, x0_new)
-                x0_adjusted = x0_new
-
                 # Compute the free energies in units of kT from the K's
                 b = np.concatenate((np.zeros(n_constraints_new), minus_log_K_new))
                 N_prime = np.vstack((A, N_new))
                 G = np.linalg.solve(N_prime, b)
-                conserv_vector = np.dot(A, x0_adjusted)
+                conserv_vector = np.dot(A, x0_new)
 
-                abs_tol = _tolerance(tol, A, x0_adjusted)
+                abs_tol = _tolerance(tol, A, x0_new)
 
                 logx_new, converged, n_trial, step_tally = _solve_trust_region(
                     A,
@@ -1460,7 +1455,7 @@ def solveNK(
                     _print_runstats(
                         A,
                         G,
-                        x0_adjusted,
+                        x0_new,
                         conserv_vector,
                         n_trial,
                         max_trials,
@@ -1580,13 +1575,9 @@ def solveNG(
             if n_constraints_new == 0:
                 logx_new = -G_new
             else:
-                # DEBUG
-#                x0_adjusted = _create_from_nothing(N_new, x0_new)
-                x0_adjusted = x0_new
+                conserv_vector = np.dot(A, x0_new)
 
-                conserv_vector = np.dot(A, x0_adjusted)
-
-                abs_tol = _tolerance(tol, A, x0_adjusted)
+                abs_tol = _tolerance(tol, A, x0_new)
 
                 logx_new, converged, n_trial, step_tally = _solve_trust_region(
                     A,
@@ -1607,7 +1598,7 @@ def solveNG(
                     _print_runstats(
                         A,
                         G,
-                        x0_adjusted,
+                        x0_new,
                         conserv_vector,
                         n_trial,
                         max_trials,
