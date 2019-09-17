@@ -24,8 +24,9 @@ def solve(
     T=293.15,
     return_log=False,
     normal_A=True,
-    max_iters=1000,
     tol=1e-7,
+    tol_zero=1e-12,
+    max_iters=1000,
     delta_bar=1000.0,
     eta=0.125,
     min_delta=1.0e-12,
@@ -132,11 +133,22 @@ def solve(
         conservation matrix. This is ignored if `A` is not specified;
         the resulting conservation matrix in that case has orthonormal
         rows by construction.
+    tol : float, default 1e-7
+        Tolerance for convergence. The absolute tolerance for a given
+        initial concentration c0 (a one-dimensional array) for the
+        conservation conditions are tol * np.dot(A, c0) except when an 
+        entry in np.dot(A, c0) is zero. If that is the case for entry i, 
+        then the absolute tolerance is tol * np.max(A[i] * c0). If all 
+        entries in A[i] * c0 are zero, which only happens with c0 = 0, 
+        the absolute tolerance is `tol_zero`.
+    tol_zero : float, default 1e-12
+        Absolute tolerance for convergence when the initial 
+        concentrations are all zero. This cannot really be set a priori; 
+        it depends on the scale of the dimensionless concentrations. By 
+        default, assume an absolute tolerance consistent with `tol` and
+        millimolar mole fractions.
     max_iters : int, default 1000
         Maximum number of iterations allowed in trust region method.
-    tol : float, default 0.0000001
-        Tolerance for convergence. The absolute tolerance for the
-        constraints are `tol * A @ c0`.
     delta_bar : float, default 1000.0
         Maximum step size allowed in the trust region method.
     eta : float, default 0.125
@@ -312,9 +324,10 @@ def solve(
             x0,
             A,
             G,
+            tol=tol,
+            tol_zero=tol_zero,
             normal_A=normal_A,
             max_iters=max_iters,
-            tol=tol,
             delta_bar=delta_bar,
             eta=eta,
             min_delta=min_delta,
@@ -326,8 +339,9 @@ def solve(
             x0,
             N,
             logK,
-            max_iters=max_iters,
             tol=tol,
+            tol_zero=tol_zero,
+            max_iters=max_iters,
             delta_bar=delta_bar,
             eta=eta,
             min_delta=min_delta,
@@ -339,8 +353,9 @@ def solve(
             x0,
             N,
             G,
-            max_iters=max_iters,
             tol=tol,
+            tol_zero=tol_zero,
+            max_iters=max_iters,
             delta_bar=delta_bar,
             eta=eta,
             min_delta=min_delta,
@@ -369,8 +384,9 @@ def volumetric_titration(
     return_log=False,
     logK=None,
     normal_A=True,
-    max_iters=1000,
     tol=1e-7,
+    tol_zero=1e-7,
+    max_iters=1000,
     delta_bar=1000.0,
     eta=0.125,
     min_delta=1.0e-12,
@@ -484,11 +500,22 @@ def volumetric_titration(
         conservation matrix. This is ignored if `A` is not specified;
         the resulting conservation matrix in that case has orthonormal
         rows by construction.
+    tol : float, default 1e-7
+        Tolerance for convergence. The absolute tolerance for a given
+        initial concentration c0 (a one-dimensional array) for the
+        conservation conditions are tol * np.dot(A, c0) except when an 
+        entry in np.dot(A, c0) is zero. If that is the case for entry i, 
+        then the absolute tolerance is tol * np.max(A[i] * c0). If all 
+        entries in A[i] * c0 are zero, which only happens with c0 = 0, 
+        the absolute tolerance is `tol_zero`.
+    tol_zero : float, default 1e-12
+        Absolute tolerance for convergence when the initial 
+        concentrations are all zero. This cannot really be set a priori; 
+        it depends on the scale of the dimensionless concentrations. By 
+        default, assume an absolute tolerance consistent with `tol` and
+        millimolar mole fractions.
     max_iters : int, default 1000
         Maximum number of iterations allowed in trust region method.
-    tol : float, default 0.0000001
-        Tolerance for convergence. The absolute tolerance for the
-        constraints are `tol * A @ c0`.
     delta_bar : float, default 1000.0
         Maximum step size allowed in the trust region method.
     eta : float, default 0.125
@@ -609,8 +636,9 @@ def volumetric_titration(
             new_x0,
             A,
             G,
-            max_iters=max_iters,
             tol=tol,
+            tol_zero=tol_zero,
+            max_iters=max_iters,
             delta_bar=delta_bar,
             eta=eta,
             min_delta=min_delta,
@@ -623,8 +651,9 @@ def volumetric_titration(
             new_x0,
             N,
             logK,
-            max_iters=max_iters,
             tol=tol,
+            tol_zero=tol_zero,
+            max_iters=max_iters,
             delta_bar=delta_bar,
             eta=eta,
             min_delta=min_delta,
@@ -636,8 +665,9 @@ def volumetric_titration(
             new_x0,
             N,
             G,
-            max_iters=max_iters,
             tol=tol,
+            tol_zero=tol_zero,
+            max_iters=max_iters,
             delta_bar=delta_bar,
             eta=eta,
             min_delta=min_delta,
@@ -678,8 +708,9 @@ def fixed_value_solve(
     T=293.15,
     return_log=False,
     normal_A=True,
-    max_iters=1000,
     tol=1e-7,
+    tol_zero=1e-12,
+    max_iters=1000,
     delta_bar=1000.0,
     eta=0.125,
     min_delta=1.0e-12,
@@ -790,11 +821,22 @@ def fixed_value_solve(
         conservation matrix. This is ignored if `A` is not specified;
         the resulting conservation matrix in that case has orthonormal
         rows by construction.
+    tol : float, default 1e-7
+        Tolerance for convergence. The absolute tolerance for a given
+        initial concentration c0 (a one-dimensional array) for the
+        conservation conditions are tol * np.dot(A, c0) except when an 
+        entry in np.dot(A, c0) is zero. If that is the case for entry i, 
+        then the absolute tolerance is tol * np.max(A[i] * c0). If all 
+        entries in A[i] * c0 are zero, which only happens with c0 = 0, 
+        the absolute tolerance is `tol_zero`.
+    tol_zero : float, default 1e-12
+        Absolute tolerance for convergence when the initial 
+        concentrations are all zero. This cannot really be set a priori; 
+        it depends on the scale of the dimensionless concentrations. By 
+        default, assume an absolute tolerance consistent with `tol` and
+        millimolar mole fractions.
     max_iters : int, default 1000
         Maximum number of iterations allowed in trust region method.
-    tol : float, default 0.0000001
-        Tolerance for convergence. The absolute tolerance for the
-        constraints are `tol * A @ c0`.
     delta_bar : float, default 1000.0
         Maximum step size allowed in the trust region method.
     eta : float, default 0.125
@@ -880,8 +922,9 @@ def fixed_value_solve(
             np.ascontiguousarray(np.expand_dims(x0_row, axis=0)),
             N_new,
             logK_new,
-            max_iters=max_iters,
             tol=tol,
+            tol_zero=tol_zero,
+            max_iters=max_iters,
             delta_bar=delta_bar,
             eta=eta,
             min_delta=min_delta,
@@ -1062,29 +1105,25 @@ def _perturb_initial_guess(mu0, perturb_scale=100.0):
     return mu0 + perturb_scale * 2.0 * (np.random.rand(len(mu0)) - 0.5)
 
 
-@jit("double[::1](double, double[:, ::1], double[::1])", nopython=True)
-def _tolerance(tol, A, x0):
+@jit("double[::1](double, double, double[:, ::1], double[::1])", nopython=True)
+def _tolerance(tol, tol_zero, A, x0):
     """Compute the absolute tolerance for each conservation law. For
     each row in `A`, perform elementwise multiplication by `x0`, and
     call it `Aix0`. Then, the absolute tolerance for that constraint is
     `tol` times the larger of `Aix0.sum()` or `np.abs(Aix0).max()`. If
     the result of this calculation is zero, the absolute tolerance is
-    set to tol * x0.max(), except when x0.max() is zero, and then the
-    absolute tolerance is set to tol.
+    set tol_zero.
+
+    tol_zero cannot really be set a priori; it depends on the scale of
+    the dimensionless concentrations. By default, we assume mole 
+    fractions consistent with millimolar concentrations.
     """
     abs_tol = np.empty(len(A))
 
     for i in range(len(A)):
         Aix0 = A[i] * x0
         atol = tol * max(np.abs(Aix0).max(), Aix0.sum())
-        if atol == 0.0:
-            x0max = x0.max()
-            if x0max == 0.0:
-                abs_tol[i] = tol
-            else:
-                abs_tol[i] = tol * x0max
-        else:
-            abs_tol[i] = atol
+        abs_tol[i] = tol_zero if atol == 0.0 else atol
 
     return abs_tol
 
@@ -1328,6 +1367,7 @@ def _print_runstats(
 
 @jit("double[::1](double[:, ::1], double[::1])", nopython=True)
 def _create_from_nothing(N, x0):
+    """Currently deprecated and note needed because of tol_zero."""
     for i in range(N.shape[0]):
         Ni = N[i, :]
         if np.all(Ni >= 0):
@@ -1343,8 +1383,9 @@ def solveNK(
     x0,
     N,
     logK,
-    max_iters=1000,
     tol=1e-7,
+    tol_zero=1e-12,
+    max_iters=1000,
     delta_bar=1000.0,
     eta=0.125,
     min_delta=1.0e-12,
@@ -1369,11 +1410,22 @@ def solveNK(
 
     Other Parameters
     ----------------
+    tol : float, default 1e-7
+        Tolerance for convergence. The absolute tolerance for a given
+        initial concentration c0 (a one-dimensional array) for the
+        conservation conditions are tol * np.dot(A, c0) except when an 
+        entry in np.dot(A, c0) is zero. If that is the case for entry i, 
+        then the absolute tolerance is tol * np.max(A[i] * c0). If all 
+        entries in A[i] * c0 are zero, which only happens with c0 = 0, 
+        the absolute tolerance is `tol_zero`.
+    tol_zero : float, default 1e-12
+        Absolute tolerance for convergence when the initial 
+        concentrations are all zero. This cannot really be set a priori; 
+        it depends on the scale of the dimensionless concentrations. By 
+        default, assume an absolute tolerance consistent with `tol` and
+        millimolar mole fractions.
     max_iters : int, default 1000
         Maximum number of iterations allowed in trust region method.
-    tol : float, default 0.0000001
-        Tolerance for convergence. The absolute tolerance for the
-        constraints are `tol * A @ c0`.
     delta_bar : float, default 1000.0
         Maximum step size allowed in the trust region method.
     eta : float, default 0.125
@@ -1434,7 +1486,7 @@ def solveNK(
                 G = np.linalg.solve(N_prime, b)
                 conserv_vector = np.dot(A, x0_new)
 
-                abs_tol = _tolerance(tol, A, x0_new)
+                abs_tol = _tolerance(tol, tol_zero, A, x0_new)
 
                 logx_new, converged, n_trial, step_tally = _solve_trust_region(
                     A,
@@ -1490,8 +1542,9 @@ def solveNG(
     x0,
     N,
     G,
-    max_iters=1000,
     tol=1e-7,
+    tol_zero=1e-12,
+    max_iters=1000,
     delta_bar=1000.0,
     eta=0.125,
     min_delta=1.0e-12,
@@ -1515,11 +1568,22 @@ def solveNG(
 
     Other Parameters
     ----------------
+    tol : float, default 1e-7
+        Tolerance for convergence. The absolute tolerance for a given
+        initial concentration c0 (a one-dimensional array) for the
+        conservation conditions are tol * np.dot(A, c0) except when an 
+        entry in np.dot(A, c0) is zero. If that is the case for entry i, 
+        then the absolute tolerance is tol * np.max(A[i] * c0). If all 
+        entries in A[i] * c0 are zero, which only happens with c0 = 0, 
+        the absolute tolerance is `tol_zero`.
+    tol_zero : float, default 1e-12
+        Absolute tolerance for convergence when the initial 
+        concentrations are all zero. This cannot really be set a priori; 
+        it depends on the scale of the dimensionless concentrations. By 
+        default, assume an absolute tolerance consistent with `tol` and
+        millimolar mole fractions.
     max_iters : int, default 1000
         Maximum number of iterations allowed in trust region method.
-    tol : float, default 0.0000001
-        Tolerance for convergence. The absolute tolerance for the
-        constraints are `tol * A @ c0`.
     delta_bar : float, default 1000.0
         Maximum step size allowed in the trust region method.
     eta : float, default 0.125
@@ -1577,7 +1641,7 @@ def solveNG(
             else:
                 conserv_vector = np.dot(A, x0_new)
 
-                abs_tol = _tolerance(tol, A, x0_new)
+                abs_tol = _tolerance(tol, tol_zero, A, x0_new)
 
                 logx_new, converged, n_trial, step_tally = _solve_trust_region(
                     A,
@@ -1634,8 +1698,9 @@ def solveAG(
     A,
     G,
     normal_A=True,
-    max_iters=1000,
     tol=1e-7,
+    tol_zero=1e-12,
+    max_iters=1000,
     delta_bar=1000.0,
     eta=0.125,
     min_delta=1.0e-12,
@@ -1665,11 +1730,22 @@ def solveAG(
 
     Other Parameters
     ----------------
+    tol : float, default 1e-7
+        Tolerance for convergence. The absolute tolerance for a given
+        initial concentration c0 (a one-dimensional array) for the
+        conservation conditions are tol * np.dot(A, c0) except when an 
+        entry in np.dot(A, c0) is zero. If that is the case for entry i, 
+        then the absolute tolerance is tol * np.max(A[i] * c0). If all 
+        entries in A[i] * c0 are zero, which only happens with c0 = 0, 
+        the absolute tolerance is `tol_zero`.
+    tol_zero : float, default 1e-12
+        Absolute tolerance for convergence when the initial 
+        concentrations are all zero. This cannot really be set a priori; 
+        it depends on the scale of the dimensionless concentrations. By 
+        default, assume an absolute tolerance consistent with `tol` and
+        millimolar mole fractions.
     max_iters : int, default 1000
         Maximum number of iterations allowed in trust region method.
-    tol : float, default 0.0000001
-        Tolerance for convergence. The absolute tolerance for the
-        constraints are `tol * A @ c0`.
     delta_bar : float, default 1000.0
         Maximum step size allowed in the trust region method.
     eta : float, default 0.125
@@ -1729,7 +1805,7 @@ def solveAG(
 
                 conserv_vector = np.dot(A_new, x0_new)
 
-                abs_tol = _tolerance(tol, A_new, x0_new)
+                abs_tol = _tolerance(tol, tol_zero, A_new, x0_new)
 
                 logx_new, converged, n_trial, step_tally = _solve_trust_region(
                     A_new,

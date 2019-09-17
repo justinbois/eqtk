@@ -73,6 +73,7 @@ def eqcheck(
     eq_rtol=1e-5,
     eq_atol=1e-8,
     tol=1e-7,
+    tol_zero=1e-12,
     return_detailed=False,
 ):
     """Check the satisfaction of equilibrium expressions and
@@ -180,13 +181,19 @@ def eqcheck(
         Relative tolerance parameter to check closeness of equilibrium
         condition as used in `numpy.isclose()`.
     tol : float, default 1e-7
-        Absolute tolerance parameter to check closeness of conservation
-        condition. The absolute tolerance for checking the conservation
-        conditions based on conservation matrix `A` and initial 
-        concentrations `c0` is computed as follows. For each row in `A`,
-        perform elementwise multiplication by `c0`, and call it `Aic0`. 
-        Then, the absolute tolerance for that constraint is `tol` times 
-        the larger of `Aix0.sum()` and `np.abs(Aix0).max()`.
+        Tolerance for conservation law. The absolute tolerance for a 
+        given initial concentration c0 (a one-dimensional array) for the
+        conservation conditions are tol * np.dot(A, c0) except when an 
+        entry in np.dot(A, c0) is zero. If that is the case for entry i, 
+        then the absolute tolerance is tol * np.max(A[i] * c0). If all 
+        entries in A[i] * c0 are zero, which only happens with c0 = 0, 
+        the absolute tolerance is `tol_zero`.
+    tol_zero : float, default 1e-12
+        Absolute tolerance for convergence when the initial 
+        concentrations are all zero. This cannot really be set a priori; 
+        it depends on the scale of the dimensionless concentrations. By 
+        default, assume an absolute tolerance consistent with `tol` and
+        millimolar mole fractions.
     return_detailed : bool, default False
         If True, return detailed quantitative checks (see return values
         below). If False, only a boolean is returned, True if all 
@@ -237,9 +244,10 @@ def eqcheck(
         T=T,
         c_as_log=c_as_log,
         normal_A=normal_A,
-        eq_rtol=1e-5,
-        eq_atol=1e-8,
-        tol=1e-7,
+        eq_rtol=eq_rtol,
+        eq_atol=eq_atol,
+        tol=tol,
+        tol_zero=tol_zero,
     )
 
     all_ok = eq_satisfied.all() and cons_satisfied.all()
@@ -268,6 +276,7 @@ def _eqcheck_quant(
     eq_rtol=1e-5,
     eq_atol=1e-8,
     tol=1e-7,
+    tol_zero=1e-12,
 ):
     """Compute the error in satisfaction of equilibrium expressions
     and in conservation laws.
@@ -374,13 +383,19 @@ def _eqcheck_quant(
         Relative tolerance parameter to check closeness of equilibrium
         condition as used in `numpy.isclose()`.
     tol : float, default 1e-7
-        Absolute tolerance parameter to check closeness of conservation
-        condition. The absolute tolerance for checking the conservation
-        conditions based on conservation matrix `A` and initial 
-        concentrations `c0` is computed as follows. For each row in `A`,
-        perform elementwise multiplication by `c0`, and call it `Aic0`. 
-        Then, the absolute tolerance for that constraint is `tol` times 
-        the larger of `Aix0.sum()` and `np.abs(Aix0).max()`.
+        Tolerance for conservation law. The absolute tolerance for a 
+        given initial concentration c0 (a one-dimensional array) for the
+        conservation conditions are tol * np.dot(A, c0) except when an 
+        entry in np.dot(A, c0) is zero. If that is the case for entry i, 
+        then the absolute tolerance is tol * np.max(A[i] * c0). If all 
+        entries in A[i] * c0 are zero, which only happens with c0 = 0, 
+        the absolute tolerance is `tol_zero`.
+    tol_zero : float, default 1e-12
+        Absolute tolerance for convergence when the initial 
+        concentrations are all zero. This cannot really be set a priori; 
+        it depends on the scale of the dimensionless concentrations. By 
+        default, assume an absolute tolerance consistent with `tol` and
+        millimolar mole fractions.
 
     Returns
     -------
@@ -486,7 +501,20 @@ def _eqcheck_quant(
         logK = -np.dot(N, G)
 
     return _check_equilibrium(
-        x0, x, N, A, logK, G, prune, single_point, c_as_log, normal_A
+        x0,
+        x,
+        N,
+        A,
+        logK,
+        G,
+        prune,
+        single_point,
+        c_as_log,
+        normal_A,
+        eq_atol,
+        eq_rtol,
+        tol,
+        tol_zero,
     )
 
 
@@ -504,6 +532,7 @@ def _check_equilibrium(
     eq_atol=1e-5,
     eq_rtol=1e-8,
     tol=1e-7,
+    tol_zero=1e-12,
 ):
     """Check to make sure equilibrium is satisfied."""
     eq_check = np.empty((c.shape[0], N.shape[0]))
@@ -513,7 +542,19 @@ def _check_equilibrium(
 
     for i, (c0_i, c_i) in enumerate(zip(c0, c)):
         eq_check_i, eq_satisfied_i, cons_check_i, cons_satisfied_i = _check_equilibrium_single_point(
-            c0_i, c_i, N, logK, A, G, prune, c_as_log, normal_A, eq_atol, eq_rtol, tol
+            c0_i,
+            c_i,
+            N,
+            logK,
+            A,
+            G,
+            prune,
+            c_as_log,
+            normal_A,
+            eq_atol,
+            eq_rtol,
+            tol,
+            tol_zero,
         )
         eq_check[i] = eq_check_i
         eq_satisfied[i] = eq_satisfied_i
@@ -542,6 +583,7 @@ def _check_equilibrium_single_point(
     eq_atol=1e-5,
     eq_rtol=1e-8,
     tol=1e-7,
+    tol_zero=1e-12,
 ):
     """
     Check concentrations to verify equilibrium conditions are met.
@@ -632,7 +674,7 @@ def _check_equilibrium_single_point(
     if normal_A:
         A = linalg._normalize_rows(A)
 
-    abs_tol = solvers._tolerance(tol, A, c0)
+    abs_tol = solvers._tolerance(tol, tol_zero, A, c0)
     target = np.dot(A, c0)
     if c_as_log:
         c = np.exp(c)
