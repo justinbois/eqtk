@@ -100,6 +100,7 @@ def parse_input(
     c0,
     N=None,
     K=None,
+    logK=None,
     A=None,
     G=None,
     names=None,
@@ -139,6 +140,13 @@ def parse_input(
         units commensurate with those of `c0`. If `N` is given as a
         DataFrame with an `'equilibrium constant'` column, `K` should
         not be supplied. If `K`is given, `A` and `G` cannot be given.
+    logK : array_like, shape (n_reactions,), default `None`
+        `logK[r]` is the natural logarithm of the equilibrium constant
+        for chemical reaction r. If `logK` is specified, the
+        concentrations must all be dimensionless (`units=None`). If `N`
+        is given as a DataFrame with a `'log equilibrium constant'`
+        column, `logK` should not be supplied. If `K` is given, `A`,
+        `G`, and `K` cannot be given.
     A : array_like or DataFrame, n_compounds columns
         Constraint matrix. If `c` is the output, then `A @ c0 = A @ c`.
         All entries must be nonnegative and the rows of `A` must be
@@ -208,41 +216,31 @@ def parse_input(
     if type(N) == str:
         N = parse_rxns(N)
 
-    _check_NK_AG(N, K, A, G)
     _check_units(units)
+    _check_NK_AG(N, K, logK, A, G, units)
     _check_G_units(G_units, T)
     _check_T(T)
     _check_solvent_density(solvent_density, units)
     _check_names_type(names)
 
-    c0, n_compounds, names, c0_from_df, single_point = _parse_c0(c0, names)
-    _check_c0(c0)
+    solvent_density = _parse_solvent_density(solvent_density, T, units)
 
-    N, K = _parse_N_input(N, K, names, c0_from_df)
+    x0, n_compounds, names, c0_from_df, single_point = _parse_c0(
+        c0, names, solvent_density
+    )
+    _check_c0(x0)
+
+    N, logK = _parse_N_input(N, logK, names, c0_from_df, solvent_density)
     _check_N(N, n_compounds)
 
-    K = _parse_K(K)
-    _check_K(N, K)
+    logK = _parse_K(K, logK, N, solvent_density)
+    _check_logK(N, logK)
 
     A = _parse_A(A, names, c0_from_df)
     _check_A(A, n_compounds)
 
-    G = _parse_G(G, names, c0_from_df)
+    G = _parse_G(G, names, c0_from_df, G_units, T)
     _check_G(G, N, A)
-
-    if G is None:
-        x0, K, solvent_density = _nondimensionalize_NK(
-            c0, N, K, T, solvent_density, units
-        )
-    else:
-        x0, G, solvent_density = _nondimensionalize_AG(
-            c0, G, T, solvent_density, units, G_units
-        )
-
-    if K is None:
-        logK = None
-    else:
-        logK = np.log(K)
 
     return x0, N, logK, A, G, names, solvent_density, single_point
 
@@ -307,13 +305,13 @@ def to_df(c, c0=None, names=None, units=None):
         else:
             return pd.DataFrame(data=c, columns=cols)
 
-    c0, n_compounds, names, _, single_point = _parse_c0(c0, names)
+    c0, n_compounds, names, _, single_point = _parse_c0(c0, names, solvent_density=1.0)
 
     if c0.shape != c.shape:
         raise ValueError("`c0` and `c` have mismatched shapes.")
 
-    cols = ['[' + name + ']' + "__0" + units_str for name in names]
-    cols += ['[' + name + ']' + units_str for name in names]
+    cols = ["[" + name + "]" + "__0" + units_str for name in names]
+    cols += ["[" + name + "]" + units_str for name in names]
 
     if single_point:
         return pd.Series(index=cols, data=np.concatenate((c0.flatten(), c.flatten())))
@@ -434,14 +432,15 @@ def _parse_fixed_c(fixed_c, x0, c0_from_df, names, solvent_density):
 
 
 def _nondimensionalize_NK(c0, N, K, T, solvent_density, units):
-    # Compute solvent density in appropriate units
-    solvent_density = _parse_solvent_density(solvent_density, T, units)
-
     # Convert K's and c0 to dimensionless
-    K_nondim = K / solvent_density ** N.sum(axis=1)
+    if K is not None:
+        K_nondim = K / solvent_density ** N.sum(axis=1)
+    else:
+        K_nondim = None
+
     c0_nondim = c0 / solvent_density
 
-    return c0_nondim, K_nondim, solvent_density
+    return c0_nondim, K_nondim
 
 
 def _nondimensionalize_AG(c0, G, T, solvent_density, units, G_units):
@@ -592,10 +591,13 @@ def _thermal_energy(T, units):
         )
 
 
-def _check_NK_AG(N, K, A, G):
+def _check_NK_AG(N, K, logK, A, G, units):
+    if logK is not None and units not in (None, "mole fraction", ""):
+        raise ValueError("If `logK` is specified, `units` must be None.")
+
     if N is None:
-        if K is not None:
-            raise ValueError("If `N` is None, `K` must also be None.")
+        if K is not None or logK is not None:
+            raise ValueError("If `N` is None, `K` and `logK` must also be None.")
 
         if A is None or G is None:
             raise ValueError("`A` and `G` must both be specified if `N` is None.")
@@ -624,16 +626,16 @@ def _check_NK_AG(N, K, A, G):
                 "If `G` is not None, `N` cannot have an 'equilibrium constant' column."
             )
 
-        if K is not None:
+        if K is not None or logK is not None:
             raise ValueError(
-                "If `N` is inputted as a DataFrame, `K` must be `None`. The equilibrium constants are included as the `'equilibrium constant'` column of the inputted DataFrame."
+                "If `N` is inputted as a DataFrame, `K` and `logK` must be `None`. The equilibrium constants are included as the `'equilibrium constant'` or `'log equilibrium constant'` column of the inputted DataFrame."
             )
-    elif K is None and G is None:
+    elif K is None and logK is None and G is None:
         raise ValueError(
-            "If `N` is not inputted as a DataFrame, `K` or `G` must be provided."
+            "If `N` is not inputted as a DataFrame, `K`, `logK`, or `G` must be provided."
         )
-    elif K is not None and G is not None:
-        raise ValueError("Only one of `K` or `G` can be inputted.")
+    elif (K is not None) + (logK is not None) + (G is not None) > 1:
+        raise ValueError("Only one of `K`, `logK`, or `G` can be inputted.")
 
 
 def _check_units(units):
@@ -707,7 +709,7 @@ def _check_names_type(names):
             raise ValueError("Not all names are unique.")
 
 
-def _parse_c0(c0, names):
+def _parse_c0(c0, names, solvent_density):
     if type(c0) == list or type(c0) == tuple:
         c0 = np.array(c0, order="C", dtype=float)
 
@@ -748,7 +750,13 @@ def _parse_c0(c0, names):
 
         single_point = len(c0) == 1
 
-    return np.ascontiguousarray(c0), n_compounds, names, c0_from_df, single_point
+    return (
+        np.ascontiguousarray(c0) / solvent_density,
+        n_compounds,
+        names,
+        c0_from_df,
+        single_point,
+    )
 
 
 def _dict_to_df(c):
@@ -789,7 +797,7 @@ def _check_c0(c0):
         raise ValueError("All c0's must be finite!")
 
 
-def _parse_N_input(N, K, names, c0_from_df):
+def _parse_N_input(N, logK, names, c0_from_df, solvent_density):
     if N is not None:
         if type(N) == list or type(N) == tuple:
             N = np.array(N)
@@ -810,14 +818,14 @@ def _parse_N_input(N, K, names, c0_from_df):
                 )
             ]
             names = _check_names_df(names, names_from_df)
-            N, K = _NK_from_df(N, names, c0_from_df)
+            N, logK = _NK_from_df(N, names, c0_from_df, solvent_density)
             _check_name_close_to_eqconst(names)
         else:
             raise ValueError(
                 "Invalid type for `N`; must be array_like or a Pandas DataFrame."
             )
 
-    return N, K
+    return N, logK
 
 
 def _check_N(N, n_compounds):
@@ -827,26 +835,52 @@ def _check_N(N, n_compounds):
                 "Dimension mismatch between `c0` and inputted chemical species via `N`."
             )
         if len(N) > 0 and np.linalg.matrix_rank(N) != N.shape[0]:
-            raise ValueError(
-                "Rank deficient stoichiometric matrix `N`."
-            )
+            raise ValueError("Rank deficient stoichiometric matrix `N`.")
         if np.isinf(N).any():
             raise ValueError("All entries in the stoichiometric matrix must be finite.")
         if np.isnan(N).any():
             raise ValueError("No NaN values are allowed in the stoichiometric matrix.")
 
 
-def _parse_K(K):
+def _parse_K(K, logK, N, solvent_density):
     if K is not None:
         if type(K) == list or type(K) == tuple:
             K = np.array(K, order="C", dtype=float)
 
         if len(np.shape(K)) == 2 and (np.shape(K)[1] == 1 or np.shape(K)[0] == 1):
-            K = np.asconitugousarray(K.flatten())
+            K = np.ascontiguousarray(K.flatten())
         elif len(np.shape(K)) != 1:
             raise ValueError("`K` is the wrong shape.")
 
-    return K
+        _check_K(N, K)
+
+        return np.ascontiguousarray(
+            np.log(K) - np.sum(N, axis=1) * np.log(solvent_density)
+        ).astype(float)
+    elif logK is not None:
+        if type(logK) == list or type(logK) == tuple:
+            logK = np.array(logK, order="C", dtype=float)
+
+        if len(np.shape(logK)) == 2 and (
+            np.shape(logK)[1] == 1 or np.shape(logK)[0] == 1
+        ):
+            logK = np.ascontiguousarray(logK.flatten())
+        elif len(np.shape(logK)) != 1:
+            raise ValueError("`logK` is the wrong shape.")
+
+        return np.ascontiguousarray(logK.astype(float))
+
+    return None
+
+
+def _check_logK(N, logK):
+    if logK is not None:
+        if len(logK) != N.shape[0]:
+            raise ValueError("`K` or `logK` must have `N.shape[0]` entries")
+        if np.isinf(logK).any():
+            raise ValueError("All `K`'s must be finite.")
+        if np.isnan(logK).any():
+            raise ValueError("No NaN values are allowed for `K`.")
 
 
 def _check_K(N, K):
@@ -902,7 +936,7 @@ def _check_A(A, n_compounds):
             raise ValueError("`A` must have all nonnegative entries.")
 
 
-def _parse_G(G, names, c0_from_df):
+def _parse_G(G, names, c0_from_df, G_units, T):
     if G is not None:
         if type(G) == list or type(G) == tuple:
             G = np.array(G, order="C", dtype=float)
@@ -941,7 +975,7 @@ def _parse_G(G, names, c0_from_df):
             names = _check_names_df(names, list(G.index))
             G = np.ascontiguousarray(G[names].to_numpy(dtype=float, copy=True))
 
-    return G
+    return _dimensionless_free_energy(G, G_units, T)
 
 
 def _check_G(G, N, A):
@@ -958,7 +992,7 @@ def _check_G(G, N, A):
             raise ValueError("No NaN values are allowed for `G`.")
 
 
-def _NK_from_df(df, names, c0_from_df):
+def _NK_from_df(df, names, c0_from_df, solvent_density):
     if not c0_from_df:
         raise ValueError(
             "If `N` is given as a data frame, `c0` must be given as a Series or DataFrame."
@@ -966,14 +1000,34 @@ def _NK_from_df(df, names, c0_from_df):
 
     N = np.ascontiguousarray(df[names].to_numpy(dtype=float, copy=True))
 
-    if "equilibrium constant" in df:
-        K = np.ascontiguousarray(df["equilibrium constant"].values.astype(float))
-    elif "equilibrium_constant" in df:
-        K = np.ascontiguousarray(df["equilibrium_constant"].values.astype(float))
-    else:
-        K = None
+    err_msg = "Inputted `N` data frame may not have both 'equilibrium constant' and 'log equilibrium constant' columns."
 
-    return N, K
+    if "equilibrium constant" in df:
+        if "log equilibrium constant" in df or "log_equilibrium_constant" in df:
+            raise ValueError(err_msg)
+        logK = np.ascontiguousarray(
+            np.log(df["equilibrium constant"].values)
+            - np.sum(N, axis=1) * np.log(solvent_density)
+        ).astype(float)
+    elif "equilibrium_constant" in df:
+        if "log equilibrium constant" in df or "log_equilibrium_constant" in df:
+            raise ValueError(err_msg)
+        logK = np.ascontiguousarray(
+            np.log(df["equilibrium_constant"].values)
+            - np.sum(N, axis=1) * np.log(solvent_density)
+        ).astype(float)
+    elif "log equilibrium constant" in df:
+        if solvent_density != 1.0:
+            raise ValueError("If `logK` is specified, `units` must be None.")
+        logK = np.ascontiguousarray(df["log equilibrium constant"].values.astype(float))
+    elif "log_equilibrium_constant" in df:
+        logK = np.ascontiguousarray(df["log_equilibrium_constant"].values.astype(float))
+        if solvent_density != 1.0:
+            raise ValueError("If `logK` is specified, `units` must be None.")
+    else:
+        logK = None
+
+    return N, logK
 
 
 def _check_names_df(names, names_from_df):

@@ -127,83 +127,106 @@ def test_eqcheck_simple_binding(input_tuple):
     cA0, cB0, Kd = input_tuple
     tc = eqtk.testcases.simple_binding(cA0, cB0, Kd)
 
-    eq_check, cons_check, cons_zero = eqtk.eqcheck_quant(
-        tc["c"], tc["c0"], tc["N"], tc["K"]
+    all_ok, eq_check, eq_satisfied, cons_check, cons_satisfied = eqtk.eqcheck(
+        tc["c"], tc["c0"], tc["N"], tc["K"], return_detailed=True
     )
+    assert all_ok
     assert eq_check.shape == (1,)
     assert cons_check.shape == (2,)
-    assert cons_zero.shape == (2,)
+    assert eq_satisfied.shape == (1,)
+    assert cons_satisfied.shape == (2,)
     assert np.allclose(eq_check, 1.0), "Error in equilibrium check."
-    assert np.allclose(cons_check, 1.0), "Error in conservation check."
-    assert (cons_zero == False).all()
+    assert np.all(eq_satisfied), "Error in conservation check."
+    assert np.all(cons_satisfied), "Error in conservation check."
     assert eqtk.eqcheck(tc["c"], tc["c0"], tc["N"], tc["K"])
 
-    eq_check, cons_check, cons_zero = eqtk.eqcheck_quant(
-        tc["c_log"], tc["c0"], tc["N"], tc["K"], c_as_log=True
+    all_ok, eq_check, eq_satisfied, cons_check, cons_satisfied = eqtk.eqcheck(
+        tc["c_log"], tc["c0"], tc["N"], tc["K"], c_as_log=True, return_detailed=True
     )
+    assert all_ok
     assert eq_check.shape == (1,)
     assert cons_check.shape == (2,)
-    assert cons_zero.shape == (2,)
+    assert eq_satisfied.shape == (1,)
+    assert cons_satisfied.shape == (2,)
     assert np.allclose(eq_check, 1.0), "Error in equilibrium check."
-    assert np.allclose(cons_check, 1.0), "Error in conservation check."
-    assert (cons_zero == False).all()
-    assert eqtk.eqcheck(tc["c"], tc["c0"], tc["N"], tc["K"])
+    assert np.all(eq_satisfied), "Error in conservation check."
+    assert np.all(cons_satisfied), "Error in conservation check."
+    assert eqtk.eqcheck(tc["c_log"], tc["c0"], tc["N"], tc["K"], c_as_log=True)
 
     tc["erroneous_c"] = 1.0001 * tc["c"]
-    eq_check, cons_check, cons_zero = eqtk.eqcheck_quant(
-        tc["erroneous_c"], tc["c0"], tc["N"], tc["K"]
+    all_ok, eq_check, eq_satisfied, cons_check, cons_satisfied = eqtk.eqcheck(
+        tc["erroneous_c"], tc["c0"], tc["N"], tc["K"], return_detailed=True
     )
+    assert not all_ok
     assert eq_check.shape == (1,)
     assert cons_check.shape == (2,)
-    assert cons_zero.shape == (2,)
+    assert eq_satisfied.shape == (1,)
+    assert cons_satisfied.shape == (2,)
     assert not np.allclose(eq_check, 1.0), "Error in equilibrium check."
-    assert not np.allclose(cons_check, 1.0), "Error in conservation check."
-    assert (cons_zero == False).all()
+    assert not np.all(eq_satisfied), "Error in conservation check."
+    assert not np.all(cons_satisfied), "Error in conservation check."
     assert not eqtk.eqcheck(tc["erroneous_c"], tc["c0"], tc["N"], tc["K"])
 
     tc["erroneous_c_log"] = tc["c_log"] - 0.001
-    eq_check, cons_check, cons_zero = eqtk.eqcheck_quant(
-        tc["erroneous_c_log"], tc["c0"], tc["N"], tc["K"], c_as_log=True
+    all_ok, eq_check, eq_satisfied, cons_check, cons_satisfied = eqtk.eqcheck(
+        tc["erroneous_c_log"],
+        tc["c0"],
+        tc["N"],
+        tc["K"],
+        c_as_log=True,
+        return_detailed=True,
     )
+    assert not all_ok
     assert eq_check.shape == (1,)
     assert cons_check.shape == (2,)
-    assert cons_zero.shape == (2,)
+    assert eq_satisfied.shape == (1,)
+    assert cons_satisfied.shape == (2,)
     assert not np.allclose(eq_check, 1.0), "Error in equilibrium check."
-    assert not np.allclose(cons_check, 1.0), "Error in conservation check."
-    assert (cons_zero == False).all()
+    assert not np.all(eq_satisfied), "Error in conservation check."
+    assert not np.all(cons_satisfied), "Error in conservation check."
     assert not eqtk.eqcheck(
         tc["erroneous_c_log"], tc["c0"], tc["N"], tc["K"], c_as_log=True
     )
 
-    eq_check, cons_check, cons_zero = eqtk.eqcheck_quant(tc["c_series"], N=tc["N_df"])
-    assert eq_check.shape == (1,)
-    assert cons_check.shape == (2,)
-    assert cons_zero.shape == (2,)
-    assert np.allclose(eq_check, 1.0), "Error in equilibrium check with series."
-    assert np.allclose(cons_check, 1.0), "Error in conservation check with series."
-    assert (cons_zero == False).all()
-    assert eqtk.eqcheck(tc["c_series"], N=tc["N_df"])
-
-    eq_check, cons_check, cons_zero = eqtk.eqcheck_quant(
-        tc["c_series_log"], N=tc["N_df"]
+    all_ok, eq_check, eq_satisfied, cons_check, cons_satisfied = eqtk.eqcheck(
+        c=tc["c_series"], N=tc["N_df"], return_detailed=True
     )
+    assert all_ok
     assert eq_check.shape == (1,)
     assert cons_check.shape == (2,)
-    assert cons_zero.shape == (2,)
-    assert np.allclose(eq_check, 1.0), "Error in equilibrium check with series."
-    assert np.allclose(cons_check, 1.0), "Error in conservation check with series."
-    assert (cons_zero == False).all()
-    assert eqtk.eqcheck(tc["c_series_log"], N=tc["N_df"])
+    assert eq_satisfied.shape == (1,)
+    assert cons_satisfied.shape == (2,)
+    assert np.allclose(eq_check, 1.0), "Error in equilibrium check."
+    assert np.all(eq_satisfied), "Error in conservation check."
+    assert np.all(cons_satisfied), "Error in conservation check."
+    assert eqtk.eqcheck(c=tc["c_series"], N=tc["N_df"])
+
+    all_ok, eq_check, eq_satisfied, cons_check, cons_satisfied = eqtk.eqcheck(
+        c=tc["c_series_log"], N=tc["N_df"], return_detailed=True
+    )
+    assert all_ok
+    assert eq_check.shape == (1,)
+    assert cons_check.shape == (2,)
+    assert eq_satisfied.shape == (1,)
+    assert cons_satisfied.shape == (2,)
+    assert np.allclose(eq_check, 1.0), "Error in equilibrium check."
+    assert np.all(eq_satisfied), "Error in conservation check."
+    assert np.all(cons_satisfied), "Error in conservation check."
+    assert eqtk.eqcheck(c=tc["c_series_log"], N=tc["N_df"])
 
     tc["c_series"][~tc["c_series"].index.str.contains("__0")] *= 1.0001
-    eq_check, cons_check, cons_zero = eqtk.eqcheck_quant(tc["c_series"], N=tc["N_df"])
+    all_ok, eq_check, eq_satisfied, cons_check, cons_satisfied = eqtk.eqcheck(
+        tc["c_series"], N=tc["N_df"], return_detailed=True
+    )
+    assert not all_ok
     assert eq_check.shape == (1,)
     assert cons_check.shape == (2,)
-    assert cons_zero.shape == (2,)
-    assert not np.allclose(eq_check, 1.0), "Error in equilibrium check with series."
-    assert not np.allclose(cons_check, 1.0), "Error in conservation check with series."
-    assert (cons_zero == False).all()
-    assert not eqtk.eqcheck(tc["c_series"], N=tc["N_df"])
+    assert eq_satisfied.shape == (1,)
+    assert cons_satisfied.shape == (2,)
+    assert not np.allclose(eq_check, 1.0), "Error in equilibrium check."
+    assert not np.all(eq_satisfied), "Error in conservation check."
+    assert not np.all(cons_satisfied), "Error in conservation check."
+    assert not eqtk.eqcheck(c=tc["c_series"], N=tc["N_df"])
 
 
 @hypothesis.given(
@@ -249,49 +272,69 @@ def test_eqcheck_simple_binding_multiple_inputs(input_tuple):
     K = tc_0["K"]
     N_df = tc_0["N_df"]
 
-    eq_check, cons_check, cons_zero = eqtk.eqcheck_quant(c, c0, N, K)
+    all_ok, eq_check, eq_satisfied, cons_check, cons_satisfied = eqtk.eqcheck(
+        c, c0, N, K, return_detailed=True
+    )
+    assert all_ok
     assert eq_check.shape == (3, 1)
     assert cons_check.shape == (3, 2)
-    assert cons_zero.shape == (3, 2)
+    assert eq_satisfied.shape == (3, 1)
+    assert cons_satisfied.shape == (3, 2)
     assert np.allclose(eq_check, 1.0), "Error in equilibrium check."
-    assert np.allclose(cons_check, 1.0), "Error in conservation check."
-    assert (cons_zero == False).all()
+    assert np.all(eq_satisfied)
+    assert np.all(cons_satisfied)
     assert eqtk.eqcheck(c, c0, N, K)
 
     erroneous_c = 1.0001 * c
-    eq_check, cons_check, cons_zero = eqtk.eqcheck_quant(erroneous_c, c0, N, K)
+    all_ok, eq_check, eq_satisfied, cons_check, cons_satisfied = eqtk.eqcheck(
+        erroneous_c, c0, N, K, return_detailed=True
+    )
+    assert not all_ok
     assert eq_check.shape == (3, 1)
     assert cons_check.shape == (3, 2)
-    assert cons_zero.shape == (3, 2)
+    assert eq_satisfied.shape == (3, 1)
+    assert cons_satisfied.shape == (3, 2)
     assert not np.allclose(eq_check, 1.0), "Error in equilibrium check."
-    assert not np.allclose(cons_check, 1.0), "Error in conservation check."
-    assert (cons_zero == False).all()
+    assert not np.all(eq_satisfied)
+    assert not np.all(cons_satisfied)
     assert not eqtk.eqcheck(erroneous_c, c0, N, K)
 
-    eq_check, cons_check, cons_zero = eqtk.eqcheck_quant(c_df, N=N_df)
+    all_ok, eq_check, eq_satisfied, cons_check, cons_satisfied = eqtk.eqcheck(
+        c=c_df, N=N_df, return_detailed=True
+    )
+    assert all_ok
     assert eq_check.shape == (3, 1)
     assert cons_check.shape == (3, 2)
-    assert cons_zero.shape == (3, 2)
-    assert np.allclose(eq_check, 1.0), "Error in equilibrium check with series."
-    assert np.allclose(cons_check, 1.0), "Error in conservation check with series."
-    assert (cons_zero == False).all()
-    assert eqtk.eqcheck(c_df, N=N_df)
+    assert eq_satisfied.shape == (3, 1)
+    assert cons_satisfied.shape == (3, 2)
+    assert np.allclose(eq_check, 1.0), "Error in equilibrium check."
+    assert np.all(eq_satisfied)
+    assert np.all(cons_satisfied)
+    assert eqtk.eqcheck(c=c_df, N=N_df)
 
-    eq_check, cons_check, cons_zero = eqtk.eqcheck_quant(c_df_log, N=N_df)
+    all_ok, eq_check, eq_satisfied, cons_check, cons_satisfied = eqtk.eqcheck(
+        c_df_log, N=N_df, return_detailed=True
+    )
+    assert all_ok
     assert eq_check.shape == (3, 1)
     assert cons_check.shape == (3, 2)
-    assert cons_zero.shape == (3, 2)
+    assert eq_satisfied.shape == (3, 1)
+    assert cons_satisfied.shape == (3, 2)
     assert np.allclose(eq_check, 1.0), "Error in equilibrium check with series."
-    assert np.allclose(cons_check, 1.0), "Error in conservation check with series."
-    assert (cons_zero == False).all()
+    assert np.all(eq_satisfied), "Error in equilibrium check with series."
+    assert np.all(cons_satisfied), "Error in conservation check with series."
     assert eqtk.eqcheck(c_df_log, N=N_df)
 
     c_df.loc[:, ~c_df.columns.str.contains("__0")] *= 1.0001
-    eq_check, cons_check, cons_zero = eqtk.eqcheck_quant(c_df, N=N_df)
+    all_ok, eq_check, eq_satisfied, cons_check, cons_satisfied = eqtk.eqcheck(
+        c_df, N=N_df, return_detailed=True
+    )
+    assert not all_ok
     assert eq_check.shape == (3, 1)
     assert cons_check.shape == (3, 2)
-    assert cons_zero.shape == (3, 2)
-    assert not np.allclose(eq_check, 1.0), "Error in equilibrium check with series."
-    assert not np.allclose(cons_check, 1.0), "Error in conservation check with series."
-    assert (cons_zero == False).all()
-    assert not eqtk.eqcheck(c_df, N=N_df)
+    assert eq_satisfied.shape == (3, 1)
+    assert cons_satisfied.shape == (3, 2)
+    assert not np.allclose(eq_check, 1.0), "Error in equilibrium check."
+    assert not np.all(eq_satisfied)
+    assert not np.all(cons_satisfied)
+    assert not eqtk.eqcheck(c=c_df, N=N_df)

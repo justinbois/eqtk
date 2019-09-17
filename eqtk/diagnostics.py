@@ -3,9 +3,8 @@ import numpy as np
 from . import solvers
 from . import testcases
 
-def step_diagnostics(
-    n_random_test_cases=200, max_particles=4, max_compound_size=5
-):
+
+def step_diagnostics(n_random_test_cases=200, max_particles=4, max_compound_size=5):
     # Generate list of random test cases
     random_test_cases = []
     for i in range(n_random_test_cases):

@@ -69,7 +69,10 @@ def random_elemental_test_case(
     x0 = np.concatenate((x0_particles, np.zeros(n_compounds - n_particles)))
     for r in range(n_compounds - n_particles):
         # Identify limiting reagent
-        lim_reagent_array = [x0[i] / np.abs(N[r, i]) if N[r, i] != 0 else np.inf for i in range(n_particles)]
+        lim_reagent_array = [
+            x0[i] / np.abs(N[r, i]) if N[r, i] != 0 else np.inf
+            for i in range(n_particles)
+        ]
         lim_reagent = np.argmin(lim_reagent_array)
 
         # Carry out reaction half way
@@ -78,11 +81,23 @@ def random_elemental_test_case(
     # Generate names
     names = ["{0:08d}".format(i) for i in range(n_compounds)]
     N_df = pd.DataFrame(data=N, columns=names)
-    N_df['equilibrium constant'] = K
+    N_df["equilibrium constant"] = K
     x_series = eqtk.to_df(x, x0, names=names)
     x_series_log = eqtk.to_df(log_x, x0, names=names)
 
-    return dict(c0=x0, N=N, K=K, A=A, G=G, c=x, c_series=x_series, c_log=log_x, c_series_log=x_series_log, N_df=N_df, units=None)
+    return dict(
+        c0=x0,
+        N=N,
+        K=K,
+        A=A,
+        G=G,
+        c=x,
+        c_series=x_series,
+        c_log=log_x,
+        c_series_log=x_series_log,
+        N_df=N_df,
+        units=None,
+    )
 
 
 def simple_binding(cA0, cB0, Kd):
@@ -135,4 +150,16 @@ def simple_binding(cA0, cB0, Kd):
     N_df = pd.DataFrame(data=N, columns=["A", "B", "AB"])
     N_df["equilibrium constant"] = K
 
-    return dict(c0=c0, N=N, K=K, A=A, G=G, c=c, c_series=c_series, c_log=c_log, c_series_log=c_series_log, N_df=N_df, units=None)
+    return dict(
+        c0=c0,
+        N=N,
+        K=K,
+        A=A,
+        G=G,
+        c=c,
+        c_series=c_series,
+        c_log=c_log,
+        c_series_log=c_series_log,
+        N_df=N_df,
+        units=None,
+    )

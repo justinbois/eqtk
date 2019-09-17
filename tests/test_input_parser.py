@@ -18,35 +18,102 @@ def test_c0_mismatch():
     G = np.array([0.001, 0.002, 0.003, 0.004, 0.005, 0.006])
 
     with pytest.raises(ValueError) as excinfo:
-        eqtk.parsers.parse_input([], N, K, None, None, *tuple([None] * 5))
-    excinfo.match(
-        "Dimension mismatch between `c0` and inputted chemical species via `N`."
-    )
-
-    with pytest.raises(ValueError) as excinfo:
-        eqtk.parsers.parse_input(
-            [0.1, 0.2, 0.1, 0.2, 0.3], N, K, None, None, *tuple([None] * 5)
+        eqtk.parse_input(
+            [],
+            N=N,
+            K=K,
+            logK=None,
+            A=None,
+            G=None,
+            names=None,
+            units=None,
+            solvent_density=None,
+            T=293.15,
+            G_units=None,
         )
     excinfo.match(
         "Dimension mismatch between `c0` and inputted chemical species via `N`."
     )
 
     with pytest.raises(ValueError) as excinfo:
-        eqtk.parsers.parse_input([], None, None, A, G, *tuple([None] * 5))
+        eqtk.parse_input(
+            [0.1, 0.2, 0.1, 0.2, 0.3],
+            N=N,
+            K=K,
+            logK=None,
+            A=None,
+            G=None,
+            names=None,
+            units=None,
+            solvent_density=None,
+            T=293.15,
+            G_units=None,
+        )
+
+    excinfo.match(
+        "Dimension mismatch between `c0` and inputted chemical species via `N`."
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        eqtk.parse_input(
+            [],
+            N=None,
+            K=None,
+            logK=None,
+            A=A,
+            G=G,
+            names=None,
+            units=None,
+            solvent_density=None,
+            T=293.15,
+            G_units=None,
+        )
     excinfo.match("Dimension mismatch between `c0` and the constraint matrix.")
 
     with pytest.raises(ValueError) as excinfo:
-        eqtk.parsers.parse_input(
-            [0.1, 0.2, 0.1, 0.2, 0.3], None, None, A, G, *tuple([None] * 5)
+        eqtk.parse_input(
+            [0.1, 0.2, 0.1, 0.2, 0.3],
+            N=None,
+            K=None,
+            logK=None,
+            A=A,
+            G=G,
+            names=None,
+            units=None,
+            solvent_density=None,
+            T=293.15,
+            G_units=None,
         )
+
     excinfo.match("Dimension mismatch between `c0` and the constraint matrix.")
 
     # Should raise no exception
-    _ = eqtk.parsers.parse_input(
-        [0.1, 0.2, 0.1, 0.2, 0.3, 0.1], N, K, None, None, *tuple([None] * 5)
+    _ = eqtk.parse_input(
+        [0.1, 0.2, 0.1, 0.2, 0.3, 0.1],
+        N=N,
+        K=K,
+        logK=None,
+        A=None,
+        G=None,
+        names=None,
+        units=None,
+        solvent_density=None,
+        T=293.15,
+        G_units=None,
     )
-    _ = eqtk.parsers.parse_input(
-        [0.1, 0.2, 0.1, 0.2, 0.3, 0.1], None, None, A, G, *tuple([None] * 5)
+
+    _ = eqtk.parse_input(
+        [0.1, 0.2, 0.1, 0.2, 0.3, 0.1],
+        N=None,
+        K=None,
+        logK=None,
+        A=A,
+        G=G,
+        names=None,
+        units=None,
+        solvent_density=None,
+        T=293.15,
+        G_units=None,
     )
 
 
@@ -63,26 +130,66 @@ def test_c0_conversions():
     target = np.array([[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]])
 
     c0 = [1, 2, 3, 4, 5, 6]
-    c0, _, _, _, _, _, _, _ = eqtk.parsers.parse_input(
-        c0, N, K, None, None, *tuple([None] * 5)
+    c0, _, _, _, _, _, _, _ = eqtk.parse_input(
+        c0,
+        N,
+        K,
+        logK=None,
+        A=None,
+        G=None,
+        names=None,
+        units=None,
+        solvent_density=None,
+        T=293.15,
+        G_units=None,
     )
     assert np.array_equal(c0, target)
 
     c0 = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
-    c0, _, _, _, _, _, _, _ = eqtk.parsers.parse_input(
-        c0, N, K, None, None, *tuple([None] * 5)
+    c0, _, _, _, _, _, _, _ = eqtk.parse_input(
+        c0,
+        N,
+        K,
+        logK=None,
+        A=None,
+        G=None,
+        names=None,
+        units=None,
+        solvent_density=None,
+        T=293.15,
+        G_units=None,
     )
     assert np.array_equal(c0, target)
 
     c0 = np.array([[1, 2, 3, 4, 5, 6]])
-    c0, _, _, _, _, _, _, _ = eqtk.parsers.parse_input(
-        c0, N, K, None, None, *tuple([None] * 5)
+    c0, _, _, _, _, _, _, _ = eqtk.parse_input(
+        c0,
+        N,
+        K,
+        logK=None,
+        A=None,
+        G=None,
+        names=None,
+        units=None,
+        solvent_density=None,
+        T=293.15,
+        G_units=None,
     )
     assert np.array_equal(c0, target)
 
     c0 = [[1, 2, 3, 4, 5, 6]]
-    c0, _, _, _, _, _, _, _ = eqtk.parsers.parse_input(
-        c0, N, K, None, None, *tuple([None] * 5)
+    c0, _, _, _, _, _, _, _ = eqtk.parse_input(
+        c0,
+        N,
+        K,
+        logK=None,
+        A=None,
+        G=None,
+        names=None,
+        units=None,
+        solvent_density=None,
+        T=293.15,
+        G_units=None,
     )
     assert np.array_equal(c0, target)
 
@@ -98,8 +205,18 @@ def test_A_rank_deficient():
     )
     G = np.zeros(5)
     with pytest.raises(ValueError) as excinfo:
-        eqtk.parsers.parse_input(
-            [0.1, 0.2, 0.1, 0.2, 0.3], None, None, A, G, *tuple([None] * 5)
+        eqtk.parse_input(
+            [0.1, 0.2, 0.1, 0.2, 0.3],
+            N=None,
+            K=None,
+            logK=None,
+            A=A,
+            G=G,
+            names=None,
+            units=None,
+            solvent_density=None,
+            T=293.15,
+            G_units=None,
         )
     excinfo.match("`A` must have full row rank.")
 
@@ -108,9 +225,20 @@ def test_reshape_empty_A():
     A = np.array([[]]).reshape((1, 0)).astype(float)
     G = np.array([1.0])
     x0 = np.array([1.0])
-    x0, N, K, A, G, names, solvent_density, single_point = eqtk.parsers.parse_input(
-        x0, None, None, A, G, *tuple([None] * 5)
+    x0, N, K, A, G, names, solvent_density, single_point = eqtk.parse_input(
+        x0,
+        N=None,
+        K=None,
+        logK=None,
+        A=A,
+        G=G,
+        names=None,
+        units=None,
+        solvent_density=None,
+        T=293.15,
+        G_units=None,
     )
+
     assert A.shape[0] == 0
     assert A.shape[1] == 1
 
@@ -119,13 +247,37 @@ def test_A_negative():
     A = np.array([[1, -1]])
     G = np.ones(2)
     with pytest.raises(ValueError) as excinfo:
-        eqtk.parsers.parse_input([1, 1], None, None, A, G, *tuple([None] * 5))
+        eqtk.parse_input(
+            [1, 1],
+            N=None,
+            K=None,
+            logK=None,
+            A=A,
+            G=G,
+            names=None,
+            units=None,
+            solvent_density=None,
+            T=293.15,
+            G_units=None,
+        )
     excinfo.match("`A` must have all nonnegative entries.")
 
     A = np.array([[0, 0, 1, 1], [1, -1, 0, 1]])
     G = np.ones(4)
     with pytest.raises(ValueError) as excinfo:
-        eqtk.parsers.parse_input([1, 1, 1, 1], None, None, A, G, *tuple([None] * 5))
+        eqtk.parse_input(
+            [1, 1, 1, 1],
+            N=None,
+            K=None,
+            logK=None,
+            A=A,
+            G=G,
+            names=None,
+            units=None,
+            solvent_density=None,
+            T=293.15,
+            G_units=None,
+        )
     excinfo.match("`A` must have all nonnegative entries.")
 
 
@@ -158,17 +310,13 @@ def test_water_density():
     multipliers = (1, 1, 1e3, 1e3, 1e6, 1e6, 1e6, 1e9, 1e9, 1e12, 1e12)
 
     for units, multiplier in zip(allowed_units, multipliers):
-        assert np.isclose(
-            eqtk.water_density(T, units), target_molar * multiplier
-        )
+        assert np.isclose(eqtk.water_density(T, units), target_molar * multiplier)
 
     T = 310.0
     target_molar = 55.141370764358946
 
     for units, multiplier in zip(allowed_units, multipliers):
-        assert np.isclose(
-            eqtk.water_density(T, units), target_molar * multiplier
-        )
+        assert np.isclose(eqtk.water_density(T, units), target_molar * multiplier)
 
     assert eqtk.water_density(T, None) == 1.0
     assert eqtk.water_density(T, "") == 1.0
@@ -201,9 +349,18 @@ def test_nondimensionalize_NK():
     T = 293.15
     solvent_density = None
     units = None
-    c0_nondim, K_nondim, solvent_density = eqtk.parsers._nondimensionalize_NK(
-        c0, N, K, T, solvent_density, units
+    x0, N, logK, A, G, names, solvent_density, single_point = eqtk.parse_input(
+        c0,
+        N=N,
+        K=K,
+        logK=None,
+        A=None,
+        G=None,
+        units=units,
+        solvent_density=solvent_density,
+        T=T,
     )
-    assert np.array_equal(c0_nondim, c0)
-    assert np.allclose(K_nondim, K)
+
+    assert np.array_equal(x0[0], c0)
+    assert np.allclose(np.log(K), logK)
     assert solvent_density == 1.0

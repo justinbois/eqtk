@@ -6,6 +6,25 @@ from . import numba_check
 have_numba, jit = numba_check.numba_check()
 
 
+@jit("double[:, ::1](double[:, ::1])", nopython=True)
+def _normalize_rows(A):
+    """Multiply each row of `A` by a scalar such that the 2-norm of
+    each row is unity."""
+    B = np.empty(A.shape)
+
+    for i in range(A.shape[0]):
+        B[i, :] = A[i, :] / np.sqrt(np.linalg.norm(A[i, :]))
+
+    return B
+
+
+@jit("double[:, ::1](double[:, ::1])", nopython=True)
+def _orthonormalize_rows(A):
+    """Convert rows of matrix `A` to orthnormal basis."""
+    U, s, V = np.linalg.svd(A)
+    return np.ascontiguousarray(V[: A.shape[0]])
+
+
 @jit("double[:, ::1](double[:, ::1], double[::1])", nopython=True)
 def diag_multiply(A, d):
     """Compute the D . A . D, where d is the diagonal of diagonal

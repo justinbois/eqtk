@@ -14,6 +14,7 @@ def solve(
     c0,
     N=None,
     K=None,
+    logK=None,
     A=None,
     G=None,
     names=None,
@@ -22,8 +23,9 @@ def solve(
     solvent_density=None,
     T=293.15,
     return_log=False,
+    normal_A=True,
     max_iters=1000,
-    tol=0.0000001,
+    tol=1e-7,
     delta_bar=1000.0,
     eta=0.125,
     min_delta=1.0e-12,
@@ -61,7 +63,14 @@ def solve(
         `K[r]` is the equilibrium constant for chemical reaction r in
         units commensurate with those of `c0`. If `N` is given as a
         DataFrame with an `'equilibrium constant'` column, `K` should
-        not be supplied. If `K`is given, `A` and `G` cannot be given.
+        not be supplied. If `K` is given, `A` and `G` cannot be given.
+    logK : array_like, shape (n_reactions,), default `None`
+        `logK[r]` is the natural logarithm of the equilibrium constant
+        for chemical reaction r. If `logK` is specified, the
+        concentrations must all be dimensionless (`units=None`). If `N`
+        is given as a DataFrame with a `'log equilibrium constant'`
+        column, `logK` should not be supplied. If `K` is given, `A`,
+        `G`, and `K` cannot be given.
     A : array_like or DataFrame, n_compounds columns
         Conservation matrix. If `c` is the output, then
         `A @ c0 = A @ c`. All entries must be nonnegative and the rows
@@ -112,10 +121,17 @@ def solve(
         `c` is a DataFrame with columns given by `names` or with the
         same columns (without `'equilibrium constant'`) as `c0`.
         Otherwise, `c` is returned as a Numpy array with the same shape
-        as `c0`.
+        as `c0`. If `return_log` is True, then the return value is the
+        natural logarithm of the dimensionless concentrations.
 
     Other Parameters
     ----------------
+    normal_A : bool, default True
+        If True, perform a transformation on `A` such that its rows are
+        orthonormal. If False, use inputted `A` directly as the
+        conservation matrix. This is ignored if `A` is not specified;
+        the resulting conservation matrix in that case has orthonormal
+        rows by construction.
     max_iters : int, default 1000
         Maximum number of iterations allowed in trust region method.
     tol : float, default 0.0000001
@@ -277,7 +293,17 @@ def solve(
         raise ValueError("If `return_log` is True, you must use dimensionless units.")
 
     x0, N, logK, A, G, names, solvent_density, single_point = parsers.parse_input(
-        c0, N, K, A, G, names, units, solvent_density, T, G_units
+        c0=c0,
+        N=N,
+        K=K,
+        logK=logK,
+        A=A,
+        G=G,
+        names=names,
+        units=units,
+        solvent_density=solvent_density,
+        T=T,
+        G_units=G_units,
     )
 
     # Solve for mole fractions
@@ -286,6 +312,7 @@ def solve(
             x0,
             A,
             G,
+            normal_A=normal_A,
             max_iters=max_iters,
             tol=tol,
             delta_bar=delta_bar,
@@ -340,8 +367,10 @@ def volumetric_titration(
     solvent_density=None,
     T=293.15,
     return_log=False,
+    logK=None,
+    normal_A=True,
     max_iters=1000,
-    tol=0.0000001,
+    tol=1e-7,
     delta_bar=1000.0,
     eta=0.125,
     min_delta=1.0e-12,
@@ -387,6 +416,13 @@ def volumetric_titration(
         units commensurate with those of `c0`. If `N` is given as a
         DataFrame with an `'equilibrium constant'` column, `K` should
         not be supplied. If `K`is given, `A` and `G` cannot be given.
+    logK : array_like, shape (n_reactions,), default `None`
+        `logK[r]` is the natural logarithm of the equilibrium constant
+        for chemical reaction r. If `logK` is specified, the
+        concentrations must all be dimensionless (`units=None`). If `N`
+        is given as a DataFrame with a `'log equilibrium constant'`
+        column, `logK` should not be supplied. If `K` is given, `A`,
+        `G`, and `K` cannot be given.
     A : array_like or DataFrame, n_compounds columns
         Conservation matrix. If `c` is the output, then
         `A @ c0 = A @ c`. All entries must be nonnegative and the rows
@@ -437,10 +473,17 @@ def volumetric_titration(
         `c` is a DataFrame with columns given by `names` or with the
         same columns (without `'equilibrium constant'`) as `c0`.
         Otherwise, `c` is returned as a Numpy array with the same shape
-        as `c0` with
+        as `c0`. If `return_log` is True, then the return value is the
+        natural logarithm of the dimensionless concentrations.
 
     Other Parameters
     ----------------
+    normal_A : bool, default True
+        If True, perform a transformation on `A` such that its rows are
+        orthonormal. If False, use inputted `A` directly as the
+        conservation matrix. This is ignored if `A` is not specified;
+        the resulting conservation matrix in that case has orthonormal
+        rows by construction.
     max_iters : int, default 1000
         Maximum number of iterations allowed in trust region method.
     tol : float, default 0.0000001
@@ -526,14 +569,34 @@ def volumetric_titration(
         raise ValueError("`vol_titrant` must have non-negative volumes.")
 
     x0_titrant, _, _, _, _, _, _, _ = parsers.parse_input(
-        c0_titrant, N, K, A, G, names, units, solvent_density, T, G_units
+        c0=c0_titrant,
+        N=N,
+        K=K,
+        logK=logK,
+        A=A,
+        G=G,
+        names=names,
+        units=units,
+        solvent_density=solvent_density,
+        T=T,
+        G_units=G_units,
     )
 
     if x0_titrant.shape[0] != 1:
         raise ValueError("`c0_titrant` must be a one-dimensional array.")
 
     x0, N, logK, A, G, names, solvent_density, _ = parsers.parse_input(
-        c0, N, K, A, G, names, units, solvent_density, T, G_units
+        c0=c0,
+        N=N,
+        K=K,
+        logK=logK,
+        A=A,
+        G=G,
+        names=names,
+        units=units,
+        solvent_density=solvent_density,
+        T=T,
+        G_units=G_units,
     )
 
     if x0.shape[0] != 1:
@@ -553,6 +616,7 @@ def volumetric_titration(
             min_delta=min_delta,
             max_trials=max_trials,
             perturb_scale=perturb_scale,
+            normal_A=normal_A,
         )
     elif G is None:
         logx = solveNK(
@@ -604,6 +668,7 @@ def fixed_value_solve(
     fixed_c,
     N=None,
     K=None,
+    logK=None,
     A=None,
     G=None,
     names=None,
@@ -612,8 +677,9 @@ def fixed_value_solve(
     solvent_density=None,
     T=293.15,
     return_log=False,
+    normal_A=True,
     max_iters=1000,
-    tol=0.0000001,
+    tol=1e-7,
     delta_bar=1000.0,
     eta=0.125,
     min_delta=1.0e-12,
@@ -660,6 +726,13 @@ def fixed_value_solve(
         units commensurate with those of `c0`. If `N` is given as a
         DataFrame with an `'equilibrium constant'` column, `K` should
         not be supplied. If `K`is given, `A` and `G` cannot be given.
+    logK : array_like, shape (n_reactions,), default `None`
+        `logK[r]` is the natural logarithm of the equilibrium constant
+        for chemical reaction r. If `logK` is specified, the
+        concentrations must all be dimensionless (`units=None`). If `N`
+        is given as a DataFrame with a `'log equilibrium constant'`
+        column, `logK` should not be supplied. If `K` is given, `A`,
+        `G`, and `K` cannot be given.
     A : Not implemented.
         Solving for equilibria with some concentrations fixed is only
         implemented if the `N` and `K` are specified.
@@ -706,10 +779,17 @@ def fixed_value_solve(
         `c` is a DataFrame with columns given by `names` or with the
         same columns (without `'equilibrium constant'`) as `c0`.
         Otherwise, `c` is returned as a Numpy array with the same shape
-        as `c0` with
+        as `c0`. If `return_log` is True, then the return value is the
+        natural logarithm of the dimensionless concentrations.
 
     Other Parameters
     ----------------
+    normal_A : bool, default True
+        If True, perform a transformation on `A` such that its rows are
+        orthonormal. If False, use inputted `A` directly as the
+        conservation matrix. This is ignored if `A` is not specified;
+        the resulting conservation matrix in that case has orthonormal
+        rows by construction.
     max_iters : int, default 1000
         Maximum number of iterations allowed in trust region method.
     tol : float, default 0.0000001
@@ -774,7 +854,17 @@ def fixed_value_solve(
         )
 
     x0, N, logK, A, G, names, solvent_density, _ = parsers.parse_input(
-        c0, N, K, A, G, names, units, solvent_density, T, G_units
+        c0=c0,
+        N=N,
+        K=K,
+        logK=logK,
+        A=A,
+        G=G,
+        names=names,
+        units=units,
+        solvent_density=solvent_density,
+        T=T,
+        G_units=G_units,
     )
 
     c0_from_df = type(c0) in [pd.core.frame.DataFrame, pd.core.series.Series]
@@ -936,73 +1026,79 @@ def _boolean_index_2d(a, b_row, b_col, n_true_row, n_true_col):
     return out
 
 
-@jit("double[::1](double[::1], double[::1], double[:, ::1])", nopython=True)
-def _initial_guess(conserv_vector, G, A):
-    """
-    Calculates an initial guess for lambda such that the maximum
-    mole fraction calculated will not give an overflow error and
-    the objective function $-h(µ)$ will be positive.  It is
-    best to have a positive objective function because when the
-    objective function is negative, it tends to be very close to
-    zero and there are precision issues.
+@jit("double[::1](double[:, ::1], double[::1])", nopython=True)
+def _initial_guess(A, G):
+    """Generate initial guess of mu.
 
-    We assume all the mu's have the same value in the initial
-    condition.  We compute the maximal lambda such that all mole
-    fractions of all complexes are below some maximum.
-    """
-    # OLD WAY
-    # mu_guess = ((1.0 + G) / abs(A).sum(0)).min() \
-    #    * ones_like(conserv_vector)
+    Parameters
+    ----------
+    A : Numpy array, shape (m, n)
+        Conservation matrix
+    G : Numpy array, shape (n,)
+        Free energies of species.
 
-    # Guess mu such that ln x = 1 for all x (x ~ 3).
-    A_AT = np.dot(A, A.transpose())
-    b = np.dot(A, G + 1.0)
-    mu0, success = linalg.solve_pos_def(A_AT, b)
-    if success:
-        return mu0
-    else:
-        return np.linalg.solve(A_AT, b)
+    Returns
+    -------
+    output : Numpy array, shape (m,)
+        Initial guess of Lagrange multipliers mu.
+
+    Notes
+    -----
+    Attempts to set the natural log of the concentrations to about one,
+    such that the concentrations are around 3, using least squares. By
+    choosing this initial guess, the objective function $-h(µ)$ tends to
+    be positive. It is best to have a positive objective function
+    because when the objective function is negative, it tends to be very
+    close to zero and there are precision issues.
+
+    """
+    mu0, resid, rank, s = np.linalg.lstsq(A.transpose(), 1.0 + G, rcond=-1.0)
+
+    return mu0
+
+
+@jit("double[::1](double[::1], double)", nopython=True)
+def _perturb_initial_guess(mu0, perturb_scale=100.0):
+    return mu0 + perturb_scale * 2.0 * (np.random.rand(len(mu0)) - 0.5)
+
+
+@jit("double[::1](double, double[:, ::1], double[::1])", nopython=True)
+def _tolerance(tol, A, x0):
+    """Compute the absolute tolerance for each conservation law. For
+    each row in `A`, perform elementwise multiplication by `x0`, and
+    call it `Aix0`. Then, the absolute tolerance for that constraint is
+    `tol` times the larger of `Aix0.sum()` or `np.abs(Aix0).max()`. If
+    the result of this calculation is zero, the absolute tolerance is
+    set to tol * x0.max(), except when x0.max() is zero, and then the
+    absolute tolerance is set to tol.
+    """
+    abs_tol = np.empty(len(A))
+
+    for i in range(len(A)):
+        Aix0 = A[i] * x0
+        atol = tol * max(np.abs(Aix0).max(), Aix0.sum())
+        if atol == 0.0:
+            x0max = x0.max()
+            if x0max == 0.0:
+                abs_tol[i] = tol
+            else:
+                abs_tol[i] = tol * x0max
+        else:
+            abs_tol[i] = atol
+
+    return abs_tol
 
 
 @jit(
-    "double[::1](double[::1], double[::1], double[:, ::1], double[::1], double)",
-    nopython=True,
-)
-def _perturb_initial_guess(conserv_vector, G, A, mu0, perturb_scale=100.0):
-    """
-    Calculates an initial guess for lambda such that the maximum
-    mole fraction calculated will not give an overflow error and
-    the objective function $-h(µ)$ will be positive.  It is
-    best to have a positive objective function because when the
-    objective function is negative, it tends to be very close to
-    zero and there are precision issues.
-
-    We assume all the mu's have the same value in the initial
-    condition.  We compute the maximal lambda such that all mole
-    fractions of all complexes are below some maximum.
-    """
-    # OLD WAY
-    # mu_guess = ((1.0 + G) / abs(A).sum(0)).min() \
-    #    * ones_like(conserv_vector)
-
-    new_mu = mu0 + perturb_scale * 2.0 * (np.random.rand(len(conserv_vector)) - 0.5)
-    # Prevent overflow err
-    while (-G + np.dot(new_mu, A)).max() > constants._max_logx:
-        perturb_scale /= 2.0
-
-    return new_mu
-
-
-@jit(
-    "Tuple((double[::1], boolean, int64, int64[::1]))(double[:, ::1], double[::1], double[::1], int64, double, double, double, double, int64, double)",
+    "Tuple((double[::1], boolean, int64, int64[::1]))(double[:, ::1], double[::1], double[::1], double[::1], int64, double, double, double, int64, double)",
     nopython=True,
 )
 def _solve_trust_region(
     A,
     G,
     conserv_vector,
+    tol,
     max_iters=1000,
-    tol=0.0000001,
     delta_bar=1000.0,
     eta=0.125,
     min_delta=1.0e-12,
@@ -1023,6 +1119,8 @@ def _solve_trust_region(
     conserv_vector : array_like, shape (n_constraints,)
         Right hand since of constraint equation,
         np.dot(A, x) = conserv_vector.
+    tol : Numpy array, shape (n_constraints,)
+        tol[i] is the tolerance on entry i of the gradient being zero.
 
     Returns
     -------
@@ -1047,17 +1145,14 @@ def _solve_trust_region(
     # Dimension of the problem
     n_constraints, n_compounds = A.shape
 
-    # Build new problem with inactive ones cut out
-    params = (G, A, conserv_vector)
-    abs_tol = tol * np.abs(conserv_vector)
-    mu0 = _initial_guess(conserv_vector, G, A)
+    mu0 = _initial_guess(A, G)
 
     mu, converged, step_tally = trust_region.trust_region_convex_unconstrained(
         mu0,
         G,
         A,
         conserv_vector,
-        tol=abs_tol,
+        tol=tol,
         max_iters=max_iters,
         delta_bar=delta_bar,
         eta=eta,
@@ -1067,13 +1162,13 @@ def _solve_trust_region(
     # Try other initial guesses if it did not converge
     n_trial = 1
     while not converged and n_trial < max_trials:
-        mu0 = _perturb_initial_guess(conserv_vector, G, A, mu0, perturb_scale)
+        mu0 = _perturb_initial_guess(mu0, perturb_scale)
         mu, converged, step_tally = trust_region.trust_region_convex_unconstrained(
             mu0,
             G,
             A,
             conserv_vector,
-            tol=abs_tol,
+            tol=tol,
             max_iters=max_iters,
             delta_bar=delta_bar,
             eta=eta,
@@ -1159,9 +1254,7 @@ def _prune_AG(A, G, x0):
     """Prune constraint matrix and free energy to ignore inert and
     missing species.
     """
-    conserv_vector = np.dot(A, x0)
-
-    active_constraints = conserv_vector > 0.0
+    active_constraints = np.dot(A, x0) > 0.0
     active_compounds = np.ones(len(x0), dtype=np.bool8)
 
     for i, act_const in enumerate(active_constraints):
@@ -1181,17 +1274,15 @@ def _prune_AG(A, G, x0):
         n_active_compounds,
     )
 
-    conserv_vector_new = _boolean_index(
-        conserv_vector, active_constraints, n_active_constraints
-    )
+    x0_new = _boolean_index(x0, active_compounds, n_active_compounds)
 
-    G_new = _boolean_index(G, active_compounds, np.sum(active_compounds))
+    G_new = _boolean_index(G, active_compounds, n_active_compounds)
 
-    return A_new, G_new, conserv_vector_new, active_compounds
+    return A_new, G_new, x0_new, active_compounds
 
 
 @jit(
-    "void(double[:, ::1], double[::1], double[:, ::1], double[::1], int64, int64, double, double, double, double, double, boolean, int64[::1], int64)",
+    "void(double[:, ::1], double[::1], double[::1], double[::1], int64, int64, double, double, double, double, double, boolean, int64[::1], int64)",
     nopython=True,
 )
 def _print_runstats(
@@ -1211,7 +1302,7 @@ def _print_runstats(
     max_iters,
 ):
     print("RUN STATS:")
-    print("  constraint matrix A:", A)
+    print("  constraint matrix A:\n", A)
     print("  compound free energies G:", G)
     print("  x0:", x0)
     print("  number of constraints:", len(conserv_vector))
@@ -1232,6 +1323,7 @@ def _print_runstats(
     print("    number of Cholesky failures forcing a Cauchy step:", step_tally[3])
     print("    number of irrelevant Cholesky failures:", step_tally[4])
     print("    number of dogleg failures:", step_tally[5])
+    print("    number of last ditch Newton steps:", step_tally[6])
 
 
 @jit("double[::1](double[:, ::1], double[::1])", nopython=True)
@@ -1252,7 +1344,7 @@ def solveNK(
     N,
     logK,
     max_iters=1000,
-    tol=0.0000001,
+    tol=1e-7,
     delta_bar=1000.0,
     eta=0.125,
     min_delta=1.0e-12,
@@ -1332,16 +1424,14 @@ def solveNK(
             # Compute conservation matrix
             A = linalg.nullspace_svd(N_new, tol=constants._nullspace_tol)
 
-            # Scale it so each row has mean abs nonzero value of 1
-            for i in range(len(A)):
-                A[i] /= np.abs(A[i]).sum() / len(np.nonzero(A[i])[0])
-
             # If completely constrained (N square), solve directly
             if n_constraints_new == 0:
                 logx_new = np.linalg.solve(N_new, -minus_log_K_new)
             else:
                 # In case we have null <=> compds type reaction, adjust x0
-                x0_adjusted = _create_from_nothing(N_new, x0_new)
+                # DEBUG
+#                x0_adjusted = _create_from_nothing(N_new, x0_new)
+                x0_adjusted = x0_new
 
                 # Compute the free energies in units of kT from the K's
                 b = np.concatenate((np.zeros(n_constraints_new), minus_log_K_new))
@@ -1349,12 +1439,14 @@ def solveNK(
                 G = np.linalg.solve(N_prime, b)
                 conserv_vector = np.dot(A, x0_adjusted)
 
+                abs_tol = _tolerance(tol, A, x0_adjusted)
+
                 logx_new, converged, n_trial, step_tally = _solve_trust_region(
                     A,
                     G,
                     conserv_vector,
+                    abs_tol,
                     max_iters=max_iters,
-                    tol=tol,
                     delta_bar=1000.0,
                     eta=eta,
                     min_delta=min_delta,
@@ -1368,7 +1460,7 @@ def solveNK(
                     _print_runstats(
                         A,
                         G,
-                        x0,
+                        x0_adjusted,
                         conserv_vector,
                         n_trial,
                         max_trials,
@@ -1404,7 +1496,7 @@ def solveNG(
     N,
     G,
     max_iters=1000,
-    tol=0.0000001,
+    tol=1e-7,
     delta_bar=1000.0,
     eta=0.125,
     min_delta=1.0e-12,
@@ -1488,17 +1580,20 @@ def solveNG(
             if n_constraints_new == 0:
                 logx_new = -G_new
             else:
-                # In case we have null <=> compds type reaction, adjust x0
-                x0_adjusted = _create_from_nothing(N_new, x0_new)
+                # DEBUG
+#                x0_adjusted = _create_from_nothing(N_new, x0_new)
+                x0_adjusted = x0_new
 
                 conserv_vector = np.dot(A, x0_adjusted)
+
+                abs_tol = _tolerance(tol, A, x0_adjusted)
 
                 logx_new, converged, n_trial, step_tally = _solve_trust_region(
                     A,
                     G_new,
                     conserv_vector,
+                    abs_tol,
                     max_iters=max_iters,
-                    tol=tol,
                     delta_bar=1000.0,
                     eta=eta,
                     min_delta=min_delta,
@@ -1512,7 +1607,7 @@ def solveNG(
                     _print_runstats(
                         A,
                         G,
-                        x0,
+                        x0_adjusted,
                         conserv_vector,
                         n_trial,
                         max_trials,
@@ -1547,8 +1642,9 @@ def solveAG(
     x0,
     A,
     G,
+    normal_A=True,
     max_iters=1000,
-    tol=0.0000001,
+    tol=1e-7,
     delta_bar=1000.0,
     eta=0.125,
     min_delta=1.0e-12,
@@ -1569,6 +1665,12 @@ def solveAG(
         chemical reaction r.
     G : Contiguous Numpy array in C order, shape (n_compounds,)
         G[j] is the free energy of compound j in units of kT.
+    normal_A : bool, default True
+        If True, perform a transformation on `A` such that its rows are
+        orthonormal. If False, use inputted `A` directly as the
+        conservation matrix. This is ignored if `A` is not specified;
+        the resulting conservation matrix in that case has orthonormal
+        rows by construction.
 
     Other Parameters
     ----------------
@@ -1597,7 +1699,7 @@ def solveAG(
     Returns
     -------
     logx : Numpy array, shape (n_points, n_compounds)
-        `logx[i, j]` = natural log of the dimxensionless equilibrium
+        `logx[i, j]` = natural log of the dimensionless equilibrium
         concentration of compound `j` for calculation `i`.
 
     Notes
@@ -1612,8 +1714,11 @@ def solveAG(
 
     logx = np.empty_like(x0)
 
+    if normal_A:
+        A = linalg._normalize_rows(A)
+
     for i_point in range(x0.shape[0]):
-        A_new, G_new, conserv_vector, active_compounds = _prune_AG(A, G, x0[i_point])
+        A_new, G_new, x0_new, active_compounds = _prune_AG(A, G, x0[i_point])
 
         # Detect if A is empty (no constraints)
         A_empty = A_new.shape[0] + A_new.shape[1] == 1
@@ -1627,12 +1732,20 @@ def solveAG(
                 logx_new = -G_new
             # Go ahead and solve
             else:
+                # If we wanted ORTHOnormal A, we would do below, but has issues
+                # U, s, V = np.linalg.svd(A_new)
+                # A_new = np.ascontiguousarray(V[:A_new.shape[0]])
+
+                conserv_vector = np.dot(A_new, x0_new)
+
+                abs_tol = _tolerance(tol, A_new, x0_new)
+
                 logx_new, converged, n_trial, step_tally = _solve_trust_region(
                     A_new,
                     G_new,
                     conserv_vector,
+                    abs_tol,
                     max_iters=max_iters,
-                    tol=tol,
                     delta_bar=1000.0,
                     eta=eta,
                     min_delta=min_delta,
@@ -1646,7 +1759,7 @@ def solveAG(
                     _print_runstats(
                         A,
                         G,
-                        x0,
+                        x0_new,
                         conserv_vector,
                         n_trial,
                         max_trials,

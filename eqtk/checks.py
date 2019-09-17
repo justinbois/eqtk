@@ -27,7 +27,7 @@ def _c_from_df(c, c0=False):
 
     df = c[cols]
 
-    c_as_log =  cols[0][:3] == 'ln '
+    c_as_log = cols[0][:3] == "ln "
 
     # Rename columns to just be chemical species
     if c_as_log:
@@ -54,11 +54,13 @@ def _c_from_df(c, c0=False):
 
     return df, units, c_as_log
 
+
 def eqcheck(
     c,
     c0=None,
     N=None,
     K=None,
+    logK=None,
     A=None,
     G=None,
     names=None,
@@ -67,9 +69,11 @@ def eqcheck(
     solvent_density=None,
     T=293.15,
     c_as_log="unspecified",
-    rtol=1e-5,
-    atol=1e-8,
-    atol_zero=1e-12,
+    normal_A=True,
+    eq_rtol=1e-5,
+    eq_atol=1e-8,
+    tol=1e-7,
+    return_detailed=False,
 ):
     """Check the satisfaction of equilibrium expressions and
     conservation laws.
@@ -108,6 +112,13 @@ def eqcheck(
         units commensurate with those of `c0`. If `N` is given as a
         DataFrame with an `'equilibrium constant'` column, `K` should
         not be supplied. If `K`is given, `A` and `G` cannot be given.
+    logK : array_like, shape (n_reactions,), default `None`
+        `logK[r]` is the natural logarithm of the equilibrium constant
+        for chemical reaction r. If `logK` is specified, the
+        concentrations must all be dimensionless (`units=None`). If `N`
+        is given as a DataFrame with a `'log equilibrium constant'`
+        column, `logK` should not be supplied. If `K` is given, `A`,
+        `G`, and `K` cannot be given.
     A : array_like or DataFrame, n_compounds columns
         Conservation matrix. If `c` is the output, then
         `A @ c0 = A @ c`. All entries must be nonnegative and the rows
@@ -153,67 +164,98 @@ def eqcheck(
         `c` is a Numpy array and `c_as_log` is 'unspecified', the
         inputted `c` is assumed to be concentrations and not their
         natural logarithms.
-    rtol : float, default 1e-5
-        Relative tolerance parameter to check closeness of equilibrium
-        or conservation condition as used in `numpy.isclose()`.
-    atol : float, default 1e-8
+    normal_A : bool, default True
+        If True, perform a transformation on `A` such that its rows are
+        normal vectors when checking conservation laws. If False, use
+        inputted `A` directly as the conservation matrix. This is
+        ignored if `A` is not specified; the resulting conservation
+        matrix in that case has orthonormal rows by construction. This
+        parameter should be chosen to match what was used in the
+        calculation being checked because the convergence criteria
+        change slightly depending on the particular values in `A`.
+    eq_atol : float, default 1e-8
         Absolute tolerance parameter to check closeness of equilibrium
-        or conservation condition as used in `numpy.isclose()`.
-    atol_zero : float, default 1e-12
+        as used in `numpy.isclose()`.
+    eq_rtol : float, default 1e-5
+        Relative tolerance parameter to check closeness of equilibrium
+        condition as used in `numpy.isclose()`.
+    tol : float, default 1e-7
         Absolute tolerance parameter to check closeness of conservation
-        condition when the value of the conserved quantity is zero.
+        condition. The absolute tolerance for checking the conservation
+        conditions based on conservation matrix `A` and initial 
+        concentrations `c0` is computed as follows. For each row in `A`,
+        perform elementwise multiplication by `c0`, and call it `Aic0`. 
+        Then, the absolute tolerance for that constraint is `tol` times 
+        the larger of `Aix0.sum()` and `np.abs(Aix0).max()`.
+    return_detailed : bool, default False
+        If True, return detailed quantitative checks (see return values
+        below). If False, only a boolean is returned, True if all 
+        equilibrium and conservation conditions are met and False 
+        otherwise.
 
     Returns
     -------
     output : bool
-        True is all equilibrium and conservation conditons are met.
+        True is all equilibrium and conservation conditions are met.
         False otherwise.
-
-    Notes
-    -----
-    Consider reaction r. A condition for equilibrium is
-    (prod_j c[j]**N[r][j]) / K[r]. If this expression if close to unity,
-    as computed with `numpy.isclose()`, then the equilibrium condition
-    is deemed to be met. If `N` or `K` is not given in the input, they
-    are calculated from `A` and `G`.
-
-    Conservation laws are of the form `np.dot(A, c) == np.dot(A, c0)`.
-    If the ratio `np.dot(A, c) / np.dot(A, c0)` is close to unity, then
-    the conservation condition is deemed to be met. If `A` is not given,
-    `A` is calculated as the null space of `N` and scaled such that the
-    mean of the nonzero entries in each row is unity.
-
-    In the case where an entry in `np.dot(A, c0)` is identically or
-    very close to zero, the ratio `np.dot(A, c) / np.dot(A, c0)` cannot
-    be used to check satisfaction of the conservation conditions. In
-    that case, the check is whether `np.dot(A, c)` is within `atol_zero`
-    to zero.
+    equilibrium_check : Numpy array, shape (n_points, n_reactions) or (n_reactions, )
+        equilibrium_check[i, r] is the ratio of the left and right hand
+        sides of the mass action expression for equilibrium for
+        calculation `i`.  This is defined as
+        (prod_j c[j]**N[r][j]) / K[r]. If `N` or `K` is not
+        given, they are calculated from `A` and `G`. This is only 
+        returned if `return_detailed` is True.
+    equilibrium_satisfied : Numpy array, shape (n_points, n_reactions) or (n_reactions, )
+        equilibrium_satisfied[i, r] is True if the equilibrium condition
+        for reaction r in calculation i is satisfied.
+        is met and False otherwise. This is only  returned if 
+        `return_detailed` is True.
+    cons_check : Numpy array, shape (n_points, n_compounds - n_reactions), or (n_compounds - n_reactions,)
+        cons_check[i, k] is the difference between the calculated value 
+        of a conserved quantity and the actual value for calculation
+        `i`. It is defined as cons_check = np.dot(A, c) - np.dot(A, c0).
+        If `A` is not given, `A` is calculated as the null space of `N`.
+        This is only returned if `return_detailed` is True.
+    cons_satisfied : Numpy array, shape (n_points, n_reactions) or (n_reactions, )
+        cons_satisfied[i, k] is True if the conservation condition k for
+        calculation i is met and False otherwise. This is only  returned 
+        if `return_detailed` is True.
 
     """
-    eq_check, cons_check, cons_zero = eqcheck_quant(c, c0, N, K, A, G, names, units, G_units, solvent_density, T, c_as_log)
+    eq_check, eq_satisfied, cons_check, cons_satisfied = _eqcheck_quant(
+        c,
+        c0=c0,
+        N=N,
+        K=K,
+        logK=logK,
+        A=A,
+        G=G,
+        names=names,
+        units=units,
+        G_units=G_units,
+        solvent_density=solvent_density,
+        T=T,
+        c_as_log=c_as_log,
+        normal_A=normal_A,
+        eq_rtol=1e-5,
+        eq_atol=1e-8,
+        tol=1e-7,
+    )
 
-    if len(cons_check.shape) == 1:
-        cons_check = cons_check.reshape((1, len(cons_check)))
-        cons_zero = cons_zero.reshape((1, len(cons_zero)))
+    all_ok = eq_satisfied.all() and cons_satisfied.all()
 
-    eq_ok = np.isclose(eq_check, 1.0)
+    if return_detailed:
+        return all_ok, eq_check, eq_satisfied, cons_check, cons_satisfied
 
-    cons_ok = np.empty(cons_check.shape, dtype=bool)
-    for i, (cons_i, cons_is_zero_i) in enumerate(zip(cons_check, cons_zero)):
-        for j, (cons, cons_is_zero) in enumerate(zip(cons_i, cons_is_zero_i)):
-            if cons_is_zero:
-                cons_ok[i, j] = np.abs(cons) < atol_zero
-            else:
-                cons_ok[i, j] = np.isclose(cons, 1.0)
-
-    return eq_ok.all() and cons_ok.all()
+    return all_ok
 
 
-def eqcheck_quant(
+def _eqcheck_quant(
     c,
     c0=None,
     N=None,
     K=None,
+    logK=None,
     A=None,
     G=None,
     names=None,
@@ -222,6 +264,10 @@ def eqcheck_quant(
     solvent_density=None,
     T=293.15,
     c_as_log="unspecified",
+    normal_A=True,
+    eq_rtol=1e-5,
+    eq_atol=1e-8,
+    tol=1e-7,
 ):
     """Compute the error in satisfaction of equilibrium expressions
     and in conservation laws.
@@ -232,7 +278,6 @@ def eqcheck_quant(
         Equilibrium concentrations of all species. `c[i, j]` is the
         equilibrium concentration of species `j` for initial
         concentrations given by `c0[i, :]` in units given by `units`.
-
     c0 : array_like, dict, Series, or DataFrame, shape (n_points, n_compounds) or (n_compounds, ), or None
         Each row contains the total "initial" concentration of all
         possible chemical species in solution. The equilibrium
@@ -248,7 +293,6 @@ def eqcheck_quant(
         Pandas Series or DataFrame as `pd.Series(c0)` or
         `pd.DataFrame(c0)`. If `c` is inputted as a Series or DataFrame
         and has initial concentrations, `c0` may be None.
-
     N : array_like or DataFrame, default `None`
         Stoichiometic matrix. `N[r, j]` = the stoichiometric coefficient
         of compound `j` in chemical reaction `r`. All rows of `N` must
@@ -257,30 +301,32 @@ def eqcheck_quant(
         `'equilibrium constant'` contains the equilibrium constants for
         each reaction in units commensurate with those of `c0`. If `N`
         is given, `A` and `G` cannot be given.
-
     K : array_like, shape (n_reactions,), default `None`
         `K[r]` is the equilibrium constant for chemical reaction r in
         units commensurate with those of `c0`. If `N` is given as a
         DataFrame with an `'equilibrium constant'` column, `K` should
         not be supplied. If `K`is given, `A` and `G` cannot be given.
-
+    logK : array_like, shape (n_reactions,), default `None`
+        `logK[r]` is the natural logarithm of the equilibrium constant
+        for chemical reaction r. If `logK` is specified, the
+        concentrations must all be dimensionless (`units=None`). If `N`
+        is given as a DataFrame with a `'log equilibrium constant'`
+        column, `logK` should not be supplied. If `K` is given, `A`,
+        `G`, and `K` cannot be given.
     A : array_like or DataFrame, n_compounds columns
         Conservation matrix. If `c` is the output, then
         `A @ c0 = A @ c`. All entries must be nonnegative and the rows
         of `A` must be linearly independent. If entered as a DataFrame,
         the name of chemical species `j` is `A.columns[j]`. If `A` is
         given, `G` must be given, and `N` and `K` cannot be given.
-
     G : array_like, shape (n_compounds, ), default `None`
         `G[j]` is the free energy of chemical species `j` in units
         specified by `G_units`. If `G` is given, `A` must be given, and
         `N` and `K` cannot be given.
-
     names : list or tuple of str, default `None`, optional
         The names of the chemical species. Names are inferred if `N` or
         `A` is given as a DataFrame, in which case `names` is
         unnecessary.
-
     units : string or `None`, default 'unspecified'
         The units of the concentrations. Allowable values are {`None`,
         'mole fraction', 'molar', 'M', 'millimolar', 'mM', 'micromolar',
@@ -289,25 +335,21 @@ def eqcheck_quant(
         is a Numpy array, units are considered `None` if 'unspecified'.
         The equilibrium constants given by `K` must have corresponding
         units.
-
     G_units : string, default `None`
         Units in which free energy is given. If `None` or `'kT'`, the
         free  energies are specified in units of of the thermal energy
         kT. Allowable values are {None, 'kT', kcal/mol', 'J', 'J/mol',
         'kJ/mol', 'pN-nm'}.
-
     solvent_density : float, default `None`
         The density of the solvent in units commensurate with the
         `units` keyword argument. Default (`None`) assumes the solvent
         is water, and its density is computed at the temperature
         specified by the `T` keyword argument.
-
     T : float, default = 293.15
         Temperature, in Kelvin, of the solution. When `N` and `K` are
         given, `T` is ignored if `solvent_density` is given or if
         `units` is `None`. If `A` and `G` are given, `T` is ignored when
         `units` and `G_units` are both `None`.
-
     c_as_log : str or bool, default 'unspecified'
         If True, `c` is given with computed concentrations as the
         natural logarithm of their value, as would be returned by
@@ -316,6 +358,29 @@ def eqcheck_quant(
         `c` is a Numpy array and `c_as_log` is 'unspecified', the
         inputted `c` is assumed to be concentrations and not their
         natural logarithms.
+    normal_A : bool, default True
+        If True, perform a transformation on `A` such that its rows are
+        normal vectors when checking conservation laws. If False, use
+        inputted `A` directly as the conservation matrix. This is
+        ignored if `A` is not specified; the resulting conservation
+        matrix in that case has orthonormal rows by construction. This
+        parameter should be chosen to match what was used in the
+        calculation being checked because the convergence criteria
+        change slightly depending on the particular values in `A`.
+    eq_atol : float, default 1e-8
+        Absolute tolerance parameter to check closeness of equilibrium
+        as used in `numpy.isclose()`.
+    eq_rtol : float, default 1e-5
+        Relative tolerance parameter to check closeness of equilibrium
+        condition as used in `numpy.isclose()`.
+    tol : float, default 1e-7
+        Absolute tolerance parameter to check closeness of conservation
+        condition. The absolute tolerance for checking the conservation
+        conditions based on conservation matrix `A` and initial 
+        concentrations `c0` is computed as follows. For each row in `A`,
+        perform elementwise multiplication by `c0`, and call it `Aic0`. 
+        Then, the absolute tolerance for that constraint is `tol` times 
+        the larger of `Aix0.sum()` and `np.abs(Aix0).max()`.
 
     Returns
     -------
@@ -325,22 +390,19 @@ def eqcheck_quant(
         calculation `i`.  This is defined as
         (prod_j c[j]**N[r][j]) / K[r]. If `N` or `K` is not
         given, they are calculated from `A` and `G`.
-
+    equilibrium_satisfied : Numpy array, shape (n_points, n_reactions) or (n_reactions, )
+        equilibrium_satisfied[i, r] is True if the equilibrium condition
+        for reaction r in calculation i is satisfied.
+        is met and False otherwise.
     cons_check : Numpy array, shape (n_points, n_compounds - n_reactions), or (n_compounds - n_reactions,)
-        cons_check[i, k] is the ratio of the calculated value of a
-        conserved quantity divided by the actual value for calculation
-        `i`. It is defined as cons_check = np.dot(A, c) / np.dot(A, c0).
-        There is one exception. If `np.dot(A, c0)` is identically zero,
-        the ratio of cannot be calculated. In this case, the entry in
-        `cons_check` is `np.dot(A, c)`, which provides a metric of how
-        close to zero the conserved quantity is. If `A` is not given,
-        `A` is calculated as the null space of `N` and scaled such that
-        the mean of the nonzero entries in each row is unity.
+        cons_check[i, k] is the difference between the calculated value 
+        of a conserved quantity and the actual value for calculation
+        `i`. It is defined as cons_check = np.dot(A, c) - np.dot(A, c0).
+        If `A` is not given, `A` is calculated as the null space of `N`.
+    cons_satisfied : Numpy array, shape (n_points, n_reactions) or (n_reactions, )
+        cons_satisfied[i, k] is True if the conservation condition k for
+        calculation i is met and False otherwise.
 
-    cons_zero : Numpy array, shape (n_points, n_compounds - n_reactions), or (n_compounds - n_reactions,)
-        `cons_zero[i, k]` is True if the conserved quantity `k` for
-        calculation `i` is identically zero. This allows a reference for
-        checking the values of `cons_check`.
 
     """
     if units == "unspecified" and type(c) not in (
@@ -371,15 +433,29 @@ def eqcheck_quant(
         raise ValueError("Units in inputted `c` do not match `units` keyword argument.")
 
     x0, N, logK, A, G, names, solvent_density, single_point = parsers.parse_input(
-        c0, N, K, A, G, names, units, solvent_density, T, G_units
+        c0=c0,
+        N=N,
+        K=K,
+        logK=logK,
+        A=A,
+        G=G,
+        names=names,
+        units=units,
+        solvent_density=solvent_density,
+        T=T,
+        G_units=G_units,
     )
 
     if c_as_log == "unspecified":
         c_as_log = c_as_log_inferred
     elif c_as_log == True and c_as_log_inferred == False:
-        raise ValueError("Inputted `c` does not have logarithmic concentrations, but `c_as_log` is specfied as `True`.")
+        raise ValueError(
+            "Inputted `c` does not have logarithmic concentrations, but `c_as_log` is specified as `True`."
+        )
     elif c_as_log == False and c_as_log_inferred == True:
-        raise ValueError("Inputted `c` has logarithmic concentrations, but `c_as_log` is specfied as `False`.")
+        raise ValueError(
+            "Inputted `c` has logarithmic concentrations, but `c_as_log` is specified as `False`."
+        )
 
     if c_as_log and solvent_density != 1.0:
         raise ValueError("If `c_as_log` is True, must have `solvent_density = 1`.")
@@ -397,46 +473,76 @@ def eqcheck_quant(
 
     if N is None:
         N = linalg.nullspace_svd(A, tol=constants._nullspace_tol)
-        for i in range(len(N)):
-            N[i] /= np.abs(N[i]).sum() / len(np.nonzero(N[i])[0])
         prune = "A"
 
     if A is None:
         if len(N) == 0:
-            A = np.array([[1.0] + [0.0]*(N.shape[1]-1)])
+            A = np.array([[1.0] + [0.0] * (N.shape[1] - 1)])
         else:
             A = linalg.nullspace_svd(N, tol=constants._nullspace_tol)
-        for i in range(len(A)):
-            A[i] /= np.abs(A[i]).sum() / len(np.nonzero(A[i])[0])
         prune = "N"
 
     if G is not None:
         logK = -np.dot(N, G)
 
-    return _check_equilibrium(x0, x, N, A, logK, G, prune, single_point, c_as_log)
+    return _check_equilibrium(
+        x0, x, N, A, logK, G, prune, single_point, c_as_log, normal_A
+    )
 
 
-def _check_equilibrium(c0, c, N, A, logK, G, prune, single_point, c_as_log=False):
+def _check_equilibrium(
+    c0,
+    c,
+    N,
+    A,
+    logK,
+    G,
+    prune,
+    single_point,
+    c_as_log=False,
+    normal_A=True,
+    eq_atol=1e-5,
+    eq_rtol=1e-8,
+    tol=1e-7,
+):
     """Check to make sure equilibrium is satisfied."""
     eq_check = np.empty((c.shape[0], N.shape[0]))
     cons_check = np.empty((c.shape[0], N.shape[1] - N.shape[0]))
-    cons_zero = np.empty((c.shape[0], N.shape[1] - N.shape[0]), dtype=bool)
+    eq_satisfied = np.empty((c.shape[0], N.shape[0]), dtype=bool)
+    cons_satisfied = np.empty((c.shape[0], N.shape[1] - N.shape[0]), dtype=bool)
 
     for i, (c0_i, c_i) in enumerate(zip(c0, c)):
-        eq_check_i, cons_check_i, cons_zero_i = _check_equilibrium_single_point(
-            c0_i, c_i, N, logK, A, G, prune, c_as_log
+        eq_check_i, eq_satisfied_i, cons_check_i, cons_satisfied_i = _check_equilibrium_single_point(
+            c0_i, c_i, N, logK, A, G, prune, c_as_log, normal_A, eq_atol, eq_rtol, tol
         )
         eq_check[i] = eq_check_i
+        eq_satisfied[i] = eq_satisfied_i
         cons_check[i] = cons_check_i
-        cons_zero[i] = cons_zero_i
+        cons_satisfied[i] = cons_satisfied_i
 
     if single_point:
-        return eq_check.flatten(), cons_check.flatten(), cons_zero.flatten()
+        eq_check = eq_check.flatten()
+        eq_satisfied = eq_satisfied.flatten()
+        cons_check = cons_check.flatten()
+        cons_satisfied = cons_satisfied.flatten()
 
-    return eq_check, cons_check, cons_zero
+    return eq_check, eq_satisfied, cons_check, cons_satisfied
 
 
-def _check_equilibrium_single_point(c0, c, N, logK, A, G, prune, c_as_log=False):
+def _check_equilibrium_single_point(
+    c0,
+    c,
+    N,
+    logK,
+    A,
+    G,
+    prune,
+    c_as_log=False,
+    normal_A=True,
+    eq_atol=1e-5,
+    eq_rtol=1e-8,
+    tol=1e-7,
+):
     """
     Check concentrations to verify equilibrium conditions are met.
 
@@ -501,8 +607,6 @@ def _check_equilibrium_single_point(c0, c, N, logK, A, G, prune, c_as_log=False)
         # Prune and make new stoich matrix
         A_new, G_new, _, active_compounds = solvers._prune_AG(A, G, c0)
         N_new = linalg.nullspace_svd(A_new, tol=constants._nullspace_tol)
-        for i in range(len(N_new)):
-            N_new[i] /= np.abs(N_new[i]).sum() / len(np.nonzero(N_new[i])[0])
         N = np.zeros_like(N)
         N[: len(N_new), active_compounds] = N_new
         logK = -np.dot(N, G)
@@ -510,29 +614,33 @@ def _check_equilibrium_single_point(c0, c, N, logK, A, G, prune, c_as_log=False)
 
     # Check equilibrium expressions
     eq_check = np.empty(len(N))
+    eq_satisfied = np.empty(len(N), dtype=bool)
     if c_as_log:
         logc = c
     else:
         logc = np.array([np.log(ci) for ac, ci in zip(active_compounds, c) if ac])
+
     for r, logK_val in enumerate(logK):
         if active_reactions[r]:
             eq_check[r] = np.exp(np.dot(N[r, active_compounds], logc) - logK_val)
         else:
             eq_check[r] = 1.0
 
+        eq_satisfied[r] = np.isclose(eq_check[r], 1.0, atol=eq_atol, rtol=eq_rtol)
+
     # Check conservation expressions
+    if normal_A:
+        A = linalg._normalize_rows(A)
+
+    abs_tol = solvers._tolerance(tol, A, c0)
     target = np.dot(A, c0)
     if c_as_log:
         c = np.exp(c)
     res = np.dot(A, c)
     cons_check = np.empty(len(res))
-    cons_zero = np.empty(len(res), dtype=bool)
+    cons_satisfied = np.empty(len(res), dtype=bool)
     for i, (res_val, target_val) in enumerate(zip(res, target)):
-        if np.abs(target_val) < constants._nullspace_tol:
-            cons_check[i] = -np.abs(res_val)
-            cons_zero[i] = True
-        else:
-            cons_check[i] = res_val / target_val
-            cons_zero[i] = False
+        cons_check[i] = res_val - target_val
+        cons_satisfied[i] = np.abs(cons_check[i]) <= abs_tol[i]
 
-    return eq_check, cons_check, cons_zero
+    return eq_check, eq_satisfied, cons_check, cons_satisfied

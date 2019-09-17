@@ -170,7 +170,7 @@ def search_direction_dogleg(g, B, delta):
         p = pU + beta * (pB - pU)
         return inv_d * p, 3
     else:  # Something is messed up, take Cauchy step. Only get here if
-           # precision issues with beta
+        # precision issues with beta
         return inv_d * pU, 6
 
 
@@ -227,19 +227,28 @@ def trust_region_convex_unconstrained(
     then proceeds with Newton steps until convergence is achieved or
     the Newton step fails to decrease the norm of the gradient.
 
+    step_tally enties:
+
+      0 if step was a pure Newton step (didn't hit trust region boundary)
+      1 if the step was purely Cauchy in nature (hit trust region boundary)
+      2 if the step was a dogleg step (part Newton and part Cauchy)
+      3 if Cholesky decomposition failed and we had to take a Cauchy step
+      4 if Cholesky decompostion failed but we would've taken Cauchy step anyway
+      5 if the dogleg calculation failed (should never happen)
+      6 if step was a last ditch Newton step
+
     Suggested defaults:
     max_iters=10000,
     delta_bar=1000.0,
     eta=0.125,
     min_delta=1e-12,
     """
-
     # Initializations
     delta = 0.99 * delta_bar
     iters = 0
     n_no_step = 0
     mu = np.copy(mu0)
-    step_tally = np.zeros(6, dtype=np.int64)
+    step_tally = np.zeros(7, dtype=np.int64)
 
     # Calculate the concentrations
     logx = compute_logx(mu, G, A)
@@ -323,21 +332,13 @@ def trust_region_convex_unconstrained(
                     g = g_new
                     B = hes(x_new, A)
 
-                    step_tally[0] += 1
+                    step_tally[6] += 1
                 else:
                     newton_success = False
             iters += 1
 
-        if newton_success and not check_tol(g, tol, log_scale_param):
-            converged = True
-        else:
-            converged = False
+        converged = newton_success and iters < max_iters
     else:
-        converged = True
-
-    if not converged and iters == max_iters:
-        converged = False
-    else:
-        converged = True
+        converged = iters < max_iters
 
     return mu, converged, step_tally
