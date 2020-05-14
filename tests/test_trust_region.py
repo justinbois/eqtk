@@ -40,5 +40,3 @@ def test_rescale_hes(n):
     B_rescaled = eqtk.trust_region.scaled_hes(B, d)
     assert np.allclose(np.diag(B_rescaled), np.ones(n))
     assert np.allclose(np.diag(1 / d) @ B_rescaled @ np.diag(1 / d), B)
-
-

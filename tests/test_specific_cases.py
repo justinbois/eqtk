@@ -65,9 +65,7 @@ def test_aspartic_acid_titration():
     c0 = np.array([0.0, 0.0, 0.001, 0.0, 0.0, 0.0])
     c0_titrant = np.array([0.0, 0.001, 0.0, 0.0, 0.0, 0.0])
     vol_titrant = np.linspace(0.0, 4.0, 100)
-    c = eqtk.volumetric_titration(
-        c0, c0_titrant, vol_titrant, N=N, K=K, units="M"
-    )
+    c = eqtk.volumetric_titration(c0, c0_titrant, vol_titrant, N=N, K=K, units="M")
 
     new_c0 = eqtk.solvers._volumetric_to_c0(c0, c0_titrant, vol_titrant)
 
@@ -87,9 +85,7 @@ def test_phosphoric_acid_titration():
     c0 = np.array([0.0, 0.0, 0.001, 0.0, 0.0, 0.0])
     c0_titrant = np.array([0.0, 0.001, 0.0, 0.0, 0.0, 0.0])
     vol_titrant = np.linspace(0.0, 4.0, 100)
-    c = eqtk.volumetric_titration(
-        c0, c0_titrant, vol_titrant, N=N, K=K, units="M"
-    )
+    c = eqtk.volumetric_titration(c0, c0_titrant, vol_titrant, N=N, K=K, units="M")
 
     new_c0 = eqtk.solvers._volumetric_to_c0(c0, c0_titrant, vol_titrant)
 
@@ -121,8 +117,9 @@ def test_example_1():
         ]
     )
     K = np.array([50.0, 10.0, 40.0, 100.0])
-    x0 = np.array([[0.001, 0.003, 0.0, 0.0, 0.0, 0.0],
-                   [0.001, 0.0,   0.0, 0.0, 0.0, 0.0]])
+    x0 = np.array(
+        [[0.001, 0.003, 0.0, 0.0, 0.0, 0.0], [0.001, 0.0, 0.0, 0.0, 0.0, 0.0]]
+    )
 
     x = eqtk.solve(c0=x0, N=N, K=K, units="M")
 
@@ -167,7 +164,7 @@ def test_example_4():
     AC <=> A + C ; 0.003
     """
     N = eqtk.parse_rxns(rxns)
-    c0 = {'A': 1.0, 'B': 0.5, 'C': 0.25, 'AB': 0, 'AC': 0}
-    c = eqtk.solve(c0, N, units='mM')
+    c0 = {"A": 1.0, "B": 0.5, "C": 0.25, "AB": 0, "AC": 0}
+    c = eqtk.solve(c0, N, units="mM")
 
-    assert eqtk.eqcheck(c, c0, N=N, units='mM')
+    assert eqtk.eqcheck(c, c0, N=N, units="mM")

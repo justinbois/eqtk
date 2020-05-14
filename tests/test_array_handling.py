@@ -31,5 +31,6 @@ def test_boolean_index_2d():
         target = target[:, b_col]
 
         assert np.array_equal(
-            eqtk.solvers._boolean_index_2d(a, b_row, b_col, n_true_row, n_true_col), target
+            eqtk.solvers._boolean_index_2d(a, b_row, b_col, n_true_row, n_true_col),
+            target,
         )

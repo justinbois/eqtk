@@ -1,6 +1,7 @@
 import numpy as np
 import eqtk
 
+
 def test_prune_NK():
     N = np.array(
         [
@@ -119,7 +120,9 @@ def test_prune_NK():
         [0, 0, 0, 0, 0, 1],
     ]:
         x0 = np.array(x0_val, dtype=float)
-        N_new, minus_log_K_new, x0_new, _, _ = eqtk.solvers._prune_NK(N, minus_log_K, x0)
+        N_new, minus_log_K_new, x0_new, _, _ = eqtk.solvers._prune_NK(
+            N, minus_log_K, x0
+        )
         assert np.array_equal(N_new, N)
         assert np.array_equal(minus_log_K_new, minus_log_K)
         assert np.array_equal(x0_new, x0)
@@ -130,9 +133,13 @@ def test_prune_NK():
     N_target = np.array([[1, 0, 1, -1], [1, 1, 1, 0]], dtype=float)
     minus_log_K_target = np.array([1.0, 3.0])
     active_compounds_target = np.array([True, True, True, False, True, False])
-    N_new, minus_log_K_new, x0_new, active_compounds, active_reactions = eqtk.solvers._prune_NK(
-        N, minus_log_K, x0
-    )
+    (
+        N_new,
+        minus_log_K_new,
+        x0_new,
+        active_compounds,
+        active_reactions,
+    ) = eqtk.solvers._prune_NK(N, minus_log_K, x0)
     assert np.array_equal(active_compounds, active_compounds_target)
     assert np.array_equal(N_new, N_target)
     assert np.array_equal(minus_log_K_new, minus_log_K_target)
@@ -146,9 +153,7 @@ def test_prune_AG():
     # No pruning
     for x0_val in [[1, 2, 3, 4, 5, 6], [1, 2, 0, 0, 0, 0], [0, 0, 0, 0, 0, 6]]:
         x0 = np.array(x0_val, dtype=float)
-        A_new, G_new, x0_new, active_compounds = eqtk.solvers._prune_AG(
-            A, G, x0
-        )
+        A_new, G_new, x0_new, active_compounds = eqtk.solvers._prune_AG(A, G, x0)
         assert np.array_equal(active_compounds, np.ones(6, dtype=np.bool8))
         assert np.array_equal(A_new, A)
         assert np.array_equal(G_new, G)
@@ -159,9 +164,7 @@ def test_prune_AG():
     x0_prune = np.array([0, 5], dtype=float)
     A_target = np.array([[1, 2]], dtype=float)
     G_target = np.array([2, 5], dtype=float)
-    A_new, G_new, x0_new, active_compounds = eqtk.solvers._prune_AG(
-        A, G, x0
-    )
+    A_new, G_new, x0_new, active_compounds = eqtk.solvers._prune_AG(A, G, x0)
     assert np.array_equal(
         active_compounds, np.array([0, 1, 0, 0, 1, 0], dtype=np.bool8)
     )
@@ -176,9 +179,7 @@ def test_prune_AG():
     # No pruning
     for x0_val in [[1, 1, 1], [1, 1, 0], [0, 0, 1]]:
         x0 = np.array(x0_val, dtype=float)
-        A_new, G_new, x0_new, active_compounds = eqtk.solvers._prune_AG(
-            A, G, x0
-        )
+        A_new, G_new, x0_new, active_compounds = eqtk.solvers._prune_AG(A, G, x0)
         assert np.array_equal(active_compounds, np.ones(3, dtype=np.bool8))
         assert np.array_equal(A_new, A)
         assert np.array_equal(G_new, G)
@@ -189,9 +190,7 @@ def test_prune_AG():
     x0_prune = np.array([1.0])
     A_target = np.array([[1]], dtype=float)
     G_target = np.array([0.0])
-    A_new, G_new, x0_new, active_compounds = eqtk.solvers._prune_AG(
-        A, G, x0
-    )
+    A_new, G_new, x0_new, active_compounds = eqtk.solvers._prune_AG(A, G, x0)
     assert np.array_equal(active_compounds, np.array([1, 0, 0], dtype=np.bool8))
     assert np.array_equal(A_new, A_target)
     assert np.array_equal(G_new, G_target)
@@ -202,9 +201,7 @@ def test_prune_AG():
     x0_prune = np.array([1.0])
     A_target = np.array([[1]], dtype=float)
     G_target = np.array([0.0])
-    A_new, G_new, x0_new, active_compounds = eqtk.solvers._prune_AG(
-        A, G, x0
-    )
+    A_new, G_new, x0_new, active_compounds = eqtk.solvers._prune_AG(A, G, x0)
     assert np.array_equal(active_compounds, np.array([0, 1, 0], dtype=np.bool8))
     assert np.array_equal(A_new, A_target)
     assert np.array_equal(G_new, G_target)
@@ -220,9 +217,7 @@ def test_prune_AG():
     # No pruning
     for x0_val in [[1, 1, 0, 0, 1], [0, 0, 0, 1, 1], [0, 1, 0, 0, 1], [1, 1, 1, 1, 1]]:
         x0 = np.array(x0_val, dtype=float)
-        A_new, G_new, x0_new, active_compounds = eqtk.solvers._prune_AG(
-            A, G, x0
-        )
+        A_new, G_new, x0_new, active_compounds = eqtk.solvers._prune_AG(A, G, x0)
         assert np.array_equal(active_compounds, np.ones(5, dtype=np.bool8))
         assert np.array_equal(A_new, A)
         assert np.array_equal(G_new, G)
@@ -233,9 +228,7 @@ def test_prune_AG():
     x0_prune = np.array([1], dtype=float)
     A_target = np.array([[1], [2]], dtype=float)
     G_target = np.array([3], dtype=float)
-    A_new, G_new, x0_new, active_compounds = eqtk.solvers._prune_AG(
-        A, G, x0
-    )
+    A_new, G_new, x0_new, active_compounds = eqtk.solvers._prune_AG(A, G, x0)
     assert np.array_equal(active_compounds, np.array([0, 0, 1, 0, 0], dtype=np.bool8))
     assert np.array_equal(A_new, A_target)
     assert np.array_equal(G_new, G_target)
@@ -247,9 +240,7 @@ def test_prune_AG():
     for x0_val in [[1, 1, 0, 0, 0], [0, 0, 0, 1, 0], [1, 1, 1, 1, 0]]:
         x0 = np.array(x0_val, dtype=float)
         x0_prune = x0[:-1]
-        A_new, G_new, x0_new, active_compounds = eqtk.solvers._prune_AG(
-            A, G, x0
-        )
+        A_new, G_new, x0_new, active_compounds = eqtk.solvers._prune_AG(A, G, x0)
         assert np.array_equal(
             active_compounds, np.array([1, 1, 1, 1, 0], dtype=np.bool8)
         )

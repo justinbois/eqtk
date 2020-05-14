@@ -1,6 +1,7 @@
 import numpy as np
 import eqtk
 
+
 def test_trivial():
     N = np.array([[1]]).astype(float)
     K = np.array([0.5]).astype(float)
