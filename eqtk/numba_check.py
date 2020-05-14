@@ -15,6 +15,7 @@ def numba_check():
         returned.
     """
     # If you want to test without Numba, uncomment the following line.
+    # Also useful for building docs because autodoc doesn't like Numba'd functions.
     # return False, _dummy_jit
 
     try:
