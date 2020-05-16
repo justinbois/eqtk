@@ -29,11 +29,6 @@ EQTK solves the problem of coupled equilibria among chemical species in a dilute
    case_studies/hcr.ipynb
    case_studies/competition_anisotropy.ipynb
 
-.. toctree::
-   :maxdepth: 1
-   :caption: Algorithmic details
-
-   algorithmic_details.md
 
 Indices and tables
 ==================

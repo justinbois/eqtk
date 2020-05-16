@@ -19,11 +19,11 @@ import recommonmark.parser
 # -- Project information -----------------------------------------------------
 
 project = 'EQTK'
-copyright = '2019, Justin Bois'
+copyright = '2020, Justin Bois'
 author = 'Justin Bois'
 
 # The full version, including alpha/beta/rc tags
-release = '1.0.0'
+release = '0.1.0'
 
 
 # -- General configuration ---------------------------------------------------
@@ -76,7 +76,7 @@ language = None
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'case_studies/.ipynb_checkpoints']
+exclude_patterns = ['**_build', '**Thumbs.db', '**.DS_Store', 'case_studies/.ipynb_checkpoints']
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
@@ -92,10 +92,21 @@ pygments_style = 'sphinx'
 #
 # html_theme_options = {}
 
+# If true, "Created using Sphinx" is shown in the HTML footer. Default is True.
+html_show_sphinx = False
+
+# If true, "(C) Copyright ..." is shown in the HTML footer. Default is True.
+html_show_copyright = False
+
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+
+def setup(app):
+    app.add_stylesheet('custom.css')
+
+html_logo = '_static/logo.png'
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
@@ -108,3 +119,17 @@ html_static_path = ['_static']
 # html_sidebars = {}
 #---sphinx-themes-----
 html_theme = 'sphinx_rtd_theme'
+
+html_theme_options = {
+    'analytics_id': 'UA-166791717-1',  #  Provided by Google in your dashboard
+    'display_version': False,
+    'logo_only': True,
+    'prev_next_buttons_location': 'bottom',
+    'style_external_links': False,
+    'style_nav_header_background': '#827F7F',
+    # Toc options
+    'collapse_navigation': True,
+    'sticky_navigation': True,
+    'navigation_depth': 4,
+}
+

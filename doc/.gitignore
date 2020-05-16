@@ -1,4 +1,4 @@
 Makefile
 make.bat
-_*
+_build
 .DS_Store
