@@ -15,61 +15,61 @@ The equilibrium conditions are
 
 .. math::
 
-	&K_1 = \frac{c_\mathrm{A}\,c_\mathrm{B}}{c_\mathrm{AB}},\\
-	&K_2 = \frac{c_\mathrm{A}\,c_\mathrm{C}}{c_\mathrm{AC}}.
+    &K_1 = \frac{c_\mathrm{A}\,c_\mathrm{B}}{c_\mathrm{AB}},\\
+    &K_2 = \frac{c_\mathrm{A}\,c_\mathrm{C}}{c_\mathrm{AC}}.
 
 Additionally, three conservation laws, corresponding to conservation of A, B, and C, must be satisfied.
 
 .. math::
 
-	&c_\mathrm{A}^0 = c_\mathrm{A} + c_\mathrm{AB} + c_\mathrm{AC},\\
-	&c_\mathrm{B}^0 = c_\mathrm{B} + c_\mathrm{AB},\\
-	&c_\mathrm{C}^0 = c_\mathrm{C} + c_\mathrm{AC}.
+    &c_\mathrm{A}^0 = c_\mathrm{A} + c_\mathrm{AB} + c_\mathrm{AC},\\
+    &c_\mathrm{B}^0 = c_\mathrm{B} + c_\mathrm{AB},\\
+    &c_\mathrm{C}^0 = c_\mathrm{C} + c_\mathrm{AC}.
 
 Together, these five equations define the equilibrium. We can write these conditions in terms of the stoichiometric matrix :math:`\mathsf{N}` and conservation matrix :math:`\mathsf{A}`. The stoichiometric matrix corresponding to the chemical reactions is
 
 .. math::
 
-	\mathsf{N} = \begin{pmatrix}
-	1 & 1 & 0 & -1 & 0 \\	
-	1 & 0 & 1 & 0 & -1 
-	\end{pmatrix}.
+    \mathsf{N} = \begin{pmatrix}
+    1 & 1 & 0 & -1 & 0 \\
+    1 & 0 & 1 & 0 & -1 
+    \end{pmatrix}.
 
 The conservation matrix :math:`\mathsf{A}` has rows that span the null space of :math:`\mathsf{N}`.
 
 .. math::
 
-	\mathsf{A} = \begin{pmatrix}
-	1 & 0 & 0 & 1 & 0 \\	
-	0 & 1 & 0 & 1 & 1 \\
-	0 & 0 & 1 & 0 & 1
-	\end{pmatrix}.
+    \mathsf{A} = \begin{pmatrix}
+    1 & 0 & 0 & 1 & 0 \\
+    0 & 1 & 0 & 1 & 1 \\
+    0 & 0 & 1 & 0 & 1
+    \end{pmatrix}.
 
 If we define 
 
 .. math::
 
-	&\mathbf{c} = (c_\mathrm{A}, c_\mathrm{B}, c_\mathrm{C}, c_\mathrm{AB}, c_\mathrm{AC})^\mathsf{T},\\
-	&\mathbf{c}^0 = (c_\mathrm{A}^0, c_\mathrm{B}^0, c_\mathrm{C}^0, c_\mathrm{AB}^0, c_\mathrm{AC}^0)^\mathsf{T},
+    &\mathbf{c} = (c_\mathrm{A}, c_\mathrm{B}, c_\mathrm{C}, c_\mathrm{AB}, c_\mathrm{AC})^\mathsf{T},\\
+    &\mathbf{c}^0 = (c_\mathrm{A}^0, c_\mathrm{B}^0, c_\mathrm{C}^0, c_\mathrm{AB}^0, c_\mathrm{AC}^0)^\mathsf{T},
 
 the equilibrium conditions are
 
 .. math::
 
-	&K_1 = \prod_j c_j^{N_{1j}},\\
-	&K_2 = \prod_j c_j^{N_{2j}},
+    &K_1 = \prod_j c_j^{N_{1j}},\\
+    &K_2 = \prod_j c_j^{N_{2j}},
 
 or more generally
 
 .. math::
 
-	K_i = \prod_j c_j^{N_{ij}} \;\forall i.
+    K_i = \prod_j c_j^{N_{ij}} \;\forall i.
 
 The condition for conservation is
 
 .. math::
 
-	\mathsf{A}\cdot\mathbf{c} = \mathsf{A} \cdot \mathbf{c}^0.
+    \mathsf{A}\cdot\mathbf{c} = \mathsf{A} \cdot \mathbf{c}^0.
 
 
 Check of satisfaction of equilibrium and conservation conditions
@@ -79,7 +79,7 @@ The ``eqtk.eqcheck()`` function conveniently checks to make sure equilibrium and
 
 .. math::
 
-	\frac{\prod_j c_j^{N_{ij}}}{K_i} \approx 1 \;\forall i,
+    \frac{\prod_j c_j^{N_{ij}}}{K_i} \approx 1 \;\forall i,
 
 where equality is checked to some tolerance.
 
@@ -87,7 +87,7 @@ Similarly to check conservation conditions, it verifies that
 
 .. math::
 
-	\mathsf{A}\cdot\mathbf{c} - \mathsf{A} \cdot \mathbf{c}^0 \approx \mathbf{0}.
+    \mathsf{A}\cdot\mathbf{c} - \mathsf{A} \cdot \mathbf{c}^0 \approx \mathbf{0}.
 
 
 Let's use this function to verify that an equilibrium calculation was successful. To start with, we will use Numpy arrays as inputs. (In what follows, we assume EQTK, Numpy, and Pandas are all imported.)
@@ -117,8 +117,8 @@ If we instead ``N`` stored as a data frame and ``c0`` as a series or data frame,
     c0 = pd.Series(data=[1, 0.5, 0.25, 0, 0], index=names)
 
     N = pd.DataFrame(data=[[1,  1,  0, -1,  0],
-				           [1,  0,  1,  0, -1]],
-				     columns=names)
+                           [1,  0,  1,  0, -1]],
+                     columns=names)
     N['equilibrium_constant'] = [0.015, 0.003]
 
     # Solve
@@ -137,13 +137,13 @@ To get more detailed information, specifically the value of the ratio
 
 .. math::
 
-	\frac{\prod_j c_j^{N_{ij}}}{K_i}
+    \frac{\prod_j c_j^{N_{ij}}}{K_i}
 
 and the difference
 
 .. math::
 
-	\mathsf{A}\cdot\mathbf{c} - \mathsf{A} \cdot \mathbf{c}^0,
+    \mathsf{A}\cdot\mathbf{c} - \mathsf{A} \cdot \mathbf{c}^0,
 
 you can use the ``return_detailed=True`` keyword argument of ``eqtk.eqcheck()``. With this keyword argument, it returns
 
@@ -158,11 +158,11 @@ Running
 
 .. code-block:: python
 
-	eqtk.eqcheck(c, N=N, return_detailed=True)
+    eqtk.eqcheck(c, N=N, return_detailed=True)
 
 returns ::
 
-	(True,
+    (True,
     array([1., 1.]),
     array([ True,  True]),
     array([6.17794068e-17, 3.43217750e-17, 1.57451566e-16]),

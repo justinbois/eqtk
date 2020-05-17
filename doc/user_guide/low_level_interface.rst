@@ -1,6 +1,6 @@
 .. _low_level_interface:
 
-EQTK low level interfaces
+Low-level interfaces
 =========================
 
 
@@ -59,9 +59,9 @@ To have them available, we will create them a Numpy arrays. The arrays are *not*
 .. code-block:: python
 
     N = np.array([[-1,  0,  1,  0,  0,  0],
-        	      [ 1,  1,  0, -1,  0,  0],
-            	  [ 0,  2,  0,  0, -1,  0],
-            	  [ 0,  1,  1,  0,  0, -1]])
+                  [ 1,  1,  0, -1,  0,  0],
+                  [ 0,  2,  0,  0, -1,  0],
+                  [ 0,  1,  1,  0,  0, -1]])
 
     c0 = np.array([1, 1, 0, 0, 0, 0])
 
@@ -73,19 +73,19 @@ The results are:
 
 ``x0`` ::
 
-	array([[1.80476367e-05, 1.80476367e-05, 0.00000000e+00, 0.00000000e+00,
-        	0.00000000e+00, 0.00000000e+00]])
+    array([[1.80476367e-05, 1.80476367e-05, 0.00000000e+00, 0.00000000e+00,
+            0.00000000e+00, 0.00000000e+00]])
 
 ``N`` ::
 
-	array([[-1.,  0.,  1.,  0.,  0.,  0.],
-	       [ 1.,  1.,  0., -1.,  0.,  0.],
-	       [ 0.,  2.,  0.,  0., -1.,  0.],
-	       [ 0.,  1.,  1.,  0.,  0., -1.]])
+    array([[-1.,  0.,  1.,  0.,  0.,  0.],
+           [ 1.,  1.,  0., -1.,  0.,  0.],
+           [ 0.,  2.,  0.,  0., -1.,  0.],
+           [ 0.,  1.,  1.,  0.,  0., -1.]])
 
 ``logK`` ::
 
-	array([ -0.69314718, -12.53193373, -13.22508091, -15.527666  ])
+    array([ -0.69314718, -12.53193373, -13.22508091, -15.527666  ])
 
 
 Alternatively, we could create them by hand, ensuring the correct format.
@@ -93,9 +93,9 @@ Alternatively, we could create them by hand, ensuring the correct format.
 .. code-block:: python
 
     N = np.array([[-1,  0,  1,  0,  0,  0],
-        	      [ 1,  1,  0, -1,  0,  0],
-            	  [ 0,  2,  0,  0, -1,  0],
-            	  [ 0,  1,  1,  0,  0, -1]], dtype=float)
+                  [ 1,  1,  0, -1,  0,  0],
+                  [ 0,  2,  0,  0, -1,  0],
+                  [ 0,  1,  1,  0,  0, -1]], dtype=float)
 
     solvent_density = eqtk.water_density(T=293.15, units="mM")
 
@@ -110,17 +110,17 @@ Finally, we will need values of ``A`` and ``G`` for some of the calculations. To
 
 .. code-block::python
 
-	A = np.array([[1, 0, 1, 1, 0, 1],
-              	  [0, 1, 0, 1, 2, 1]], dtype=float)
+    A = np.array([[1, 0, 1, 1, 0, 1],
+                 [0, 1, 0, 1, 2, 1]], dtype=float)
 
-	G_A = 0
-	G_B = 0
-	G_C = -logK[0]
-	G_AB = logK[1]
-	G_BB = logK[2]
-	G_BC = logK[3] + G_C
+    G_A = 0
+    G_B = 0
+    G_C = -logK[0]
+    G_AB = logK[1]
+    G_BB = logK[2]
+    G_BC = logK[3] + G_C
 
-	G = np.array([G_A, G_B, G_C, G_AB, G_BB, G_BC])	
+    G = np.array([G_A, G_B, G_C, G_AB, G_BB, G_BC])
 
 
 Solve with N and K specified
@@ -130,12 +130,12 @@ For a problem where the stoichiometric matrix :math:`\mathsf{N}` and the equilib
 
 .. code-block::python
 
-	eqtk.solveNK(x0, N, logK)
+    eqtk.solveNK(x0, N, logK)
 
 The result is the natural logarithm of the dimensionless concentrations, ::
 
-	array([[-12.76103925, -13.36384703, -13.45418643, -13.59295256,
-    	    -13.50261316, -11.29036747]])
+    array([[-12.76103925, -13.36384703, -13.45418643, -13.59295256,
+            -13.50261316, -11.29036747]])
 
 It is important to note that restrictions on ``N`` and ``logK`` hold. All entries must be finite, and ``N`` must have full row rank. In the low-level interface, **these are not checked.**
 
@@ -147,12 +147,12 @@ For a problem where the stoichiometric matrix :math:`\mathsf{N}` and the free en
 
 .. code-block::python
 
-	eqtk.solveNG(x0, N, G)
+    eqtk.solveNG(x0, N, G)
 
 The result is the natural logarithm of the dimensionless concentrations, ::
 
-	array([[-12.76103925, -13.36384703, -13.45418643, -13.59295256,
-    	    -13.50261316, -11.29036747]])
+    array([[-12.76103925, -13.36384703, -13.45418643, -13.59295256,
+            -13.50261316, -11.29036747]])
 
 Again, ``N`` and ``G`` are subject to restrictions. All entries must be finite, and ``N`` must have full row rank. In the low-level interface, **these are not checked.**
 
@@ -164,11 +164,11 @@ For a problem where the conservation matrix :math:`\mathsf{A}` and the free ener
 
 .. code-block::python
 
-	eqtk.solveAG(x0, A, G)
+    eqtk.solveAG(x0, A, G)
 
 The result is the natural logarithm of the dimensionless concentrations, ::
 
-	array([[-12.76103925, -13.36384703, -13.45418643, -13.59295256,
-    	    -13.50261316, -11.29036747]])
+    array([[-12.76103925, -13.36384703, -13.45418643, -13.59295256,
+            -13.50261316, -11.29036747]])
 
 ``A`` and ``G`` are subject to restrictions. All entries must be nonnegative and finite, and ``A`` must have full row rank. In the low-level interface, **these are not checked.**

@@ -38,64 +38,64 @@ We show as an example the dissociation of oxalic acid in presence of hydroxide.
 
 .. code-block:: python
 
-	rxns = """
-	       <=> OH⁻ + H⁺    ; 1e-14
-	C₂O₄H₂ <=> C₂O₄H⁻ + H⁺ ; 0.0537
-	C₂O₄H⁻ <=> C₂O₄²⁻ + H⁺ ; 5.37e-5
-	"""
+    rxns = """
+           <=> OH⁻ + H⁺    ; 1e-14
+    C₂O₄H₂ <=> C₂O₄H⁻ + H⁺ ; 0.0537
+    C₂O₄H⁻ <=> C₂O₄²⁻ + H⁺ ; 5.37e-5
+    """
 
-	c0 = {"C₂O₄H₂": 0.1, "OH⁻": 0, "H⁺": 0, "C₂O₄H⁻": 0, "C₂O₄²⁻": 0}
+    c0 = {"C₂O₄H₂": 0.1, "OH⁻": 0, "H⁺": 0, "C₂O₄H⁻": 0, "C₂O₄²⁻": 0}
 
-	# We could first convert rxn's to N using eqtk.parse_rxns(rxns), 
-	# but don't have to.
+    # We could first convert rxn's to N using eqtk.parse_rxns(rxns), 
+    # but don't have to.
 
-	x0, N, logK, A, G, names, solvent_density, single_point = eqtk.parse_input(
-	    c0=c0,
-	    N=rxns,
-	    K=None,
-	    logK=None,
-	    A=None,
-	    G=None,
-	    names=None,
-	    units='M',
-	    solvent_density=None,
-	    T=293.15,
-	    G_units=None,
-	)
+    x0, N, logK, A, G, names, solvent_density, single_point = eqtk.parse_input(
+        c0=c0,
+        N=rxns,
+        K=None,
+        logK=None,
+        A=None,
+        G=None,
+        names=None,
+        units='M',
+        solvent_density=None,
+        T=293.15,
+        G_units=None,
+    )
 
-	print('x0:\n', x0, '\n')
-	print('N:\n', N, '\n')
-	print('logK:\n', logK, '\n')
-	print('A:\n', A, '\n')
-	print('G:\n', G, '\n')
-	print('names:\n', names, '\n')
-	print('solvent_density:\n', solvent_density, '\n')
-	print('single_point:\n', single_point)
+    print('x0:\n', x0, '\n')
+    print('N:\n', N, '\n')
+    print('logK:\n', logK, '\n')
+    print('A:\n', A, '\n')
+    print('G:\n', G, '\n')
+    print('names:\n', names, '\n')
+    print('solvent_density:\n', solvent_density, '\n')
+    print('single_point:\n', single_point)
 
 The result is ::
 
-	x0:
-	 [[0.00180476 0.         0.         0.         0.        ]] 
+    x0:
+     [[0.00180476 0.         0.         0.         0.        ]] 
 
-	N:
-	 [[ 0.  1.  1.  0.  0.]
-	 [-1.  0.  1.  1.  0.]
-	 [ 0.  0.  1. -1.  1.]] 
+    N:
+     [[ 0.  1.  1.  0.  0.]
+     [-1.  0.  1.  1.  0.]
+     [ 0.  0.  1. -1.  1.]] 
 
-	logK:
-	 [-40.26567237  -6.93908281 -13.84683809] 
+    logK:
+     [-40.26567237  -6.93908281 -13.84683809] 
 
-	A:
-	 None 
+    A:
+     None 
 
-	G:
-	 None 
+    G:
+     None 
 
-	names:
-	 ['C₂O₄H₂', 'OH⁻', 'H⁺', 'C₂O₄H⁻', 'C₂O₄²⁻'] 
+    names:
+     ['C₂O₄H₂', 'OH⁻', 'H⁺', 'C₂O₄H⁻', 'C₂O₄²⁻'] 
 
-	solvent_density:
-	 55.408916789969595 
+    solvent_density:
+     55.408916789969595 
 
-	single_point:
-	 True
+    single_point:
+     True

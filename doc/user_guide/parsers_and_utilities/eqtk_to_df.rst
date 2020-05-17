@@ -59,32 +59,32 @@ Here, we have calculated the equilibrium concentrations for a single set of init
 
 .. code-block:: python
 
-	names = ['A', 'B', 'C', 'AB', 'BB', 'BC']
-	c_series = eqtk.to_df(c=c, c0=c0, names=names, units='mM')
+    names = ['A', 'B', 'C', 'AB', 'BB', 'BC']
+    c_series = eqtk.to_df(c=c, c0=c0, names=names, units='mM')
 
 The result is ::
 
-	A__0 (mM)     1.000000
-	B__0 (mM)     1.000000
-	C__0 (mM)     0.000000
-	AB__0 (mM)    0.000000
-	BB__0 (mM)    0.000000
-	BC__0 (mM)    0.000000
-	A (mM)        0.188228
-	B (mM)        0.077504
-	C (mM)        0.009411
-	AB (mM)       0.729418
-	BB (mM)       0.060068
-	BC (mM)       0.072942
-	dtype: float64
+    A__0 (mM)     1.000000
+    B__0 (mM)     1.000000
+    C__0 (mM)     0.000000
+    AB__0 (mM)    0.000000
+    BB__0 (mM)    0.000000
+    BC__0 (mM)    0.000000
+    A (mM)        0.188228
+    B (mM)        0.077504
+    C (mM)        0.009411
+    AB (mM)       0.729418
+    BB (mM)       0.060068
+    BC (mM)       0.072942
+    dtype: float64
 
 If, however, we consider a set of concentrations, we get a DataFrame when converting using ``eqtk.to_df()``.
 
 .. code-block:: python
 
     c0 = np.array([[1.0, 1.0, 0, 0, 0, 0],
-    			   [0.5, 0.5, 0, 0, 0, 0],
-    			   [0.1, 0.1, 0, 0, 0, 0]])
+                   [0.5, 0.5, 0, 0, 0, 0],
+                   [0.1, 0.1, 0, 0, 0, 0]])
 
     c = eqtk.solve(c0=c0, N=N, K=K, units='mM')
 
@@ -92,10 +92,10 @@ If, however, we consider a set of concentrations, we get a DataFrame when conver
 
 The result is has columns ``['A__0 (mM)', 'B__0 (mM)', 'C__0 (mM)', 'AB__0 (mM)', 'BB__0 (mM)', 'BC__0 (mM)', 'A (mM)', 'B (mM)', 'C (mM)', 'AB (mM)', 'BB (mM)', 'BC (mM)']`` and has three rows, one for each set of concentrations. Executing ``print(c_df[c_df.columns[~c_df.columns.str.contains('__0')]])`` gives ::
 
-	     A (mM)    B (mM)    C (mM)   AB (mM)   BB (mM)   BC (mM)
-	0  0.188228  0.077504  0.009411  0.729418  0.060068  0.072942
-	1  0.118379  0.057704  0.005919  0.341547  0.033297  0.034155
-	2  0.039494  0.026946  0.001975  0.053211  0.007261  0.005321
+         A (mM)    B (mM)    C (mM)   AB (mM)   BB (mM)   BC (mM)
+    0  0.188228  0.077504  0.009411  0.729418  0.060068  0.072942
+    1  0.118379  0.057704  0.005919  0.341547  0.033297  0.034155
+    2  0.039494  0.026946  0.001975  0.053211  0.007261  0.005321
 
 
 
