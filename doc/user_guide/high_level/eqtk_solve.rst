@@ -12,7 +12,7 @@ In what follows, we will assume that Numpy, Pandas, and EQTK have been imported 
 Example problem
 ---------------
 
-As we demonstrate the usage of ``eqtk.solve()``, it is useful to have an example in mind. We will use the example from the :ref:`core concepts <Core concepts>` part of the user guide (which you should read if you have not already. The chemical reactions and associated equilibrium constants for that example are
+As we demonstrate the usage of ``eqtk.solve()``, it is useful to have an example in mind. We will use the example from the :ref:`core concepts <Core concepts>` part of the user guide (which you should read if you have not already). The chemical reactions and associated equilibrium constants for that example are
 
 .. math::
     \begin{array}{lcl}
