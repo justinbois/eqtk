@@ -126,7 +126,7 @@ html_theme_options = {
     'logo_only': True,
     'prev_next_buttons_location': 'bottom',
     'style_external_links': False,
-    'style_nav_header_background': '#827F7F',
+    'style_nav_header_background': '#F0F0F0',
     # Toc options
     'collapse_navigation': True,
     'sticky_navigation': True,
