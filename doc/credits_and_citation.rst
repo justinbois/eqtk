@@ -1,7 +1,7 @@
 Credits
 =======
 
-Most of EQTK was written by `Justin Bois <http://bois.caltech.edu>`_. This project began in the laboratory of `Niles Pierce <http://piercelab.caltech.edu/>`_ and `Caltech <http://caltech.edu/>`_. Brian Wolfe was a key collaborator in early development. Mark Fornace, Nick Porubsky, Grany Roy, and Michaelangelo Lucas all provided valuable advice and discussion.
+Most of EQTK was written by `Justin Bois <http://bois.caltech.edu>`_. This project began in the laboratory of `Niles Pierce <http://piercelab.caltech.edu/>`_ and `Caltech <http://caltech.edu/>`_. Brian Wolfe was a key collaborator in early development. Mark Fornace, Nick Porubsky, Grant Roy, and Michaelangelo Lucas all provided valuable advice and discussion.
 
 Citing EQTK
 ===========
