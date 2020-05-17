@@ -19,8 +19,21 @@ In the meantime, you can cite the paper where the basis of the core algorithm fi
       volume = {49},
       number = {1},
       pages = {64--88},
-      author = {Robert M. Dirks and Justin S. Bois and Joseph M. Schaeffer and Erik Winfree and Niles A.     Pierce},
+      author = {Robert M. Dirks and Justin S. Bois and Joseph M. Schaeffer and Erik Winfree and Niles A. Pierce},
       title = {Thermodynamic analysis of interacting nucleic acid strands},
       journal = {SIAM Review}
     }
 
+Please also cite the DOI for the version you use in your research, `https://doi.org/10.22002/D1.1430 <https://doi.org/10.22002/D1.1430>`_. Here is a citation for the current version, 0.1.1. 
+
+.. code-block:: bibtex
+
+    @misc{https://doi.org/10.22002/d1.1430,
+      doi = {10.22002/D1.1430},
+      url = {https://data.caltech.edu/records/1430},
+      author = {Bois, Justin S.},
+      keywords = {Github},
+      title = {justinbois/eqtk: Version 0.1.1},
+      publisher = {CaltechDATA},
+      year = {2020}
+    }
