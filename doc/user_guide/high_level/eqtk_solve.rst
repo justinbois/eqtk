@@ -259,7 +259,7 @@ EQTK also does not assume an ordering to the columns. Therefore, the initial con
 
 .. note:: 
 
-    The names of the indices for ``c0`` as a Series and the columns for ``c0`` as a DataFrame are the names of the chemical species, *not*, e.g., ``'[A]__0 (mM)'``. While such input may be convenient, as it allows for specification of units and matching outputs, this is not allowed. The user should explicitly supply the ``units`` keyword argument and ensure that *all* units of concentrations and equilibrium constants are consistent with those concentration units. It the user could specify units within the ``c0`` Series or DataFrame, the equilibrium constants units could be ambiguous, which is why the concentration units may only be specified with the ``units`` keyword argument.
+    The names of the indices for ``c0`` as a Series and the columns for ``c0`` as a DataFrame are the names of the chemical species, *not*, e.g., ``'[A]__0 (mM)'``. While such input may be convenient, as it allows for specification of units and matching outputs, this is not allowed. The user should explicitly supply the ``units`` keyword argument and ensure that *all* units of concentrations and equilibrium constants are consistent with those concentration units. If the user could specify units within the ``c0`` Series or DataFrame, the equilibrium constants units could be ambiguous, which is why the concentration units may only be specified with the ``units`` keyword argument.
 
 When we call ``eqtk.solve()``, we do not include the argument ``K`` because the equilibrium constants are already included in the inputted data frame. Executing
 
