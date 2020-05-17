@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 from codecs import open
 from os import path
 
-__version__ = '0.0.1'
+__version__ = '0.1.0'
 
 here = path.abspath(path.dirname(__file__))
 
@@ -24,9 +24,9 @@ setup(
     long_description=long_description,
     url='https://github.com/justinbois/eqtk_dev.git',
     download_url='https://github.com/justinbois/eqtk_dev/tarball/' + __version__,
-    license='BSD',
+    license='MIT',
     classifiers=[
-      'Development Status :: 3 - Alpha',
+      'Development Status :: 4 - Beta',
       'Intended Audience :: Developers',
       'Programming Language :: Python :: 3',
     ],
