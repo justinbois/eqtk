@@ -17,7 +17,7 @@ Problem definition
 
 EQTK calculates the steady state of a closed dilute solution containing reacting chemical species in cases where all chemical reactions are reversible (finite equilibrium constants). By "closed," we mean that no material may flow into or out of the solution. Energy may in general enter or exit. In the case where the system is also closed to energy, the steady state is an equilibrium. We will use the terms equilibrium and steady state interchangeably going forward.
 
-Importantly, **all chemical reactions must be reversible.** EQTK does *not* solve steady states for chemical reaction systems in which one or more reaction is irreversible. Furthermore, as we will discuss below, the chemical kinetics of all reactions must be governed by the `law of mass action`_, which implies that all assumptions underlying the law of mass action apply to systems that EQTK handles. Finally, the **reactants must all be in solution**. No reactants can be in a different phase. For example, solid or gaseous phases are not allowed.
+Importantly, **all chemical reactions must be reversible.** EQTK does *not* solve steady states for chemical reaction systems in which one or more reaction is irreversible. Furthermore, as we will discuss below, the chemical kinetics of all reactions must be governed by the `law of mass action`_, which implies that all assumptions underlying the law of mass action apply to systems that EQTK handles. Note, though, that EQTK does *not* handle gas phase reactions.
 
 
 The stoichiometric matrix
