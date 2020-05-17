@@ -139,8 +139,8 @@ Here is a plot of the result.
         y_axis_label="fraction bound",
         x_axis_label="[A]₀ (mM)"
     )
-    p.line(c0[:,0], frac_B_bound, line_width=2, legend="B")
-    p.line(c0[:,0], frac_C_bound, line_width=2, color="orange", legend="C")
+    p.line(c0[:,0], frac_B_bound, line_width=2, legend_label="B")
+    p.line(c0[:,0], frac_C_bound, line_width=2, color="orange", legend_label="C")
     p.legend.location = 'center_right'
 
     bokeh.io.show(p)

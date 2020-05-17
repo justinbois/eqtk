@@ -147,10 +147,10 @@ A plot of the relative abundances computed from ``c`` is shown below.
         x_range=[0, 14],
     )
 
-    p.line(c['pH'], c['H₃D⁺'], color='#4c78a8', line_width=2, legend="H₃D⁺")
-    p.line(c['pH'], c['H₂D'], color='#f58518', line_width=2, legend="H₂D")
-    p.line(c['pH'], c['HD⁻'], color='#e45756', line_width=2, legend="HD⁻")
-    p.line(c['pH'], c['D²⁻'], color='#72b7b2', line_width=2, legend="D²⁻")
+    p.line(c['pH'], c['H₃D⁺'], color='#4c78a8', line_width=2, legend_label="H₃D⁺")
+    p.line(c['pH'], c['H₂D'], color='#f58518', line_width=2, legend_label="H₂D")
+    p.line(c['pH'], c['HD⁻'], color='#e45756', line_width=2, legend_label="HD⁻")
+    p.line(c['pH'], c['D²⁻'], color='#72b7b2', line_width=2, legend_label="D²⁻")
 
     p.legend.location = 'center_right'
 
