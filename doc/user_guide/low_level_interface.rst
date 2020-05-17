@@ -108,7 +108,7 @@ Alternatively, we could create them by hand, ensuring the correct format.
 
 Finally, we will need values of ``A`` and ``G`` for some of the calculations. To keep the results consistent, we will calculate them now.
 
-.. code-block::python
+.. code-block:: python
 
     A = np.array([[1, 0, 1, 1, 0, 1],
                  [0, 1, 0, 1, 2, 1]], dtype=float)
@@ -128,9 +128,10 @@ Solve with N and K specified
 
 For a problem where the stoichiometric matrix :math:`\mathsf{N}` and the equilibrium constants :math:`\mathbf{K}` are specified, use eqtk.solveNK()`. The first argument is ``x0``, described above. The second argument is the stoichiometric matrix ``N``, as a 2D Numpy array of *floats*. The third argument is a 1D Numpy array of the *natural logarithm* of the equilibrium constants with a float data type.
 
-.. code-block::python
+.. code-block:: python
 
     eqtk.solveNK(x0, N, logK)
+
 
 The result is the natural logarithm of the dimensionless concentrations, ::
 
@@ -145,7 +146,7 @@ Solve with N and G specified
 
 For a problem where the stoichiometric matrix :math:`\mathsf{N}` and the free energies of the chemical species, :math:`\mathbf{G}`, are specified, use eqtk.solveNG()`. The first argument is ``x0``, described above. The second argument is the stoichiometric matrix ``N``, as a 2D Numpy array of *floats*. The third argument is a 1D Numpy array free energies with a float data type.
 
-.. code-block::python
+.. code-block:: python
 
     eqtk.solveNG(x0, N, G)
 
@@ -162,7 +163,7 @@ Solve with A and G specified
 
 For a problem where the conservation matrix :math:`\mathsf{A}` and the free energies of the chemical species, :math:`\mathbf{G}`, are specified, use eqtk.solveAG()`. The first argument is ``x0``, described above. The second argument is the conservation matrix ``A``, as a 2D Numpy array of *floats*. The third argument is a 1D Numpy array free energies with a float data type.
 
-.. code-block::python
+.. code-block:: python
 
     eqtk.solveAG(x0, A, G)
 
