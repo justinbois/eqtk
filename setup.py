@@ -20,10 +20,10 @@ dependency_links = [x.strip().replace('git+', '') for x in all_reqs if x.startsw
 setup(
     name='eqtk',
     version=__version__,
-    description='Equilibrium toolkir',
+    description='Equilibrium toolkit',
     long_description=long_description,
-    url='https://github.com/justinbois/eqtk_dev.git',
-    download_url='https://github.com/justinbois/eqtk_dev/tarball/' + __version__,
+    url='https://eqtk.github.io/',
+    download_url='https://github.com/justinbois/eqtk/tarball/' + __version__,
     license='MIT',
     classifiers=[
       'Development Status :: 4 - Beta',
