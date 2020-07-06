@@ -126,7 +126,7 @@ We can write the equilibrium expression in a more compact form.
 Conservation laws
 -----------------
 
-If :math:`\mathsf{N}` is square (:math:`n = r`), then the equilibrium concentrations are immediately attained by solving the linear system
+If :math:`\mathsf{N}` is square (:math:`n = r`), then the equilibrium concentrations are immediately obtained by solving the linear system
 
 .. math::
   \ln \mathbf{K} = \mathsf{N} \cdot \ln \mathbf{c}.
@@ -166,7 +166,7 @@ The necessary ingredients to fully specify an equilibrium calculation are now cl
 - The :math:`r` equilibrium constants, :math:`\mathbf{K}` (positive and finite).
 - The :math:`n` initial concentrations, :math:`\mathbf{c}^0` (nonnegative and finite).
 
-It is not necessary to specify the conservation matrix :math:`\mathsf{A}`, as it can be calculated from the null space of the stoichiometric matric :math:`\mathsf{N}`.
+It is not necessary to specify the conservation matrix :math:`\mathsf{A}`, as it can be calculated from the null space of the stoichiometric matrix :math:`\mathsf{N}`.
 
 
 Elemental conservation matrices
