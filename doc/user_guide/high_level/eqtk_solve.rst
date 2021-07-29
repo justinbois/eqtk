@@ -114,7 +114,7 @@ We must also specify the equilibrium constants as a Numpy array if the stoichiom
 
     K = np.array([0.05, 0.02, 0.1, 0.01])
 
-Entry ``K[i]`` corresponds to the chemical reaction given by the ``i``th row of the stoichiometric matrix ``N``.
+Entry ``K[i]`` corresponds to the chemical reaction given by the *i*th row of the stoichiometric matrix ``N``.
 
 We can now solve for the equilibrium concentrations
 
@@ -205,7 +205,7 @@ The columns with ``__0`` indicate the initial conditions used in the calculation
 
 .. note::
     
-    The units are given in parentheses next to the brackets (denoting concentration) around the species name. If the ``units`` keyword argument is ``None``, the phase ``mole fraction`` appears in the parentheses.
+    The units are given in parentheses next to the brackets (denoting concentration) around the species name. If the ``units`` keyword argument is ``None``, the phrase ``mole fraction`` appears in the parentheses.
 
 
 N given as a Pandas DataFrame

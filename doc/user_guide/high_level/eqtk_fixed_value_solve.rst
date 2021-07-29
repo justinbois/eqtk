@@ -51,7 +51,7 @@ We can conveniently specify the chemical reactions and species using EQTK's pars
 Initial and fixed concentrations
 --------------------------------
 
-The initial concentrations of all species, $\mathbf{c}^0$, is specified the same as for ``eqtk.solve()``. For this calculation, we will begin with 1 mM H₂D.
+The initial concentrations of all species, :math:`\mathbf{c}^0`, is specified the same as for ``eqtk.solve()``. For this calculation, we will begin with 1 mM H₂D.
 
 .. code-block:: python
 

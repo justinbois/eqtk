@@ -137,7 +137,8 @@ Here is a plot of the result.
         height=250,
         width=400,
         y_axis_label="fraction bound",
-        x_axis_label="[A]₀ (mM)"
+        x_axis_label="[A]₀ (mM)",
+        x_range=[0, 2],
     )
     p.line(c0[:,0], frac_B_bound, line_width=2, legend_label="B")
     p.line(c0[:,0], frac_C_bound, line_width=2, color="orange", legend_label="C")

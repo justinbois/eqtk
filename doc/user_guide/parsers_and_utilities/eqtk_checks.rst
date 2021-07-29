@@ -15,15 +15,15 @@ The equilibrium conditions are
 
 .. math::
 
-    &K_1 = \frac{c_\mathrm{A}\,c_\mathrm{B}}{c_\mathrm{AB}},\\
+    &K_1 = \frac{c_\mathrm{A}\,c_\mathrm{B}}{c_\mathrm{AB}},\\[1em]
     &K_2 = \frac{c_\mathrm{A}\,c_\mathrm{C}}{c_\mathrm{AC}}.
 
 Additionally, three conservation laws, corresponding to conservation of A, B, and C, must be satisfied.
 
 .. math::
 
-    &c_\mathrm{A}^0 = c_\mathrm{A} + c_\mathrm{AB} + c_\mathrm{AC},\\
-    &c_\mathrm{B}^0 = c_\mathrm{B} + c_\mathrm{AB},\\
+    &c_\mathrm{A}^0 = c_\mathrm{A} + c_\mathrm{AB} + c_\mathrm{AC},\\[1em]
+    &c_\mathrm{B}^0 = c_\mathrm{B} + c_\mathrm{AB},\\[1em]
     &c_\mathrm{C}^0 = c_\mathrm{C} + c_\mathrm{AC}.
 
 Together, these five equations define the equilibrium. We can write these conditions in terms of the stoichiometric matrix :math:`\mathsf{N}` and conservation matrix :math:`\mathsf{A}`. The stoichiometric matrix corresponding to the chemical reactions is
@@ -49,14 +49,14 @@ If we define
 
 .. math::
 
-    &\mathbf{c} = (c_\mathrm{A}, c_\mathrm{B}, c_\mathrm{C}, c_\mathrm{AB}, c_\mathrm{AC})^\mathsf{T},\\
+    &\mathbf{c} = (c_\mathrm{A}, c_\mathrm{B}, c_\mathrm{C}, c_\mathrm{AB}, c_\mathrm{AC})^\mathsf{T},\\[1em]
     &\mathbf{c}^0 = (c_\mathrm{A}^0, c_\mathrm{B}^0, c_\mathrm{C}^0, c_\mathrm{AB}^0, c_\mathrm{AC}^0)^\mathsf{T},
 
 the equilibrium conditions are
 
 .. math::
 
-    &K_1 = \prod_j c_j^{N_{1j}},\\
+    &K_1 = \prod_j c_j^{N_{1j}},\\[1em]
     &K_2 = \prod_j c_j^{N_{2j}},
 
 or more generally
