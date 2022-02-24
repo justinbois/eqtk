@@ -136,15 +136,15 @@ def solve(
     tol : float, default 1e-7
         Tolerance for convergence. The absolute tolerance for a given
         initial concentration c0 (a one-dimensional array) for the
-        conservation conditions are tol * np.dot(A, c0) except when an 
-        entry in np.dot(A, c0) is zero. If that is the case for entry i, 
-        then the absolute tolerance is tol * np.max(A[i] * c0). If all 
-        entries in A[i] * c0 are zero, which only happens with c0 = 0, 
+        conservation conditions are tol * np.dot(A, c0) except when an
+        entry in np.dot(A, c0) is zero. If that is the case for entry i,
+        then the absolute tolerance is tol * np.max(A[i] * c0). If all
+        entries in A[i] * c0 are zero, which only happens with c0 = 0,
         the absolute tolerance is `tol_zero`.
     tol_zero : float, default 1e-12
-        Absolute tolerance for convergence when the initial 
-        concentrations are all zero. This cannot really be set a priori; 
-        it depends on the scale of the dimensionless concentrations. By 
+        Absolute tolerance for convergence when the initial
+        concentrations are all zero. This cannot really be set a priori;
+        it depends on the scale of the dimensionless concentrations. By
         default, assume an absolute tolerance consistent with `tol` and
         millimolar mole fractions.
     max_iters : int, default 1000
@@ -503,15 +503,15 @@ def volumetric_titration(
     tol : float, default 1e-7
         Tolerance for convergence. The absolute tolerance for a given
         initial concentration c0 (a one-dimensional array) for the
-        conservation conditions are tol * np.dot(A, c0) except when an 
-        entry in np.dot(A, c0) is zero. If that is the case for entry i, 
-        then the absolute tolerance is tol * np.max(A[i] * c0). If all 
-        entries in A[i] * c0 are zero, which only happens with c0 = 0, 
+        conservation conditions are tol * np.dot(A, c0) except when an
+        entry in np.dot(A, c0) is zero. If that is the case for entry i,
+        then the absolute tolerance is tol * np.max(A[i] * c0). If all
+        entries in A[i] * c0 are zero, which only happens with c0 = 0,
         the absolute tolerance is `tol_zero`.
     tol_zero : float, default 1e-12
-        Absolute tolerance for convergence when the initial 
-        concentrations are all zero. This cannot really be set a priori; 
-        it depends on the scale of the dimensionless concentrations. By 
+        Absolute tolerance for convergence when the initial
+        concentrations are all zero. This cannot really be set a priori;
+        it depends on the scale of the dimensionless concentrations. By
         default, assume an absolute tolerance consistent with `tol` and
         millimolar mole fractions.
     max_iters : int, default 1000
@@ -542,12 +542,13 @@ def volumetric_titration(
 
     Notes
     -----
-    .. Uses an elliptical trust region optimization to find the
-       equilibrium concentrations. See [1]_ for algorithmic details,
-       as well as definitions of the parameters associated with the
-       trust region algorithm.
-    .. In practice, the trust region parameters should not be adjusted
-       from their default values.
+    Uses an elliptical trust region optimization to find the
+   equilibrium concentrations. See [1]_ for algorithmic details,
+   as well as definitions of the parameters associated with the
+   trust region algorithm.
+
+    In practice, the trust region parameters should not be adjusted
+   from their default values.
 
     References
     ----------
@@ -824,15 +825,15 @@ def fixed_value_solve(
     tol : float, default 1e-7
         Tolerance for convergence. The absolute tolerance for a given
         initial concentration c0 (a one-dimensional array) for the
-        conservation conditions are tol * np.dot(A, c0) except when an 
-        entry in np.dot(A, c0) is zero. If that is the case for entry i, 
-        then the absolute tolerance is tol * np.max(A[i] * c0). If all 
-        entries in A[i] * c0 are zero, which only happens with c0 = 0, 
+        conservation conditions are tol * np.dot(A, c0) except when an
+        entry in np.dot(A, c0) is zero. If that is the case for entry i,
+        then the absolute tolerance is tol * np.max(A[i] * c0). If all
+        entries in A[i] * c0 are zero, which only happens with c0 = 0,
         the absolute tolerance is `tol_zero`.
     tol_zero : float, default 1e-12
-        Absolute tolerance for convergence when the initial 
-        concentrations are all zero. This cannot really be set a priori; 
-        it depends on the scale of the dimensionless concentrations. By 
+        Absolute tolerance for convergence when the initial
+        concentrations are all zero. This cannot really be set a priori;
+        it depends on the scale of the dimensionless concentrations. By
         default, assume an absolute tolerance consistent with `tol` and
         millimolar mole fractions.
     max_iters : int, default 1000
@@ -863,12 +864,13 @@ def fixed_value_solve(
 
     Notes
     -----
-    .. Uses an elliptical trust region optimization to find the
-       equilibrium concentrations. See [1]_ for algorithmic details,
-       as well as definitions of the parameters associated with the
-       trust region algorithm.
-    .. In practice, the trust region parameters should not be adjusted
-       from their default values.
+    Uses an elliptical trust region optimization to find the
+    equilibrium concentrations. See [1]_ for algorithmic details,
+    as well as definitions of the parameters associated with the
+    trust region algorithm.
+
+    In practice, the trust region parameters should not be adjusted
+    from their default values.
 
     References
     ----------
@@ -1115,7 +1117,7 @@ def _tolerance(tol, tol_zero, A, x0):
     set tol_zero.
 
     tol_zero cannot really be set a priori; it depends on the scale of
-    the dimensionless concentrations. By default, we assume mole 
+    the dimensionless concentrations. By default, we assume mole
     fractions consistent with millimolar concentrations.
     """
     abs_tol = np.empty(len(A))
@@ -1413,15 +1415,15 @@ def solveNK(
     tol : float, default 1e-7
         Tolerance for convergence. The absolute tolerance for a given
         initial concentration c0 (a one-dimensional array) for the
-        conservation conditions are tol * np.dot(A, c0) except when an 
-        entry in np.dot(A, c0) is zero. If that is the case for entry i, 
-        then the absolute tolerance is tol * np.max(A[i] * c0). If all 
-        entries in A[i] * c0 are zero, which only happens with c0 = 0, 
+        conservation conditions are tol * np.dot(A, c0) except when an
+        entry in np.dot(A, c0) is zero. If that is the case for entry i,
+        then the absolute tolerance is tol * np.max(A[i] * c0). If all
+        entries in A[i] * c0 are zero, which only happens with c0 = 0,
         the absolute tolerance is `tol_zero`.
     tol_zero : float, default 1e-12
-        Absolute tolerance for convergence when the initial 
-        concentrations are all zero. This cannot really be set a priori; 
-        it depends on the scale of the dimensionless concentrations. By 
+        Absolute tolerance for convergence when the initial
+        concentrations are all zero. This cannot really be set a priori;
+        it depends on the scale of the dimensionless concentrations. By
         default, assume an absolute tolerance consistent with `tol` and
         millimolar mole fractions.
     max_iters : int, default 1000
@@ -1571,15 +1573,15 @@ def solveNG(
     tol : float, default 1e-7
         Tolerance for convergence. The absolute tolerance for a given
         initial concentration c0 (a one-dimensional array) for the
-        conservation conditions are tol * np.dot(A, c0) except when an 
-        entry in np.dot(A, c0) is zero. If that is the case for entry i, 
-        then the absolute tolerance is tol * np.max(A[i] * c0). If all 
-        entries in A[i] * c0 are zero, which only happens with c0 = 0, 
+        conservation conditions are tol * np.dot(A, c0) except when an
+        entry in np.dot(A, c0) is zero. If that is the case for entry i,
+        then the absolute tolerance is tol * np.max(A[i] * c0). If all
+        entries in A[i] * c0 are zero, which only happens with c0 = 0,
         the absolute tolerance is `tol_zero`.
     tol_zero : float, default 1e-12
-        Absolute tolerance for convergence when the initial 
-        concentrations are all zero. This cannot really be set a priori; 
-        it depends on the scale of the dimensionless concentrations. By 
+        Absolute tolerance for convergence when the initial
+        concentrations are all zero. This cannot really be set a priori;
+        it depends on the scale of the dimensionless concentrations. By
         default, assume an absolute tolerance consistent with `tol` and
         millimolar mole fractions.
     max_iters : int, default 1000
@@ -1733,15 +1735,15 @@ def solveAG(
     tol : float, default 1e-7
         Tolerance for convergence. The absolute tolerance for a given
         initial concentration c0 (a one-dimensional array) for the
-        conservation conditions are tol * np.dot(A, c0) except when an 
-        entry in np.dot(A, c0) is zero. If that is the case for entry i, 
-        then the absolute tolerance is tol * np.max(A[i] * c0). If all 
-        entries in A[i] * c0 are zero, which only happens with c0 = 0, 
+        conservation conditions are tol * np.dot(A, c0) except when an
+        entry in np.dot(A, c0) is zero. If that is the case for entry i,
+        then the absolute tolerance is tol * np.max(A[i] * c0). If all
+        entries in A[i] * c0 are zero, which only happens with c0 = 0,
         the absolute tolerance is `tol_zero`.
     tol_zero : float, default 1e-12
-        Absolute tolerance for convergence when the initial 
-        concentrations are all zero. This cannot really be set a priori; 
-        it depends on the scale of the dimensionless concentrations. By 
+        Absolute tolerance for convergence when the initial
+        concentrations are all zero. This cannot really be set a priori;
+        it depends on the scale of the dimensionless concentrations. By
         default, assume an absolute tolerance consistent with `tol` and
         millimolar mole fractions.
     max_iters : int, default 1000

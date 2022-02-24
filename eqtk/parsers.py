@@ -778,8 +778,9 @@ def _dict_to_df(c):
         for ashape in array_shapes:
             if len(ashape) != 1:
                 raise ValueError(err_str)
-        if not np.all(array_shapes == array_shapes[0]):
-            raise ValueError(err_str)
+        for ashape in array_shapes:
+            if ashape != array_shapes[0]:
+                raise ValueError(err_str)
         c = pd.DataFrame(data=c)
 
     return c

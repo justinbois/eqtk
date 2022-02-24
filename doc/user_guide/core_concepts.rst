@@ -89,7 +89,7 @@ Equilibrium constants
 For a set of chemical reactions, we define the net rates of the chemical reactions by the :math:`r`-vector :math:`\mathbf{v}`.  The dynamics of the concentrations of the chemical species, denoted by the :math:`n`-vector :math:`\mathbf{c}`, evolve according to
 
 .. math::
-  \frac{\mathrm{d}\mathbf{c}}{\mathrm{d}t} = \mathsf{N}^\mathsf{T} \cdot \mathbf{v},
+  \frac{\mathrm{d}\mathbf{c}}{\mathrm{d}t} = \mathsf{N}^\mathsf{T} \cdot \mathbf{v}.
 
 For dilute solutions, the law of mass action gives
 
