@@ -762,7 +762,7 @@ def _dict_to_df(c):
         [
             float
             if type(value)
-            in [float, int, np.float64, np.float32, np.float128, np.float, np.float16]
+            in [float, int, np.half, np.single, np.double, np.longdouble]
             else type(value)
             for _, value in c.items()
         ]
@@ -1038,7 +1038,7 @@ def _check_names_df(names, names_from_df):
         for name in names:
             if name not in names_from_df:
                 raise ValueError(
-                    "Mismatch in provided names of chemical species. '{name}' is problematic."
+                    f"Mismatch in provided names of chemical species. '{name}' is problematic."
                 )
 
     return list(names)
