@@ -1036,7 +1036,7 @@ def _volumetric_to_c0(c0, c0_titrant, vol_titrant):
 def _boolean_index(a, b, n_true):
     """Returns a[b] where b is a Boolean array."""
     # if n_true == 0:
-    #     return np.array([np.float64(x) for x in range(0)])
+    #     return np.array([np.double(x) for x in range(0)])
 
     out = np.empty(n_true)
     j = 0
@@ -1280,8 +1280,8 @@ def _prune_NK(N, minus_log_K, x0):
     else:
         # Use trick to get typed empty list
         # http://numba.pydata.org/numba-doc/latest/user/troubleshoot.html#my-code-has-an-untyped-list-problem
-        N_new = np.array([np.float64(x) for x in range(0)]).reshape((1, 0))
-        minus_log_K_new = np.array([np.float64(x) for x in range(0)])
+        N_new = np.array([np.double(x) for x in range(0)]).reshape((1, 0))
+        minus_log_K_new = np.array([np.double(x) for x in range(0)])
         x0_new = x0
 
     return N_new, minus_log_K_new, x0_new, active_compounds, active_reactions
@@ -1622,7 +1622,7 @@ def solveNG(
 
     logx = np.empty_like(x0)
 
-    dummy_minus_log_K = np.ones(N.shape[0], dtype=np.float64)
+    dummy_minus_log_K = np.ones(N.shape[0], dtype=np.double)
 
     for i_point in range(x0.shape[0]):
         N_new, dummy_throwaway, x0_new, active_compounds, _ = _prune_NK(

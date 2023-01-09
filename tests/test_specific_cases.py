@@ -6,7 +6,7 @@ def test_binary_binding_3():
     N = np.array([[-1, -1, 1]])
     K = np.array([2e3])
     A = np.array([[1, 0, 1], [0, 1, 1]])
-    G = np.array([0, 0, -np.log(K)])
+    G = np.array([0, 0, -np.log(K[0])])
     x0 = np.array([3e-3, 5e-3, 0.0])
     x = eqtk.solve(c0=x0, N=N, K=K, units="M")
 

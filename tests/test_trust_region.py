@@ -7,15 +7,15 @@ import hypothesis.extra.numpy as hnp
 
 # 1D arrays for testing functions outside of edge cases
 array_shapes = hnp.array_shapes(min_dims=1, max_dims=1, min_side=2, max_side=10)
-arrays = hnp.arrays(np.float, array_shapes, elements=hs.floats(-100, 100))
+arrays = hnp.arrays(np.double, array_shapes, elements=hs.floats(-100, 100))
 
 # 2D matrices
 array_shapes_2d = hnp.array_shapes(min_dims=2, max_dims=2, min_side=2, max_side=10)
-arrays_2d = hnp.arrays(np.float, array_shapes_2d, elements=hs.floats(-100, 100))
+arrays_2d = hnp.arrays(np.double, array_shapes_2d, elements=hs.floats(-100, 100))
 
 # Nonsquare 2D matrix (hack to get matrix and vector with correct dimensiones)
 matvec_shapes_2d = hnp.array_shapes(min_dims=2, max_dims=2, min_side=2, max_side=10)
-matvec_2d = hnp.arrays(np.float, array_shapes_2d, elements=hs.floats(-100, 100))
+matvec_2d = hnp.arrays(np.double, array_shapes_2d, elements=hs.floats(-100, 100))
 
 
 def random_pos_def(n):

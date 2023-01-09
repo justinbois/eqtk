@@ -9,11 +9,11 @@ import hypothesis.extra.numpy as hnp
 
 # 1D arrays
 array_shapes = hnp.array_shapes(min_dims=1, max_dims=1, min_side=2, max_side=10)
-arrays = hnp.arrays(np.float, array_shapes, elements=hs.floats(-100, 100))
+arrays = hnp.arrays(np.double, array_shapes, elements=hs.floats(-100, 100))
 
 # 2D matrices
 array_shapes_2d = hnp.array_shapes(min_dims=2, max_dims=2, min_side=2, max_side=10)
-arrays_2d = hnp.arrays(np.float, array_shapes_2d, elements=hs.floats(-100, 100))
+arrays_2d = hnp.arrays(np.double, array_shapes_2d, elements=hs.floats(-100, 100))
 
 
 def test_random_cases(n_random_test_cases=200, max_particles=4, max_compound_size=5):
