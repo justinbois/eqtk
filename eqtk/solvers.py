@@ -1231,7 +1231,7 @@ def _prune_NK(N, minus_log_K, x0):
 
     prev_active = x0 > 0
     active_compounds = x0 > 0
-    active_reactions = np.zeros(n_reactions, dtype=np.bool8)
+    active_reactions = np.zeros(n_reactions, dtype=np.bool_)
     done = False
     n_reactions = N.shape[0]
 
@@ -1259,7 +1259,7 @@ def _prune_NK(N, minus_log_K, x0):
 
     # Select all compounds that are in at least one active reaction
     # Can be calc'ed as np.dot(active_reactions, N != 0), but that's not numba-able
-    active_compounds = np.empty(n_compounds, dtype=np.bool8)
+    active_compounds = np.empty(n_compounds, dtype=np.bool_)
     nonzero_N = N != 0
     nonzero_N_T = nonzero_N.transpose()
     for i in range(nonzero_N_T.shape[0]):
@@ -1296,7 +1296,7 @@ def _prune_AG(A, G, x0):
     missing species.
     """
     active_constraints = np.dot(A, x0) > 0.0
-    active_compounds = np.ones(len(x0), dtype=np.bool8)
+    active_compounds = np.ones(len(x0), dtype=np.bool_)
 
     for i, act_const in enumerate(active_constraints):
         if not act_const:
