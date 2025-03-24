@@ -47,12 +47,14 @@ def lower_tri_solve(L, b):
     Solves the lower triangular system Lx = b.
     Uses column-based forward substitution, outlined in algorithm
     3.1.3 of Golub and van Loan.
+    
     Parameters
     ----------
     L : ndarray
         Square lower triangulatar matrix (including diagonal)
     b : ndarray, shape L.shape[0]
         Right hand side of Lx = b equation being solved.
+
     Returns
     -------
     x : ndarray
@@ -82,15 +84,17 @@ def lower_tri_solve(L, b):
 @jit("double[::1](double[:, ::1], double[::1])", nopython=True)
 def upper_tri_solve(U, b):
     """
-    Solves the lower triangular system Ux = b.
+    Solves the upper triangular system Ux = b.
     Uses column-based forward substitution, outlined in algorithm
     3.1.4 of Golub and van Loan.
+
     Parameters
     ----------
     U: ndarray
         Square upper triangulatar matrix (including diagonal)
     b : ndarray, shape L.shape[0]
         Right hand side of Ux = b equation being solved.
+
     Returns
     -------
     x : ndarray

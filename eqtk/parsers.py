@@ -139,24 +139,26 @@ def parse_input(
         `K[r]` is the equilibrium constant for chemical reaction r in
         units commensurate with those of `c0`. If `N` is given as a
         DataFrame with an `'equilibrium constant'` column, `K` should
-        not be supplied. If `K`is given, `A` and `G` cannot be given.
+        not be supplied. If `K` is given, `logK`, `A` and `G` cannot be
+        given.
     logK : array_like, shape (n_reactions,), default `None`
         `logK[r]` is the natural logarithm of the equilibrium constant
         for chemical reaction r. If `logK` is specified, the
         concentrations must all be dimensionless (`units=None`). If `N`
         is given as a DataFrame with a `'log equilibrium constant'`
-        column, `logK` should not be supplied. If `K` is given, `A`,
+        column, `logK` should not be supplied. If `logK` is given, `A`,
         `G`, and `K` cannot be given.
     A : array_like or DataFrame, n_compounds columns
-        Constraint matrix. If `c` is the output, then `A @ c0 = A @ c`.
-        All entries must be nonnegative and the rows of `A` must be
-        linearly independent. If entered as a DataFrame, the name of
-        chemical species `j` is `A.columns[j]`. If `A` is given, `G`
-        must be given, and `N` and `K` cannot be given.
+        Conservation matrix. If `c` is the output, then
+        `A @ c0 = A @ c`. All entries must be nonnegative and the rows
+        of `A` must be linearly independent. If entered as a DataFrame,
+        the name of chemical species `j` is `A.columns[j]`. If `A` is
+        given, `G` must be given, and `N`, `K`, and `logK` cannot be
+        given.
     G : array_like, shape (n_compounds, ), default `None`
         `G[j]` is the free energy of chemical species `j` in units
         specified by `G_units`. If `G` is given, `A` must be given, and
-        `N` and `K` cannot be given.
+        `N`, `K`, and `logK` cannot be  given.
     names : list or tuple of str, default `None`, optional
         The names of the chemical species. Names are inferred if `N` or
         `A` is given as a DataFrame, in which case `names` is

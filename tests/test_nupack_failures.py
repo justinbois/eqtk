@@ -1,6 +1,4 @@
 import json
-import pytest
-
 import numpy as np
 
 import eqtk

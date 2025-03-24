@@ -64,24 +64,26 @@ def solve(
         `K[r]` is the equilibrium constant for chemical reaction r in
         units commensurate with those of `c0`. If `N` is given as a
         DataFrame with an `'equilibrium constant'` column, `K` should
-        not be supplied. If `K` is given, `A` and `G` cannot be given.
+        not be supplied. If `K` is given, `logK`, `A` and `G` cannot be
+        given.
     logK : array_like, shape (n_reactions,), default `None`
         `logK[r]` is the natural logarithm of the equilibrium constant
         for chemical reaction r. If `logK` is specified, the
         concentrations must all be dimensionless (`units=None`). If `N`
         is given as a DataFrame with a `'log equilibrium constant'`
-        column, `logK` should not be supplied. If `K` is given, `A`,
+        column, `logK` should not be supplied. If `logK` is given, `A`,
         `G`, and `K` cannot be given.
     A : array_like or DataFrame, n_compounds columns
         Conservation matrix. If `c` is the output, then
         `A @ c0 = A @ c`. All entries must be nonnegative and the rows
         of `A` must be linearly independent. If entered as a DataFrame,
         the name of chemical species `j` is `A.columns[j]`. If `A` is
-        given, `G` must be given, and `N` and `K` cannot be given.
+        given, `G` must be given, and `N`, `K`, and `logK` cannot be
+        given.
     G : array_like, shape (n_compounds, ), default `None`
         `G[j]` is the free energy of chemical species `j` in units
         specified by `G_units`. If `G` is given, `A` must be given, and
-        `N` and `K` cannot be given.
+        `N`, `K`, and `logK` cannot be  given.
     names : list or tuple of str, default `None`, optional
         The names of the chemical species. Names are inferred if `N` or
         `A` is given as a DataFrame, in which case `names` is
@@ -374,6 +376,7 @@ def volumetric_titration(
     vol_titrant,
     N=None,
     K=None,
+    logK=None,
     A=None,
     G=None,
     names=None,
@@ -382,7 +385,6 @@ def volumetric_titration(
     solvent_density=None,
     T=293.15,
     return_log=False,
-    logK=None,
     normal_A=True,
     tol=1e-7,
     tol_zero=1e-7,
@@ -431,24 +433,26 @@ def volumetric_titration(
         `K[r]` is the equilibrium constant for chemical reaction r in
         units commensurate with those of `c0`. If `N` is given as a
         DataFrame with an `'equilibrium constant'` column, `K` should
-        not be supplied. If `K`is given, `A` and `G` cannot be given.
+        not be supplied. If `K` is given, `logK`, `A` and `G` cannot be
+        given.
     logK : array_like, shape (n_reactions,), default `None`
         `logK[r]` is the natural logarithm of the equilibrium constant
         for chemical reaction r. If `logK` is specified, the
         concentrations must all be dimensionless (`units=None`). If `N`
         is given as a DataFrame with a `'log equilibrium constant'`
-        column, `logK` should not be supplied. If `K` is given, `A`,
+        column, `logK` should not be supplied. If `logK` is given, `A`,
         `G`, and `K` cannot be given.
     A : array_like or DataFrame, n_compounds columns
         Conservation matrix. If `c` is the output, then
         `A @ c0 = A @ c`. All entries must be nonnegative and the rows
         of `A` must be linearly independent. If entered as a DataFrame,
         the name of chemical species `j` is `A.columns[j]`. If `A` is
-        given, `G` must be given, and `N` and `K` cannot be given.
+        given, `G` must be given, and `N`, `K`, and `logK` cannot be
+        given.
     G : array_like, shape (n_compounds, ), default `None`
         `G[j]` is the free energy of chemical species `j` in units
         specified by `G_units`. If `G` is given, `A` must be given, and
-        `N` and `K` cannot be given.
+        `N`, `K`, and `logK` cannot be  given.
     units : string or `None`, default `None`
         The units of the concentrations inputted as `c0`. The output is
         also in these units. Allowable values are {`None`,
@@ -757,20 +761,26 @@ def fixed_value_solve(
         `K[r]` is the equilibrium constant for chemical reaction r in
         units commensurate with those of `c0`. If `N` is given as a
         DataFrame with an `'equilibrium constant'` column, `K` should
-        not be supplied. If `K`is given, `A` and `G` cannot be given.
+        not be supplied. If `K` is given, `logK`, `A` and `G` cannot be
+        given.
     logK : array_like, shape (n_reactions,), default `None`
         `logK[r]` is the natural logarithm of the equilibrium constant
         for chemical reaction r. If `logK` is specified, the
         concentrations must all be dimensionless (`units=None`). If `N`
         is given as a DataFrame with a `'log equilibrium constant'`
-        column, `logK` should not be supplied. If `K` is given, `A`,
+        column, `logK` should not be supplied. If `logK` is given, `A`,
         `G`, and `K` cannot be given.
-    A : Not implemented.
-        Solving for equilibria with some concentrations fixed is only
-        implemented if the `N` and `K` are specified.
-    G : Not implemented.
-        Solving for equilibria with some concentrations fixed is only
-        implemented if the `N` and `K` are specified.
+    A : array_like or DataFrame, n_compounds columns
+        Conservation matrix. If `c` is the output, then
+        `A @ c0 = A @ c`. All entries must be nonnegative and the rows
+        of `A` must be linearly independent. If entered as a DataFrame,
+        the name of chemical species `j` is `A.columns[j]`. If `A` is
+        given, `G` must be given, and `N`, `K`, and `logK` cannot be
+        given.
+    G : array_like, shape (n_compounds, ), default `None`
+        `G[j]` is the free energy of chemical species `j` in units
+        specified by `G_units`. If `G` is given, `A` must be given, and
+        `N`, `K`, and `logK` cannot be  given.
     names : list or tuple of str, default `None`, optional
         The names of the chemical species. Names are inferred if `N` or
         `A` is given as a DataFrame, in which case `names` is
@@ -1231,7 +1241,7 @@ def _prune_NK(N, minus_log_K, x0):
 
     prev_active = x0 > 0
     active_compounds = x0 > 0
-    active_reactions = np.zeros(n_reactions, dtype=np.bool8)
+    active_reactions = np.zeros(n_reactions, dtype=np.bool_)
     done = False
     n_reactions = N.shape[0]
 
@@ -1259,7 +1269,7 @@ def _prune_NK(N, minus_log_K, x0):
 
     # Select all compounds that are in at least one active reaction
     # Can be calc'ed as np.dot(active_reactions, N != 0), but that's not numba-able
-    active_compounds = np.empty(n_compounds, dtype=np.bool8)
+    active_compounds = np.empty(n_compounds, dtype=np.bool_)
     nonzero_N = N != 0
     nonzero_N_T = nonzero_N.transpose()
     for i in range(nonzero_N_T.shape[0]):
@@ -1296,7 +1306,7 @@ def _prune_AG(A, G, x0):
     missing species.
     """
     active_constraints = np.dot(A, x0) > 0.0
-    active_compounds = np.ones(len(x0), dtype=np.bool8)
+    active_compounds = np.ones(len(x0), dtype=np.bool_)
 
     for i, act_const in enumerate(active_constraints):
         if not act_const:
@@ -1622,7 +1632,7 @@ def solveNG(
 
     logx = np.empty_like(x0)
 
-    dummy_minus_log_K = np.ones(N.shape[0], dtype=np.double)
+    dummy_minus_log_K = np.ones(N.shape[0], dtype=float)
 
     for i_point in range(x0.shape[0]):
         N_new, dummy_throwaway, x0_new, active_compounds, _ = _prune_NK(
